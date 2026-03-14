@@ -4,14 +4,10 @@ import qrcode
 from datetime import datetime
 import os
 import cv2
-import numpy as np
-import av
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
 # archivos
 archivo_estudiantes="estudiantes.xlsx"
 archivo_asistencia="asistencia.xlsx"
-archivo_extension="extension.xlsx"
 
 st.title("Sistema de Asistencia con QR")
 
@@ -21,8 +17,7 @@ menu=st.sidebar.selectbox("Menu",
 "Lista estudiantes",
 "Escanear QR",
 "Registrar asistencia manual",
-"Ver asistencia",
-"Extension universitaria"
+"Ver asistencia"
 ])
 
 # crear archivos si no existen
@@ -35,14 +30,6 @@ if not os.path.exists(archivo_asistencia):
     "RU","Nombre","Apellido","Fecha","Hora","Estado","Actividad"
     ])
     df.to_excel(archivo_asistencia,index=False)
-
-if not os.path.exists(archivo_extension):
-    df=pd.DataFrame(columns=[
-    "RU","Nombre","Apellido",
-    "Actividad","Fecha",
-    "Hora_inicio","Hora_fin"
-    ])
-    df.to_excel(archivo_extension,index=False)
 
 
 # -----------------------------
@@ -84,6 +71,7 @@ if menu=="Registrar estudiante":
             st.image(ruta_qr,width=200)
 
 
+
 # -----------------------------
 # LISTA ESTUDIANTES
 # -----------------------------
@@ -107,8 +95,9 @@ elif menu=="Lista estudiantes":
             st.warning("RU no encontrado")
 
 
+
 # -----------------------------
-# ESCANER QR AUTOMATICO
+# ESCANEAR QR
 # -----------------------------
 elif menu=="Escanear QR":
 
@@ -116,28 +105,28 @@ elif menu=="Escanear QR":
 
     actividad=st.text_input("Actividad (opcional)")
 
-    if "ultimo_qr" not in st.session_state:
-        st.session_state.ultimo_qr=None
+    if st.button("Activar cámara"):
 
-    class QRScanner(VideoTransformerBase):
+        detector = cv2.QRCodeDetector()
+        cap=cv2.VideoCapture(0)
 
-        def transform(self, frame):
+        st.info("Mostrando cámara. Escanea el QR")
 
-            img = frame.to_ndarray(format="bgr24")
+        frame_placeholder = st.empty()
 
-            detector = cv2.QRCodeDetector()
-            data,bbox,_ = detector.detectAndDecode(img)
+        while True:
 
-            if bbox is not None:
-                for i in range(len(bbox)):
-                    pt1=(int(bbox[i][0][0]),int(bbox[i][0][1]))
-                    pt2=(int(bbox[(i+1)%len(bbox)][0][0]),
-                         int(bbox[(i+1)%len(bbox)][0][1]))
-                    cv2.line(img,pt1,pt2,(0,255,0),3)
+            ret,frame=cap.read()
 
-            if data and data!=st.session_state.ultimo_qr:
+            if not ret:
+                st.error("No se pudo abrir la cámara")
+                break
 
-                st.session_state.ultimo_qr=data
+            data,bbox,_ = detector.detectAndDecode(frame)
+
+            frame_placeholder.image(frame,channels="BGR")
+
+            if data:
 
                 ru=data
 
@@ -174,8 +163,7 @@ elif menu=="Escanear QR":
                         "Fecha","Hora","Estado","Actividad"
                         ])
 
-                        asistencia=pd.concat([asistencia,nuevo],
-                        ignore_index=True)
+                        asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
 
                         asistencia.to_excel(
                         archivo_asistencia,index=False)
@@ -190,19 +178,12 @@ elif menu=="Escanear QR":
                 else:
                     st.error("Estudiante no encontrado")
 
-            return img
+                cap.release()
+                break
 
+        cap.release()
+        cv2.destroyAllWindows()
 
-    webrtc_streamer(
-        key="qrscanner",
-        video_transformer_factory=QRScanner,
-        media_stream_constraints={
-            "video":{
-                "facingMode":"environment"
-            },
-            "audio":False
-        }
-    )
 
 
 # -----------------------------
@@ -239,6 +220,9 @@ elif menu=="Registrar asistencia manual":
         nombre=estudiante.iloc[0]["Nombre"]
         apellido=estudiante.iloc[0]["Apellido"]
 
+        st.write("### Estudiante")
+        st.write(nombre,apellido)
+
         st.image(estudiante.iloc[0]["QR"],width=200)
 
         estado=st.selectbox("Estado",
@@ -266,11 +250,14 @@ elif menu=="Registrar asistencia manual":
 
             asistencia.to_excel(archivo_asistencia,index=False)
 
-            st.success("Asistencia registrada")
+            st.success(
+            f"Asistencia registrada: {nombre} {apellido}"
+            )
+
 
 
 # -----------------------------
-# VER ASISTENCIA
+# VER Y EDITAR ASISTENCIA
 # -----------------------------
 elif menu=="Ver asistencia":
 
@@ -280,70 +267,50 @@ elif menu=="Ver asistencia":
 
     st.dataframe(asistencia)
 
+    fecha=st.date_input("Filtrar por fecha")
+
+    if fecha:
+
+        filtro=asistencia[
+        asistencia["Fecha"].astype(str)==str(fecha)
+        ]
+
+        st.write("### Registros del día")
+        st.dataframe(filtro)
+
+    st.subheader("Modificar estado")
+
+    if len(asistencia)>0:
+
+        asistencia["registro"]=(
+        asistencia["RU"].astype(str)+" - "+
+        asistencia["Nombre"]+" "+
+        asistencia["Apellido"]+" ("+
+        asistencia["Fecha"].astype(str)+")"
+        )
+
+        seleccionado=st.selectbox(
+        "Seleccionar registro",
+        asistencia["registro"]
+        )
+
+        indice=asistencia[
+        asistencia["registro"]==seleccionado
+        ].index[0]
+
+        nuevo_estado=st.selectbox(
+        "Nuevo estado",
+        ["Presente","Tarde","Permiso","Ausente"]
+        )
+
+        if st.button("Actualizar estado"):
+
+            asistencia.loc[indice,"Estado"]=nuevo_estado
+
+            asistencia.to_excel(archivo_asistencia,index=False)
+
+            st.success("Estado actualizado")
+
     st.subheader("Resumen")
 
     st.write(asistencia["Estado"].value_counts())
-
-
-# -----------------------------
-# EXTENSION UNIVERSITARIA
-# -----------------------------
-elif menu=="Extension universitaria":
-
-    st.subheader("Registro de Actividades de Extension")
-
-    estudiantes=pd.read_excel(archivo_estudiantes)
-
-    estudiantes["nombre_completo"]=(
-    estudiantes["RU"].astype(str)+" - "+
-    estudiantes["Nombre"]+" "+estudiantes["Apellido"]
-    )
-
-    seleccionado=st.selectbox(
-    "Seleccionar estudiante",
-    estudiantes["nombre_completo"]
-    )
-
-    ru=seleccionado.split(" - ")[0]
-
-    estudiante=estudiantes[
-    estudiantes["RU"].astype(str)==ru
-    ]
-
-    nombre=estudiante.iloc[0]["Nombre"]
-    apellido=estudiante.iloc[0]["Apellido"]
-
-    actividad=st.text_input("Nombre de la actividad")
-
-    hora_inicio=st.time_input("Hora inicio")
-    hora_fin=st.time_input("Hora fin")
-
-    if st.button("Registrar actividad"):
-
-        fecha=datetime.now().date()
-
-        extension=pd.read_excel(archivo_extension)
-
-        nuevo=pd.DataFrame([[
-
-        ru,
-        nombre,
-        apellido,
-        actividad,
-        fecha,
-        hora_inicio,
-        hora_fin
-
-        ]],
-
-        columns=[
-        "RU","Nombre","Apellido",
-        "Actividad","Fecha",
-        "Hora_inicio","Hora_fin"
-        ])
-
-        extension=pd.concat([extension,nuevo],ignore_index=True)
-
-        extension.to_excel(archivo_extension,index=False)
-
-        st.success("Actividad registrada")
