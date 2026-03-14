@@ -4,6 +4,7 @@ import qrcode
 from datetime import datetime
 import os
 import cv2
+import numpy as np
 
 # archivos
 archivo_estudiantes="estudiantes.xlsx"
@@ -105,92 +106,78 @@ elif menu=="Lista estudiantes":
 
 
 # -----------------------------
-# ESCANEAR QR
+# ESCANEAR QR (CAMARA CELULAR)
 # -----------------------------
 elif menu=="Escanear QR":
 
-    st.subheader("Escaneo automático de QR")
+    st.subheader("Escanear QR con la cámara del celular")
 
     actividad=st.text_input("Actividad (opcional)")
 
-    if st.button("Activar cámara"):
+    foto = st.camera_input("Apunta la cámara al QR")
+
+    if foto is not None:
+
+        file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
+        frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
         detector = cv2.QRCodeDetector()
-        cap=cv2.VideoCapture(0)
+        data, bbox, _ = detector.detectAndDecode(frame)
 
-        st.info("Mostrando cámara. Escanea el QR")
+        if data:
 
-        frame_placeholder = st.empty()
+            ru=data
 
-        while True:
+            estudiantes=pd.read_excel(archivo_estudiantes)
 
-            ret,frame=cap.read()
+            estudiante=estudiantes[
+            estudiantes["RU"].astype(str)==ru
+            ]
 
-            if not ret:
-                st.error("No se pudo abrir la cámara")
-                break
+            if len(estudiante)>0:
 
-            data,bbox,_ = detector.detectAndDecode(frame)
+                nombre=estudiante.iloc[0]["Nombre"]
+                apellido=estudiante.iloc[0]["Apellido"]
 
-            frame_placeholder.image(frame,channels="BGR")
+                fecha=datetime.now().date()
+                hora=datetime.now().strftime("%H:%M:%S")
 
-            if data:
+                asistencia=pd.read_excel(archivo_asistencia)
 
-                ru=data
-
-                estudiantes=pd.read_excel(archivo_estudiantes)
-
-                estudiante=estudiantes[
-                estudiantes["RU"].astype(str)==ru
+                ya=asistencia[
+                (asistencia["RU"].astype(str)==ru) &
+                (asistencia["Fecha"].astype(str)==str(fecha))
                 ]
 
-                if len(estudiante)>0:
+                if len(ya)==0:
 
-                    nombre=estudiante.iloc[0]["Nombre"]
-                    apellido=estudiante.iloc[0]["Apellido"]
+                    nuevo=pd.DataFrame([[ 
+                    ru,nombre,apellido,fecha,hora,
+                    "Presente",actividad
+                    ]],
 
-                    fecha=datetime.now().date()
-                    hora=datetime.now().strftime("%H:%M:%S")
+                    columns=[
+                    "RU","Nombre","Apellido",
+                    "Fecha","Hora","Estado","Actividad"
+                    ])
 
-                    asistencia=pd.read_excel(archivo_asistencia)
+                    asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
 
-                    ya=asistencia[
-                    (asistencia["RU"].astype(str)==ru) &
-                    (asistencia["Fecha"].astype(str)==str(fecha))
-                    ]
+                    asistencia.to_excel(
+                    archivo_asistencia,index=False)
 
-                    if len(ya)==0:
-
-                        nuevo=pd.DataFrame([[ 
-                        ru,nombre,apellido,fecha,hora,
-                        "Presente",actividad
-                        ]],
-
-                        columns=[
-                        "RU","Nombre","Apellido",
-                        "Fecha","Hora","Estado","Actividad"
-                        ])
-
-                        asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
-
-                        asistencia.to_excel(
-                        archivo_asistencia,index=False)
-
-                        st.success(
-                        f"Asistencia registrada: {nombre} {apellido}"
-                        )
-
-                    else:
-                        st.warning("Ya registró asistencia hoy")
+                    st.success(
+                    f"Asistencia registrada: {nombre} {apellido}"
+                    )
 
                 else:
-                    st.error("Estudiante no encontrado")
+                    st.warning("Ya registró asistencia hoy")
 
-                cap.release()
-                break
+            else:
+                st.error("Estudiante no encontrado")
 
-        cap.release()
-        cv2.destroyAllWindows()
+        else:
+            st.warning("No se detectó QR. Intenta nuevamente.")
 
 
 # -----------------------------
