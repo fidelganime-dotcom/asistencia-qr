@@ -5,6 +5,8 @@ from datetime import datetime
 import os
 import cv2
 import numpy as np
+import av
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
 # archivos
 archivo_estudiantes="estudiantes.xlsx"
@@ -106,78 +108,101 @@ elif menu=="Lista estudiantes":
 
 
 # -----------------------------
-# ESCANEAR QR (CAMARA CELULAR)
+# ESCANER QR AUTOMATICO
 # -----------------------------
 elif menu=="Escanear QR":
 
-    st.subheader("Escanear QR con la cámara del celular")
+    st.subheader("Escaneo automático de QR")
 
     actividad=st.text_input("Actividad (opcional)")
 
-    foto = st.camera_input("Apunta la cámara al QR")
+    if "ultimo_qr" not in st.session_state:
+        st.session_state.ultimo_qr=None
 
-    if foto is not None:
+    class QRScanner(VideoTransformerBase):
 
-        file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
-        frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        def transform(self, frame):
 
-        detector = cv2.QRCodeDetector()
-        data, bbox, _ = detector.detectAndDecode(frame)
+            img = frame.to_ndarray(format="bgr24")
 
-        if data:
+            detector = cv2.QRCodeDetector()
+            data,bbox,_ = detector.detectAndDecode(img)
 
-            ru=data
+            if bbox is not None:
+                for i in range(len(bbox)):
+                    pt1=(int(bbox[i][0][0]),int(bbox[i][0][1]))
+                    pt2=(int(bbox[(i+1)%len(bbox)][0][0]),
+                         int(bbox[(i+1)%len(bbox)][0][1]))
+                    cv2.line(img,pt1,pt2,(0,255,0),3)
 
-            estudiantes=pd.read_excel(archivo_estudiantes)
+            if data and data!=st.session_state.ultimo_qr:
 
-            estudiante=estudiantes[
-            estudiantes["RU"].astype(str)==ru
-            ]
+                st.session_state.ultimo_qr=data
 
-            if len(estudiante)>0:
+                ru=data
 
-                nombre=estudiante.iloc[0]["Nombre"]
-                apellido=estudiante.iloc[0]["Apellido"]
+                estudiantes=pd.read_excel(archivo_estudiantes)
 
-                fecha=datetime.now().date()
-                hora=datetime.now().strftime("%H:%M:%S")
-
-                asistencia=pd.read_excel(archivo_asistencia)
-
-                ya=asistencia[
-                (asistencia["RU"].astype(str)==ru) &
-                (asistencia["Fecha"].astype(str)==str(fecha))
+                estudiante=estudiantes[
+                estudiantes["RU"].astype(str)==ru
                 ]
 
-                if len(ya)==0:
+                if len(estudiante)>0:
 
-                    nuevo=pd.DataFrame([[ 
-                    ru,nombre,apellido,fecha,hora,
-                    "Presente",actividad
-                    ]],
+                    nombre=estudiante.iloc[0]["Nombre"]
+                    apellido=estudiante.iloc[0]["Apellido"]
 
-                    columns=[
-                    "RU","Nombre","Apellido",
-                    "Fecha","Hora","Estado","Actividad"
-                    ])
+                    fecha=datetime.now().date()
+                    hora=datetime.now().strftime("%H:%M:%S")
 
-                    asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
+                    asistencia=pd.read_excel(archivo_asistencia)
 
-                    asistencia.to_excel(
-                    archivo_asistencia,index=False)
+                    ya=asistencia[
+                    (asistencia["RU"].astype(str)==ru) &
+                    (asistencia["Fecha"].astype(str)==str(fecha))
+                    ]
 
-                    st.success(
-                    f"Asistencia registrada: {nombre} {apellido}"
-                    )
+                    if len(ya)==0:
+
+                        nuevo=pd.DataFrame([[ 
+                        ru,nombre,apellido,fecha,hora,
+                        "Presente",actividad
+                        ]],
+
+                        columns=[
+                        "RU","Nombre","Apellido",
+                        "Fecha","Hora","Estado","Actividad"
+                        ])
+
+                        asistencia=pd.concat([asistencia,nuevo],
+                        ignore_index=True)
+
+                        asistencia.to_excel(
+                        archivo_asistencia,index=False)
+
+                        st.success(
+                        f"Asistencia registrada: {nombre} {apellido}"
+                        )
+
+                    else:
+                        st.warning("Ya registró asistencia hoy")
 
                 else:
-                    st.warning("Ya registró asistencia hoy")
+                    st.error("Estudiante no encontrado")
 
-            else:
-                st.error("Estudiante no encontrado")
+            return img
 
-        else:
-            st.warning("No se detectó QR. Intenta nuevamente.")
+
+    webrtc_streamer(
+        key="qrscanner",
+        video_transformer_factory=QRScanner,
+        media_stream_constraints={
+            "video":{
+                "facingMode":"environment"
+            },
+            "audio":False
+        }
+    )
 
 
 # -----------------------------
