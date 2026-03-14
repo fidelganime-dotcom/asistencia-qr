@@ -1,7 +1,6 @@
 streamlit
 pandas
 qrcode
-openpyxl
-streamlit-webrtc
 opencv-python-headless
-av
+openpyxl
+numpy
