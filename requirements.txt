@@ -4,3 +4,5 @@ qrcode
 opencv-python-headless
 openpyxl
 numpy
+streamlit-webrtc
+av
