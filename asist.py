@@ -24,7 +24,7 @@ def obtener_fecha_hora_exacta():
 st.set_page_config(
     page_title="Sistema de Asistencia con QR",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Ocultar sidebar por defecto
+    initial_sidebar_state="collapsed"
 )
 
 # Estilos CSS personalizados (incluye menú horizontal)
@@ -208,11 +208,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-# MENSAJE DE ADVERTENCIA SOBRE PERSISTENCIA EN STREAMLIT CLOUD
-# ------------------------------------------------------------
-st.warning("⚠️ **Nota sobre persistencia de datos:** Si ejecutas esta app en Streamlit Cloud, los archivos Excel se reiniciarán con cada nueva sesión. Para datos permanentes, considera usar una base de datos externa (Supabase, MongoDB) o ejecutar localmente.")
 
 # ------------------------------------------------------------
 # TÍTULO Y MENÚ HORIZONTAL
