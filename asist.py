@@ -46,14 +46,33 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# ESTILOS CSS MEJORADOS - BOTONES ELEGANTES Y MENÚ HORIZONTAL
+# INICIALIZAR TEMA EN SESSION STATE
 # ------------------------------------------------------------
-st.markdown("""
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"  # por defecto oscuro
+
+# ------------------------------------------------------------
+# ESTILOS CSS CON SOPORTE PARA TEMA CLARO/OSCURO
+# ------------------------------------------------------------
+st.markdown(f"""
 <style>
-    :root {
-        --bg-dark: #0e1117;
+    /* ===== TEMA OSCURO (por defecto) ===== */
+    [data-theme="dark"] {{
+        --bg-app: #0e1117;
         --bg-card: #1e2128;
         --bg-sidebar: #1a1d24;
+        --bg-radio-start: #1a1d24;
+        --bg-radio-end: #15181f;
+        --bg-radio-label: rgba(255, 255, 255, 0.03);
+        --bg-input-start: #1e2128;
+        --bg-input-end: #1a1d24;
+        --bg-card-start: #1e2128;
+        --bg-card-end: #1a1d24;
+        --bg-table-header-start: #2d3138;
+        --bg-table-header-end: #262a32;
+        --bg-table-cell-start: #1e2128;
+        --bg-table-cell-end: #1a1d24;
+        --bg-alert: linear-gradient(145deg, #1e2128, #1a1d24);
         --text-primary: #fafafa;
         --text-secondary: #b0b3b8;
         --accent: #7c3aed;
@@ -64,28 +83,60 @@ st.markdown("""
         --error: #ef4444;
         --duplicate: #f97316;
         --info: #3b82f6;
-    }
+        --glow-color: rgba(255, 255, 255, 0.3);
+    }}
 
-    .stApp {
-        background-color: var(--bg-dark);
+    /* ===== TEMA CLARO ===== */
+    [data-theme="light"] {{
+        --bg-app: #f8fafc;
+        --bg-card: #ffffff;
+        --bg-sidebar: #f1f5f9;
+        --bg-radio-start: #f1f5f9;
+        --bg-radio-end: #e2e8f0;
+        --bg-radio-label: rgba(0, 0, 0, 0.03);
+        --bg-input-start: #ffffff;
+        --bg-input-end: #f8fafc;
+        --bg-card-start: #ffffff;
+        --bg-card-end: #f1f5f9;
+        --bg-table-header-start: #e2e8f0;
+        --bg-table-header-end: #cbd5e1;
+        --bg-table-cell-start: #ffffff;
+        --bg-table-cell-end: #f8fafc;
+        --bg-alert: linear-gradient(145deg, #ffffff, #f1f5f9);
+        --text-primary: #0f172a;
+        --text-secondary: #334155;
+        --accent: #7c3aed;
+        --accent-light: #9f7aea;
+        --border: #e2e8f0;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --error: #ef4444;
+        --duplicate: #f97316;
+        --info: #3b82f6;
+        --glow-color: rgba(0, 0, 0, 0.1);
+    }}
+
+    /* Aplicar variables */
+    .stApp {{
+        background-color: var(--bg-app);
         color: var(--text-primary);
-    }
+    }}
 
     /* MENÚ HORIZONTAL CON BOTONES ELEGANTES */
-    div.row-widget.stRadio > div {
+    div.row-widget.stRadio > div {{
         flex-direction: row;
         justify-content: center;
         gap: 15px;
-        background: linear-gradient(145deg, #1a1d24, #15181f);
+        background: linear-gradient(145deg, var(--bg-radio-start), var(--bg-radio-end));
         padding: 20px 25px;
         border-radius: 60px;
         border: 1px solid rgba(124, 58, 237, 0.3);
         margin-bottom: 30px;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(124, 58, 237, 0.2);
         backdrop-filter: blur(10px);
-    }
+    }}
     
-    div.row-widget.stRadio > div label {
+    div.row-widget.stRadio > div label {{
         color: var(--text-secondary) !important;
         font-size: 1rem;
         font-weight: 500;
@@ -93,14 +144,14 @@ st.markdown("""
         border-radius: 40px;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         border: 1px solid transparent;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-radio-label);
         letter-spacing: 0.5px;
         position: relative;
         overflow: hidden;
-    }
+    }}
     
     /* Efecto de brillo en hover */
-    div.row-widget.stRadio > div label::before {
+    div.row-widget.stRadio > div label::before {{
         content: '';
         position: absolute;
         top: 50%;
@@ -108,86 +159,86 @@ st.markdown("""
         width: 0;
         height: 0;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+        background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%);
         transform: translate(-50%, -50%);
         transition: width 0.6s, height 0.6s;
         z-index: 0;
         pointer-events: none;
-    }
+    }}
     
-    div.row-widget.stRadio > div label:hover::before {
+    div.row-widget.stRadio > div label:hover::before {{
         width: 300px;
         height: 300px;
-    }
+    }}
     
-    div.row-widget.stRadio > div label:hover {
+    div.row-widget.stRadio > div label:hover {{
         filter: brightness(1.2);
         transform: translateY(-2px);
         border-color: currentColor;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    }
+    }}
 
-    /* Colores específicos para cada opción con gradientes elegantes */
-    div.row-widget.stRadio > div label:nth-child(1) {
+    /* Colores específicos para cada opción con gradientes elegantes (se mantienen fijos para consistencia) */
+    div.row-widget.stRadio > div label:nth-child(1) {{
         background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05));
         border-color: #3b82f6;
         box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(2) {
+    }}
+    div.row-widget.stRadio > div label:nth-child(2) {{
         background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.05));
         border-color: #10b981;
         box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(3) {
+    }}
+    div.row-widget.stRadio > div label:nth-child(3) {{
         background: linear-gradient(145deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.05));
         border-color: #f59e0b;
         box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(4) {
+    }}
+    div.row-widget.stRadio > div label:nth-child(4) {{
         background: linear-gradient(145deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.05));
         border-color: #ef4444;
         box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(5) {
+    }}
+    div.row-widget.stRadio > div label:nth-child(5) {{
         background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.05));
         border-color: #8b5cf6;
         box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
-    }
+    }}
 
     /* Colores para la opción activa (checked) con gradientes más intensos */
-    div.row-widget.stRadio > div label:nth-child(1) input:checked + div {
+    div.row-widget.stRadio > div label:nth-child(1) input:checked + div {{
         background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8) !important;
         color: white !important;
         box-shadow: 0 10px 20px -5px #3b82f6 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(2) input:checked + div {
+    }}
+    div.row-widget.stRadio > div label:nth-child(2) input:checked + div {{
         background: linear-gradient(135deg, #10b981, #059669, #047857) !important;
         color: white !important;
         box-shadow: 0 10px 20px -5px #10b981 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(3) input:checked + div {
+    }}
+    div.row-widget.stRadio > div label:nth-child(3) input:checked + div {{
         background: linear-gradient(135deg, #f59e0b, #d97706, #b45309) !important;
         color: white !important;
         box-shadow: 0 10px 20px -5px #f59e0b !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(4) input:checked + div {
+    }}
+    div.row-widget.stRadio > div label:nth-child(4) input:checked + div {{
         background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c) !important;
         color: white !important;
         box-shadow: 0 10px 20px -5px #ef4444 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(5) input:checked + div {
+    }}
+    div.row-widget.stRadio > div label:nth-child(5) input:checked + div {{
         background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9) !important;
         color: white !important;
         box-shadow: 0 10px 20px -5px #8b5cf6 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
+    }}
 
     /* Estilos para botones elegantes */
-    .stButton button {
+    .stButton button {{
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
         color: white;
         border: none;
@@ -201,9 +252,9 @@ st.markdown("""
         letter-spacing: 0.5px;
         position: relative;
         overflow: hidden;
-    }
+    }}
     
-    .stButton button::before {
+    .stButton button::before {{
         content: '';
         position: absolute;
         top: 0;
@@ -212,37 +263,37 @@ st.markdown("""
         height: 100%;
         background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         transition: left 0.5s;
-    }
+    }}
     
-    .stButton button:hover::before {
+    .stButton button:hover::before {{
         left: 100%;
-    }
+    }}
     
-    .stButton button:hover {
+    .stButton button:hover {{
         transform: translateY(-3px);
         box-shadow: 0 15px 25px -5px rgba(124, 58, 237, 0.5);
         filter: brightness(1.1);
-    }
+    }}
     
     /* Botón de búsqueda especial */
-    .stButton button[data-testid="baseButton-secondary"] {
+    .stButton button[data-testid="baseButton-secondary"] {{
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         padding: 0.5rem 1.5rem;
         font-size: 0.95rem;
-    }
+    }}
     
     /* Botón deshabilitado */
-    .stButton button:disabled {
+    .stButton button:disabled {{
         opacity: 0.5;
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
         background: linear-gradient(135deg, #4b5563, #374151);
-    }
+    }}
 
     /* Inputs elegantes */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {{
+        background: linear-gradient(145deg, var(--bg-input-start), var(--bg-input-end)) !important;
         border: 2px solid var(--border) !important;
         color: var(--text-primary) !important;
         border-radius: 12px !important;
@@ -250,86 +301,91 @@ st.markdown("""
         font-size: 1rem !important;
         transition: all 0.3s ease !important;
         box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
-    }
+    }}
     
-    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {{
         border-color: var(--accent) !important;
         box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
         transform: scale(1.01);
-    }
+    }}
 
     /* Tarjetas elegantes */
-    .info-card {
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
+    .info-card {{
+        background: linear-gradient(145deg, var(--bg-card-start), var(--bg-card-end));
         border-radius: 20px;
         padding: 1.5rem;
         border: 1px solid rgba(124, 58, 237, 0.2);
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         margin-bottom: 1.5rem;
-    }
+    }}
     
-    .student-info {
+    .student-info {{
         background: linear-gradient(145deg, rgba(124, 58, 237, 0.1), rgba(124, 58, 237, 0.05));
         border-radius: 16px;
         padding: 1.2rem;
         border-left: 4px solid var(--accent);
         margin: 1rem 0;
-    }
+    }}
 
     /* Tablas elegantes */
-    .stDataFrame {
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
+    .stDataFrame {{
+        background: linear-gradient(145deg, var(--bg-card-start), var(--bg-card-end));
         border-radius: 20px;
         padding: 1.2rem;
         border: 1px solid rgba(124, 58, 237, 0.2);
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         overflow: hidden;
-    }
+    }}
     
-    .stDataFrame table {
+    .stDataFrame table {{
         color: var(--text-primary) !important;
         border-collapse: separate;
         border-spacing: 0 8px;
-    }
+    }}
     
-    .stDataFrame th {
-        background: linear-gradient(145deg, #2d3138, #262a32) !important;
+    .stDataFrame th {{
+        background: linear-gradient(145deg, var(--bg-table-header-start), var(--bg-table-header-end)) !important;
         color: var(--text-primary) !important;
         font-weight: 600;
         padding: 12px !important;
         border-bottom: 2px solid var(--accent) !important;
-    }
+    }}
     
-    .stDataFrame td {
-        background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
+    .stDataFrame td {{
+        background: linear-gradient(145deg, var(--bg-table-cell-start), var(--bg-table-cell-end)) !important;
         color: var(--text-secondary) !important;
         padding: 10px !important;
         border-bottom: 1px solid var(--border) !important;
-    }
+    }}
 
     /* Cámara elegante */
-    div[data-testid="stCameraInput"] video {
+    div[data-testid="stCameraInput"] video {{
         width: 100% !important;
         height: 70vh !important;
         object-fit: cover;
         border-radius: 20px;
         border: 2px solid var(--accent);
         box-shadow: 0 15px 30px -5px rgba(124, 58, 237, 0.4);
-    }
+    }}
 
     /* Animaciones */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeIn {{
+        from {{ opacity: 0; transform: translateY(20px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
     
-    .stAlert {
+    .stAlert {{
         animation: fadeIn 0.4s ease-out;
         border-radius: 16px;
         border-left: 4px solid;
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
-    }
+        background: var(--bg-alert);
+    }}
 </style>
+
+<!-- Script para aplicar el tema al body -->
+<script>
+    document.body.setAttribute('data-theme', '{st.session_state.theme}');
+</script>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
@@ -352,7 +408,7 @@ if "ultimo_registro" not in st.session_state:
 # TÍTULO Y MENÚ HORIZONTAL ELEGANTE
 # ------------------------------------------------------------
 st.title("📷 Sistema de Asistencia con QR")
-st.markdown('<p style="color: #b0b3b8; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
+st.markdown('<p style="color: var(--text-secondary); margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
 
 opciones_menu = [
     "📝 Registrar estudiante",
@@ -377,7 +433,7 @@ st.session_state.menu_actual = menu
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Cargar archivos Excel")
-    st.markdown('<p style="color: #b0b3b8;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--text-secondary);">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
 
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
@@ -413,6 +469,13 @@ with st.sidebar:
     if os.path.exists(st.session_state.ruta_asistencia):
         with open(st.session_state.ruta_asistencia, "rb") as f:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
+
+    st.markdown("---")
+    st.markdown("### 🎨 Tema")
+    # Botón para cambiar tema
+    if st.button(f"{'🌙' if st.session_state.theme == 'light' else '☀️'} Cambiar a {'oscuro' if st.session_state.theme == 'light' else 'claro'}", use_container_width=True):
+        st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
+        st.rerun()  # Forzar rerun para aplicar el nuevo tema
 
 # ------------------------------------------------------------
 # FUNCIONES AUXILIARES
@@ -546,7 +609,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: #b0b3b8;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
