@@ -29,7 +29,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# ESTILOS CSS (MODO OSCURO + ANIMACIONES + MENÚ HORIZONTAL CON COLORES)
+# ESTILOS CSS (MODO OSCURO + BOTONES DE COLORES)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -52,7 +52,7 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Menú horizontal estilo botones */
+    /* Menú horizontal con botones de colores */
     div.row-widget.stRadio > div {
         flex-direction: row;
         justify-content: center;
@@ -72,31 +72,52 @@ st.markdown("""
         border-radius: 30px;
         transition: all 0.2s ease;
         border: 1px solid transparent;
+        background-color: rgba(124, 58, 237, 0.1); /* color base semitransparente */
     }
     div.row-widget.stRadio > div label:hover {
-        background-color: rgba(124, 58, 237, 0.1);
-        color: var(--accent-light) !important;
-        border-color: var(--accent);
+        filter: brightness(1.2);
+        border-color: currentColor;
     }
-    /* Colores específicos para cada opción activa */
+    /* Colores específicos para cada opción (inactivo) */
+    div.row-widget.stRadio > div label:nth-child(1) {
+        background-color: rgba(59, 130, 246, 0.2);
+        border-color: #3b82f6;
+    }
+    div.row-widget.stRadio > div label:nth-child(2) {
+        background-color: rgba(16, 185, 129, 0.2);
+        border-color: #10b981;
+    }
+    div.row-widget.stRadio > div label:nth-child(3) {
+        background-color: rgba(245, 158, 11, 0.2);
+        border-color: #f59e0b;
+    }
+    div.row-widget.stRadio > div label:nth-child(4) {
+        background-color: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+    }
+    div.row-widget.stRadio > div label:nth-child(5) {
+        background-color: rgba(139, 92, 246, 0.2);
+        border-color: #8b5cf6;
+    }
+    /* Colores para la opción activa (checked) */
     div.row-widget.stRadio > div label:nth-child(1) input:checked + div {
-        background: linear-gradient(135deg, #3b82f6, #60a5fa) !important; /* Azul */
+        background: linear-gradient(135deg, #3b82f6, #60a5fa) !important;
         color: white !important;
     }
     div.row-widget.stRadio > div label:nth-child(2) input:checked + div {
-        background: linear-gradient(135deg, #10b981, #34d399) !important; /* Verde */
+        background: linear-gradient(135deg, #10b981, #34d399) !important;
         color: white !important;
     }
     div.row-widget.stRadio > div label:nth-child(3) input:checked + div {
-        background: linear-gradient(135deg, #f59e0b, #fbbf24) !important; /* Naranja */
+        background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
         color: white !important;
     }
     div.row-widget.stRadio > div label:nth-child(4) input:checked + div {
-        background: linear-gradient(135deg, #ef4444, #f87171) !important; /* Rojo */
+        background: linear-gradient(135deg, #ef4444, #f87171) !important;
         color: white !important;
     }
     div.row-widget.stRadio > div label:nth-child(5) input:checked + div {
-        background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important; /* Púrpura */
+        background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important;
         color: white !important;
     }
 
@@ -238,7 +259,7 @@ if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
 
 # ------------------------------------------------------------
-# TÍTULO Y MENÚ HORIZONTAL
+# TÍTULO Y MENÚ HORIZONTAL (CON BOTONES DE COLORES)
 # ------------------------------------------------------------
 st.title("📷 Sistema de Asistencia con QR")
 
@@ -258,7 +279,6 @@ menu = st.radio(
     key="menu_radio"
 )
 
-# Actualizar session_state con la opción seleccionada
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
@@ -268,14 +288,11 @@ with st.sidebar:
     st.markdown("## 📂 Cargar archivos Excel")
     st.markdown("Sube tus propios archivos para trabajar con ellos. Si no subes ninguno, se usarán los archivos por defecto (`estudiantes.xlsx` y `asistencia.xlsx`).")
 
-    # Crear carpeta uploads si no existe
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
 
-    # Cargar archivo de estudiantes
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
     if archivo_est is not None:
-        # Guardar el archivo subido en la carpeta uploads
         ruta_destino = os.path.join("uploads", archivo_est.name)
         with open(ruta_destino, "wb") as f:
             f.write(archivo_est.getbuffer())
@@ -283,7 +300,6 @@ with st.sidebar:
         st.session_state.archivo_estudiantes_subido = archivo_est.name
         st.success(f"✅ Archivo de estudiantes cargado: {archivo_est.name}")
 
-    # Cargar archivo de asistencia
     archivo_asis = st.file_uploader("📗 Asistencia", type=["xlsx"], key="upload_asis")
     if archivo_asis is not None:
         ruta_destino = os.path.join("uploads", archivo_asis.name)
@@ -308,13 +324,12 @@ with st.sidebar:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
 
 # ------------------------------------------------------------
-# FUNCIONES AUXILIARES PARA LEER/GUARDAR DATAFRAMES
+# FUNCIONES AUXILIARES
 # ------------------------------------------------------------
 def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
         return pd.read_excel(st.session_state.ruta_estudiantes)
     else:
-        # Crear DataFrame vacío con columnas correctas
         return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
 
 def guardar_estudiantes(df):
@@ -368,13 +383,12 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
     estudiantes = leer_estudiantes()
     st.dataframe(estudiantes, use_container_width=True)
 
-    # Ver información y QR del estudiante en una sola línea
     st.subheader("🔍 Ver información y QR del estudiante")
     ru_ver = st.text_input("Ingrese RU para ver información y QR")
     if ru_ver != "":
         estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
         if len(estudiante) > 0:
-            # Mostrar datos en una línea con formato cursiva y negritas
+            # Datos en una línea, con cursiva y negritas
             st.markdown(
                 f"*Datos del estudiante:* **RU:** {estudiante.iloc[0]['RU']}, "
                 f"**Nombres:** {estudiante.iloc[0]['Nombres']}, "
@@ -385,7 +399,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         else:
             st.warning("⚠️ RU no encontrado")
 
-    # Eliminar estudiante
     st.subheader("🗑️ Eliminar estudiante")
     if len(estudiantes) > 0:
         eliminar = st.number_input("Índice a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
@@ -394,7 +407,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             guardar_estudiantes(estudiantes)
             st.success("✅ Estudiante eliminado")
 
-    # Descargar Excel
     st.subheader("⬇️ Descargar Excel estudiantes")
     if len(estudiantes) > 0:
         archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -476,7 +488,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     asistencia = leer_asistencia()
     st.dataframe(asistencia, use_container_width=True)
 
-    # Editar estado
     st.subheader("✏️ Editar estado")
     if len(asistencia) > 0:
         indice = st.number_input("Índice registro", min_value=0, max_value=len(asistencia)-1)
@@ -486,7 +497,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             guardar_asistencia(asistencia)
             st.success("✅ Estado actualizado")
 
-    # Eliminar registro
     st.subheader("🗑️ Eliminar registro")
     if len(asistencia) > 0:
         eliminar = st.number_input("Índice eliminar", min_value=0, max_value=len(asistencia)-1, key="elim")
@@ -495,7 +505,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             guardar_asistencia(asistencia)
             st.success("✅ Registro eliminado")
 
-    # Descargar Excel del día
     st.subheader("⬇️ Descargar asistencia del día")
     hoy = str(datetime.now(ZONA_HORARIA).date())
     asistencia_hoy = asistencia[asistencia["Fecha"].astype(str) == hoy]
@@ -506,3 +515,4 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga)
     else:
         st.info("No hay registros para hoy.")
+        
