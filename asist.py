@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as alld
+import pandas as pd
 import qrcode
 from datetime import datetime
 import os
@@ -37,53 +37,6 @@ def verificar_registro_duplicado(ru, fecha):
     return False, None
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA OBTENER ESTADÍSTICAS DE ASISTENCIA
-# ------------------------------------------------------------
-def obtener_estadisticas_asistencia():
-    """Retorna un diccionario con las estadísticas de asistencia del día"""
-    try:
-        hoy = str(datetime.now(ZONA_HORARIA).date())
-        estudiantes = leer_estudiantes()
-        asistencia = leer_asistencia()
-        
-        total_estudiantes = len(estudiantes) if estudiantes is not None else 0
-        
-        if asistencia is not None and len(asistencia) > 0:
-            asistencia_hoy = asistencia[asistencia["Fecha"].astype(str) == hoy] if len(asistencia) > 0 else pd.DataFrame()
-            
-            presentes = len(asistencia_hoy[asistencia_hoy["Estado"] == "Presente"]) if len(asistencia_hoy) > 0 else 0
-            tarde = len(asistencia_hoy[asistencia_hoy["Estado"] == "Tarde"]) if len(asistencia_hoy) > 0 else 0
-            permiso = len(asistencia_hoy[asistencia_hoy["Estado"] == "Permiso"]) if len(asistencia_hoy) > 0 else 0
-            ausentes_registrados = len(asistencia_hoy[asistencia_hoy["Estado"] == "Ausente"]) if len(asistencia_hoy) > 0 else 0
-        else:
-            presentes = tarde = permiso = ausentes_registrados = 0
-        
-        # Los que faltan = total - (presentes + tarde + permiso + ausentes_registrados)
-        registrados_hoy = presentes + tarde + permiso + ausentes_registrados
-        faltan = total_estudiantes - registrados_hoy
-        
-        return {
-            "total_estudiantes": total_estudiantes,
-            "presentes": presentes,
-            "tarde": tarde,
-            "permiso": permiso,
-            "ausentes_registrados": ausentes_registrados,
-            "faltan": max(0, faltan),  # Asegurar que no sea negativo
-            "registrados_hoy": registrados_hoy
-        }
-    except Exception as e:
-        # Si hay algún error, retornar estadísticas en cero
-        return {
-            "total_estudiantes": 0,
-            "presentes": 0,
-            "tarde": 0,
-            "permiso": 0,
-            "ausentes_registrados": 0,
-            "faltan": 0,
-            "registrados_hoy": 0
-        }
-
-# ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(
@@ -110,7 +63,6 @@ st.markdown("""
         --warning: #f59e0b;
         --error: #ef4444;
         --duplicate: #f97316;
-        --info: #3b86f0;
     }
 
     .stApp {
@@ -294,7 +246,7 @@ st.markdown("""
         background: var(--accent-light);
     }
 
-    /* Cámara - TAMAÑO GRANDE Y NOTORIO */
+    /* Cámara - TAMAÑO GRANDE Y NOTORIO (COMO EN EL ORIGINAL) */
     div[data-testid="stCameraInput"] video {
         width: 100% !important;
         height: 75vh !important;
@@ -330,54 +282,6 @@ st.markdown("""
         color: var(--duplicate);
         margin: 0;
     }
-    
-    /* Dashboard cards - compactas */
-    .dashboard-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 20px;
-        justify-content: space-between;
-    }
-    
-    .dashboard-card {
-        background: linear-gradient(135deg, var(--bg-card) 0%, #252a34 100%);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px 15px;
-        flex: 1 1 130px;
-        min-width: 120px;
-        text-align: center;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        transition: transform 0.2s ease;
-    }
-    
-    .dashboard-card:hover {
-        transform: translateY(-3px);
-        border-color: var(--accent);
-    }
-    
-    .card-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        line-height: 1.2;
-        margin-bottom: 5px;
-    }
-    
-    .card-label {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: var(--text-secondary);
-    }
-    
-    /* Colores para cada tipo de card */
-    .card-total .card-value { color: var(--info); }
-    .card-presentes .card-value { color: var(--success); }
-    .card-tarde .card-value { color: var(--warning); }
-    .card-permiso .card-value { color: #60a5fa; }
-    .card-ausentes .card-value { color: var(--error); }
-    .card-faltan .card-value { color: #f97316; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -396,8 +300,6 @@ if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
 if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
-if "buscar_ru" not in st.session_state:
-    st.session_state.buscar_ru = ""
 
 # ------------------------------------------------------------
 # TÍTULO Y MENÚ HORIZONTAL (CON BOTONES DE COLORES)
@@ -421,51 +323,6 @@ menu = st.radio(
 )
 
 st.session_state.menu_actual = menu
-
-# ------------------------------------------------------------
-# DASHBOARD COMPACTO - Aparece en todas las páginas excepto Registrar Estudiante
-# ------------------------------------------------------------
-if st.session_state.menu_actual != "📝 Registrar estudiante":
-    try:
-        stats = obtener_estadisticas_asistencia()
-        
-        # Usar columnas para organizar mejor
-        st.markdown("### 📊 Resumen de hoy")
-        
-        # Dashboard compacto con CSS personalizado
-        dashboard_html = f"""
-        <div class="dashboard-container">
-            <div class="dashboard-card card-total">
-                <div class="card-value">{stats['total_estudiantes']}</div>
-                <div class="card-label">Total Estudiantes</div>
-            </div>
-            <div class="dashboard-card card-presentes">
-                <div class="card-value">{stats['presentes']}</div>
-                <div class="card-label">Presentes</div>
-            </div>
-            <div class="dashboard-card card-tarde">
-                <div class="card-value">{stats['tarde']}</div>
-                <div class="card-label">Tarde</div>
-            </div>
-            <div class="dashboard-card card-permiso">
-                <div class="card-value">{stats['permiso']}</div>
-                <div class="card-label">Permiso</div>
-            </div>
-            <div class="dashboard-card card-ausentes">
-                <div class="card-value">{stats['ausentes_registrados']}</div>
-                <div class="card-label">Ausentes</div>
-            </div>
-            <div class="dashboard-card card-faltan">
-                <div class="card-value">{stats['faltan']}</div>
-                <div class="card-label">Faltan</div>
-            </div>
-        </div>
-        """
-        
-        st.markdown(dashboard_html, unsafe_allow_html=True)
-        st.markdown("---")
-    except Exception as e:
-        st.warning("⚠️ No se pudieron cargar las estadísticas")
 
 # ------------------------------------------------------------
 # SIDEBAR: CARGAR ARCHIVOS EXCEL
@@ -510,43 +367,25 @@ with st.sidebar:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
 
 # ------------------------------------------------------------
-# FUNCIONES AUXILIARES CORREGIDAS
+# FUNCIONES AUXILIARES
 # ------------------------------------------------------------
 def leer_estudiantes():
-    try:
-        if os.path.exists(st.session_state.ruta_estudiantes):
-            return pd.read_excel(st.session_state.ruta_estudiantes)
-        else:
-            # Crear DataFrame vacío con columnas correctas
-            return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
-    except Exception as e:
-        # Si hay error al leer, retornar DataFrame vacío
+    if os.path.exists(st.session_state.ruta_estudiantes):
+        return pd.read_excel(st.session_state.ruta_estudiantes)
+    else:
         return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
 
 def guardar_estudiantes(df):
-    try:
-        df.to_excel(st.session_state.ruta_estudiantes, index=False)
-        return True
-    except Exception as e:
-        st.error(f"Error al guardar estudiantes: {e}")
-        return False
+    df.to_excel(st.session_state.ruta_estudiantes, index=False)
 
 def leer_asistencia():
-    try:
-        if os.path.exists(st.session_state.ruta_asistencia):
-            return pd.read_excel(st.session_state.ruta_asistencia)
-        else:
-            return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-    except Exception as e:
+    if os.path.exists(st.session_state.ruta_asistencia):
+        return pd.read_excel(st.session_state.ruta_asistencia)
+    else:
         return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
 
 def guardar_asistencia(df):
-    try:
-        df.to_excel(st.session_state.ruta_asistencia, index=False)
-        return True
-    except Exception as e:
-        st.error(f"Error al guardar asistencia: {e}")
-        return False
+    df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE
@@ -580,80 +419,28 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                     st.download_button("⬇️ Descargar QR", data=file, file_name=f"{ru}_qr.png", mime="image/png")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES - CON BOTÓN BUSCAR
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
-    
-    if len(estudiantes) > 0:
-        st.dataframe(estudiantes, use_container_width=True)
-    else:
-        st.info("📭 No hay estudiantes registrados")
+    st.dataframe(estudiantes, use_container_width=True)
 
-    # Buscador de estudiantes con botón
-    st.subheader("🔍 Buscar estudiante por RU")
-    col_buscar1, col_buscar2, col_buscar3 = st.columns([3, 1, 3])
-    
-    with col_buscar1:
-        ru_buscar = st.text_input("Ingrese RU", key="ru_buscar_input", placeholder="Ej: 2024001")
-    
-    with col_buscar2:
-        buscar_click = st.button("🔍 Buscar", use_container_width=True)
-    
-    with col_buscar3:
-        if buscar_click and ru_buscar:
-            st.session_state.buscar_ru = ru_buscar
-    
-    # Mostrar resultados de búsqueda
-    if st.session_state.buscar_ru and len(estudiantes) > 0:
-        ru_ver = st.session_state.buscar_ru
+    st.subheader("🔍 Ver información y QR del estudiante")
+    ru_ver = st.text_input("Ingrese RU para ver información y QR")
+    if ru_ver != "":
         estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
-        
         if len(estudiante) > 0:
-            st.markdown("### 📄 Información del estudiante")
-            
-            # Tarjeta de información
-            info_col1, info_col2 = st.columns([1, 1])
-            
-            with info_col1:
-                st.markdown(f"""
-                **RU:** {estudiante.iloc[0]['RU']}
-                
-                **Nombres:** {estudiante.iloc[0]['Nombres']}
-                
-                **Apellido paterno:** {estudiante.iloc[0]['Apellido_paterno']}
-                
-                **Apellido materno:** {estudiante.iloc[0]['Apellido_materno']}
-                """)
-            
-            with info_col2:
-                # Verificar si tiene registro hoy
-                fecha_hoy = str(datetime.now(ZONA_HORARIA).date())
-                tiene_registro, registro = verificar_registro_duplicado(ru_ver, fecha_hoy)
-                
-                if tiene_registro:
-                    st.success(f"✅ **Asistencia hoy:** {registro['Estado']} a las {registro['Hora']}")
-                else:
-                    st.warning("⏳ **Sin registro hoy**")
-            
-            # Mostrar QR
-            st.markdown("### 🎫 Código QR")
-            st.image(estudiante.iloc[0]["QR"], width=300)
-            
-            # Botón para limpiar búsqueda
-            if st.button("🗑️ Limpiar búsqueda"):
-                st.session_state.buscar_ru = ""
-                st.rerun()
+            st.markdown(
+                f"*Datos del estudiante:* **RU:** {estudiante.iloc[0]['RU']}, "
+                f"**Nombres:** {estudiante.iloc[0]['Nombres']}, "
+                f"**Apellido paterno:** {estudiante.iloc[0]['Apellido_paterno']}, "
+                f"**Apellido materno:** {estudiante.iloc[0]['Apellido_materno']}"
+            )
+            st.image(estudiante.iloc[0]["QR"], width=350)
         else:
-            st.error(f"❌ No se encontró estudiante con RU: {ru_ver}")
-            if st.button("🗑️ Limpiar búsqueda"):
-                st.session_state.buscar_ru = ""
-                st.rerun()
+            st.warning("⚠️ RU no encontrado")
 
-    st.markdown("---")
-    
-    # Eliminar estudiante
     st.subheader("🗑️ Eliminar estudiante")
     if len(estudiantes) > 0:
         eliminar = st.number_input("Índice a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
@@ -662,7 +449,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             guardar_estudiantes(estudiantes)
             st.success("✅ Estudiante eliminado")
 
-    # Descargar Excel
     st.subheader("⬇️ Descargar Excel estudiantes")
     if len(estudiantes) > 0:
         archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -671,7 +457,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             st.download_button("📥 Descargar Excel", data=file, file_name="estudiantes_exportados.xlsx")
 
 # ------------------------------------------------------------
-# ESCANEAR QR - EXACTAMENTE COMO EN EL ORIGINAL
+# ESCANEAR QR - EXACTAMENTE COMO EN EL ORIGINAL (GRANDE Y NOTORIO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
@@ -685,42 +471,38 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
         if data:
             ru = data
             estudiantes = leer_estudiantes()
-            
-            if len(estudiantes) > 0:
-                estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
+            estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
 
-                if len(estudiante) > 0:
-                    nombres = estudiante.iloc[0]["Nombres"]
-                    paterno = estudiante.iloc[0]["Apellido_paterno"]
-                    materno = estudiante.iloc[0]["Apellido_materno"]
+            if len(estudiante) > 0:
+                nombres = estudiante.iloc[0]["Nombres"]
+                paterno = estudiante.iloc[0]["Apellido_paterno"]
+                materno = estudiante.iloc[0]["Apellido_materno"]
 
-                    fecha, hora = obtener_fecha_hora_exacta()
+                fecha, hora = obtener_fecha_hora_exacta()
 
-                    # VERIFICAR SI YA TIENE REGISTRO HOY
-                    tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                # VERIFICAR SI YA TIENE REGISTRO HOY
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
 
-                    if not tiene_registro:
-                        nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
-                                              columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-                        asistencia = leer_asistencia()
-                        asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-                        guardar_asistencia(asistencia)
-                        
-                        # Guardar en session state
-                        st.session_state.ultimo_registro = {
-                            "RU": ru,
-                            "Nombres": nombres,
-                            "Hora": hora,
-                            "Fecha": fecha
-                        }
-                        
-                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
-                    else:
-                        st.warning(f"⚠️ {nombres} {paterno} ya registró asistencia hoy a las {registro_existente['Hora']}")
+                if not tiene_registro:
+                    nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
+                                          columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+                    asistencia = leer_asistencia()
+                    asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
+                    guardar_asistencia(asistencia)
+                    
+                    # Guardar en session state
+                    st.session_state.ultimo_registro = {
+                        "RU": ru,
+                        "Nombres": nombres,
+                        "Hora": hora,
+                        "Fecha": fecha
+                    }
+                    
+                    st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                 else:
-                    st.error("❌ Estudiante no encontrado")
+                    st.warning(f"⚠️ {nombres} {paterno} ya registró asistencia hoy a las {registro_existente['Hora']}")
             else:
-                st.error("❌ No hay estudiantes registrados")
+                st.error("❌ Estudiante no encontrado")
         else:
             st.warning("⚠️ No se detectó QR")
 
@@ -826,4 +608,3 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.info("No hay registros para hoy.")
     else:
         st.info("📭 No hay registros de asistencia")
-        
