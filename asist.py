@@ -6,11 +6,33 @@ import os
 import cv2
 import numpy as np
 
+# CONFIGURACION
+st.set_page_config(layout="wide")
+
+# CSS PARA HACER LA CAMARA GRANDE
+st.markdown("""
+<style>
+
+button[kind="primary"]{
+font-size:20px;
+}
+
+div[data-testid="stCameraInput"] video{
+width:100% !important;
+height:75vh !important;
+object-fit:cover;
+}
+
+div[data-testid="stCameraInput"]{
+width:100% !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # archivos
 archivo_estudiantes="estudiantes.xlsx"
 archivo_asistencia="asistencia.xlsx"
-
-st.set_page_config(layout="wide")
 
 st.title("Sistema de Asistencia con QR")
 
@@ -86,20 +108,8 @@ if menu=="Registrar estudiante":
             qr=qrcode.make(ru)
             qr.save(ruta_qr)
 
-            nuevo=pd.DataFrame([[
-                ru,
-                nombres,
-                paterno,
-                materno,
-                ruta_qr
-            ]],
-            columns=[
-                "RU",
-                "Nombres",
-                "Apellido_paterno",
-                "Apellido_materno",
-                "QR"
-            ])
+            nuevo=pd.DataFrame([[ru,nombres,paterno,materno,ruta_qr]],
+            columns=["RU","Nombres","Apellido_paterno","Apellido_materno","QR"])
 
             df=pd.concat([df,nuevo],ignore_index=True)
 
@@ -205,27 +215,8 @@ elif menu=="Escanear QR":
 
                 if len(ya)==0:
 
-                    nuevo=pd.DataFrame([[
-
-                        ru,
-                        nombres,
-                        paterno,
-                        materno,
-                        fecha,
-                        hora,
-                        "Presente"
-
-                    ]],
-
-                    columns=[
-                        "RU",
-                        "Nombres",
-                        "Apellido_paterno",
-                        "Apellido_materno",
-                        "Fecha",
-                        "Hora",
-                        "Estado"
-                    ])
+                    nuevo=pd.DataFrame([[ru,nombres,paterno,materno,fecha,hora,"Presente"]],
+                    columns=["RU","Nombres","Apellido_paterno","Apellido_materno","Fecha","Hora","Estado"])
 
                     asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
 
@@ -297,27 +288,8 @@ elif menu=="Registrar asistencia manual":
 
             asistencia=pd.read_excel(archivo_asistencia)
 
-            nuevo=pd.DataFrame([[
-
-                ru,
-                nombres,
-                paterno,
-                materno,
-                fecha,
-                hora,
-                estado
-
-            ]],
-
-            columns=[
-                "RU",
-                "Nombres",
-                "Apellido_paterno",
-                "Apellido_materno",
-                "Fecha",
-                "Hora",
-                "Estado"
-            ])
+            nuevo=pd.DataFrame([[ru,nombres,paterno,materno,fecha,hora,estado]],
+            columns=["RU","Nombres","Apellido_paterno","Apellido_materno","Fecha","Hora","Estado"])
 
             asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
 
