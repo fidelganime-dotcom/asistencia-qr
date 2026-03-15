@@ -781,3 +781,4 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.info("No hay registros para hoy.")
     else:
         st.info("📭 No hay registros de asistencia")
+        
