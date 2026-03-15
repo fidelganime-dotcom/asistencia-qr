@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 import cv2
 import numpy as np
-
+# DESARROLLADO POR JOSUE INGENIERA SISTEMAS UAP
 # ------------------------------------------------------------
 # CONFIGURACIÓN Y ESTILOS (MODO OSCURO + ANIMACIONES)
 # ------------------------------------------------------------
