@@ -3,3 +3,4 @@ qrcode
 opencv-python-headless
 openpyxl
 numpy
+pytz
