@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 import cv2
 import numpy as np
-import pytz  # Para zona horaria exacta
+import pytz
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA (cambiar según tu ubicación)
@@ -13,23 +13,21 @@ import pytz  # Para zona horaria exacta
 ZONA_HORARIA = pytz.timezone('America/La_Paz')  # Ejemplo: Bolivia
 
 def obtener_fecha_hora_exacta():
-    """Retorna (fecha, hora_con_milisegundos) en la zona horaria configurada."""
     ahora = datetime.now(ZONA_HORARIA)
     fecha = ahora.date()
-    # Formato con milisegundos (3 dígitos). Si no quieres milisegundos cambia a "%H:%M:%S"
-    hora = ahora.strftime("%H:%M:%S.%f")[:-3]
+    hora = ahora.strftime("%H:%M:%S.%f")[:-3]  # Con milisegundos
     return fecha, hora
 
 # ------------------------------------------------------------
-# CONFIGURACIÓN DE LA PÁGINA Y ESTILOS (MODO OSCURO + ANIMACIONES)
+# CONFIGURACIÓN DE LA PÁGINA Y ESTILOS (MODO OSCURO + ANIMACIONES + MENÚ HORIZONTAL)
 # ------------------------------------------------------------
 st.set_page_config(
     page_title="Sistema de Asistencia con QR",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # Ocultar sidebar por defecto
 )
 
-# Estilos CSS personalizados
+# Estilos CSS personalizados (incluye menú horizontal)
 st.markdown("""
 <style>
     /* Variables de color modo oscuro */
@@ -53,13 +51,36 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: var(--bg-sidebar);
-        border-right: 1px solid var(--border);
+    /* Menú horizontal */
+    div.row-widget.stRadio > div {
+        flex-direction: row;
+        justify-content: center;
+        gap: 20px;
+        background-color: var(--bg-card);
+        padding: 15px 20px;
+        border-radius: 50px;
+        border: 1px solid var(--border);
+        margin-bottom: 30px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.3);
     }
-    section[data-testid="stSidebar"] .stSelectbox label {
+    div.row-widget.stRadio > div label {
         color: var(--text-secondary) !important;
+        font-size: 1.1rem;
+        font-weight: 500;
+        padding: 8px 20px;
+        border-radius: 30px;
+        transition: all 0.2s ease;
+    }
+    div.row-widget.stRadio > div label:hover {
+        background-color: rgba(124, 58, 237, 0.1);
+        color: var(--accent-light) !important;
+    }
+    div.row-widget.stRadio > div label[data-baseweb="radio"] input:checked + div {
+        background-color: var(--accent);
+        color: white !important;
+    }
+    div[role="radiogroup"] > label {
+        background-color: transparent !important;
     }
 
     /* Inputs y selects */
@@ -136,7 +157,7 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Mensajes de éxito, error, warning */
+    /* Mensajes */
     .stAlert {
         border-left: 4px solid;
         animation: slideIn 0.3s ease;
@@ -151,13 +172,13 @@ st.markdown("""
         border-left-color: var(--error);
     }
 
-    /* Animación de entrada */
+    /* Animación */
     @keyframes slideIn {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Scrollbar personalizada */
+    /* Scrollbar */
     ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -173,7 +194,7 @@ st.markdown("""
         background: var(--accent-light);
     }
 
-    /* Mantener estilo de cámara existente */
+    /* Cámara */
     div[data-testid="stCameraInput"] video {
         width: 100% !important;
         height: 75vh !important;
@@ -189,25 +210,35 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
+# MENSAJE DE ADVERTENCIA SOBRE PERSISTENCIA EN STREAMLIT CLOUD
+# ------------------------------------------------------------
+st.warning("⚠️ **Nota sobre persistencia de datos:** Si ejecutas esta app en Streamlit Cloud, los archivos Excel se reiniciarán con cada nueva sesión. Para datos permanentes, considera usar una base de datos externa (Supabase, MongoDB) o ejecutar localmente.")
+
+# ------------------------------------------------------------
+# TÍTULO Y MENÚ HORIZONTAL
+# ------------------------------------------------------------
+st.title("📷 Sistema de Asistencia con QR")
+
+opciones_menu = [
+    "📝 Registrar estudiante",
+    "📋 Lista estudiantes",
+    "📸 Escanear QR",
+    "✍️ Registrar asistencia manual",
+    "📊 Ver asistencia"
+]
+
+menu = st.radio(
+    "",
+    opciones_menu,
+    horizontal=True,
+    label_visibility="collapsed"
+)
+
+# ------------------------------------------------------------
 # ARCHIVOS Y CONSTANTES
 # ------------------------------------------------------------
 archivo_estudiantes = "estudiantes.xlsx"
 archivo_asistencia = "asistencia.xlsx"
-
-# Título con emoji
-st.title("📷 Sistema de Asistencia con QR")
-
-# Menú lateral con iconos
-menu = st.sidebar.selectbox(
-    "📌 Menú",
-    [
-        "📝 Registrar estudiante",
-        "📋 Lista estudiantes",
-        "📸 Escanear QR",
-        "✍️ Registrar asistencia manual",
-        "📊 Ver asistencia"
-    ]
-)
 
 # Crear archivos si no existen
 if not os.path.exists(archivo_estudiantes):
@@ -305,7 +336,6 @@ elif menu == "📸 Escanear QR":
                 paterno = estudiante.iloc[0]["Apellido_paterno"]
                 materno = estudiante.iloc[0]["Apellido_materno"]
 
-                # OBTENER FECHA Y HORA EXACTA CON ZONA HORARIA
                 fecha, hora = obtener_fecha_hora_exacta()
 
                 asistencia = pd.read_excel(archivo_asistencia)
@@ -341,7 +371,6 @@ elif menu == "✍️ Registrar asistencia manual":
         paterno = estudiante.iloc[0]["Apellido_paterno"]
         materno = estudiante.iloc[0]["Apellido_materno"]
 
-        # OBTENER FECHA Y HORA EXACTA CON ZONA HORARIA
         fecha, hora = obtener_fecha_hora_exacta()
 
         asistencia = pd.read_excel(archivo_asistencia)
