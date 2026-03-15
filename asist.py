@@ -109,22 +109,23 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2) !important;
     }
 
-    .stDataFrame {
+    /* Editor de datos */
+    .stDataFrame, div[data-testid="stDataEditor"] {
         background-color: var(--bg-card);
         border-radius: 12px;
         padding: 1rem;
         border: 1px solid var(--border);
         overflow: hidden;
     }
-    .stDataFrame table {
+    .stDataFrame table, .stDataEditor table {
         color: var(--text-primary) !important;
     }
-    .stDataFrame th {
+    .stDataFrame th, .stDataEditor th {
         background-color: var(--bg-sidebar) !important;
         color: var(--text-primary) !important;
         font-weight: 600;
     }
-    .stDataFrame td {
+    .stDataFrame td, .stDataEditor td {
         background-color: var(--bg-card) !important;
         color: var(--text-secondary) !important;
     }
@@ -311,13 +312,51 @@ if menu == "📝 Registrar estudiante":
                     st.download_button("⬇️ Descargar QR", data=file, file_name=f"{ru}_qr.png", mime="image/png")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES
+# LISTA ESTUDIANTES (CON EDITOR)
 # ------------------------------------------------------------
 elif menu == "📋 Lista estudiantes":
-    st.subheader("📋 Lista de estudiantes")
-    estudiantes = leer_estudiantes()
-    st.dataframe(estudiantes, use_container_width=True)
+    st.subheader("📋 Lista de estudiantes (editable)")
 
+    # Leer datos actuales
+    estudiantes = leer_estudiantes()
+
+    # Mostrar editor de datos (no editable la columna QR porque es ruta de archivo)
+    columnas_editables = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
+    config_editor = {}
+    for col in estudiantes.columns:
+        if col in columnas_editables:
+            config_editor[col] = st.column_config.TextColumn(col)
+        else:
+            # Columna QR no editable
+            config_editor[col] = st.column_config.TextColumn(col, disabled=True)
+
+    edited_df = st.data_editor(
+        estudiantes,
+        column_config=config_editor,
+        use_container_width=True,
+        num_rows="dynamic",  # Permite agregar/eliminar filas
+        key="editor_estudiantes"
+    )
+
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("💾 Guardar cambios", key="guardar_est"):
+            guardar_estudiantes(edited_df)
+            st.success("✅ Cambios guardados correctamente")
+    with col2:
+        st.caption("Puedes editar celdas, agregar filas (al final) o eliminar filas seleccionándolas y presionando Supr.")
+
+    # (Opcional) Mantener el método anterior de eliminar por índice si se prefiere
+    st.subheader("🗑️ Eliminar estudiante por índice (alternativa)")
+    if len(estudiantes) > 0:
+        eliminar = st.number_input("Índice a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
+        if st.button("🗑️ Eliminar"):
+            estudiantes = estudiantes.drop(eliminar)
+            guardar_estudiantes(estudiantes)
+            st.success("✅ Estudiante eliminado")
+            st.rerun()
+
+    # Ver QR (sigue funcionando)
     st.subheader("🔍 Ver QR del estudiante")
     ru_ver = st.text_input("Ingrese RU para ver QR")
     if ru_ver != "":
@@ -326,21 +365,6 @@ elif menu == "📋 Lista estudiantes":
             st.image(estudiante.iloc[0]["QR"], width=350)
         else:
             st.warning("⚠️ RU no encontrado")
-
-    st.subheader("🗑️ Eliminar estudiante")
-    if len(estudiantes) > 0:
-        eliminar = st.number_input("Índice a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
-        if st.button("🗑️ Eliminar"):
-            estudiantes = estudiantes.drop(eliminar)
-            guardar_estudiantes(estudiantes)
-            st.success("✅ Estudiante eliminado")
-
-    st.subheader("⬇️ Descargar Excel estudiantes")
-    if len(estudiantes) > 0:
-        archivo_descarga = "registro_estudiantes_temp.xlsx"
-        estudiantes.to_excel(archivo_descarga, index=False)
-        with open(archivo_descarga, "rb") as file:
-            st.download_button("📥 Descargar Excel", data=file, file_name="estudiantes_exportados.xlsx")
 
 # ------------------------------------------------------------
 # ESCANEAR QR
@@ -388,35 +412,55 @@ elif menu == "📸 Escanear QR":
 elif menu == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
     estudiantes = leer_estudiantes()
-    estudiantes["nombre_completo"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"] + " " + estudiantes["Apellido_paterno"]
-    seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
-    ru = seleccionado.split(" - ")[0]
-    estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
+    if len(estudiantes) == 0:
+        st.warning("No hay estudiantes registrados. Primero registra estudiantes.")
+    else:
+        estudiantes["nombre_completo"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"] + " " + estudiantes["Apellido_paterno"]
+        seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
+        ru = seleccionado.split(" - ")[0]
+        estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
 
-    if st.button("✅ Registrar asistencia"):
-        estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
-        nombres = estudiante.iloc[0]["Nombres"]
-        paterno = estudiante.iloc[0]["Apellido_paterno"]
-        materno = estudiante.iloc[0]["Apellido_materno"]
+        if st.button("✅ Registrar asistencia"):
+            estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
+            nombres = estudiante.iloc[0]["Nombres"]
+            paterno = estudiante.iloc[0]["Apellido_paterno"]
+            materno = estudiante.iloc[0]["Apellido_materno"]
 
-        fecha, hora = obtener_fecha_hora_exacta()
+            fecha, hora = obtener_fecha_hora_exacta()
 
-        asistencia = leer_asistencia()
-        nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
-                              columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-        asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-        guardar_asistencia(asistencia)
-        st.success(f"✅ Asistencia registrada a las {hora}")
+            asistencia = leer_asistencia()
+            nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
+                                  columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+            asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
+            guardar_asistencia(asistencia)
+            st.success(f"✅ Asistencia registrada a las {hora}")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA
+# VER ASISTENCIA (CON EDITOR)
 # ------------------------------------------------------------
 elif menu == "📊 Ver asistencia":
-    st.subheader("📊 Registros de asistencia")
-    asistencia = leer_asistencia()
-    st.dataframe(asistencia, use_container_width=True)
+    st.subheader("📊 Registros de asistencia (editable)")
 
-    st.subheader("✏️ Editar estado")
+    asistencia = leer_asistencia()
+
+    # Mostrar editor de datos (todas las columnas editables)
+    edited_asis = st.data_editor(
+        asistencia,
+        use_container_width=True,
+        num_rows="dynamic",  # Permite agregar/eliminar filas
+        key="editor_asistencia"
+    )
+
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("💾 Guardar cambios", key="guardar_asis"):
+            guardar_asistencia(edited_asis)
+            st.success("✅ Cambios guardados correctamente")
+    with col2:
+        st.caption("Puedes editar cualquier celda, agregar filas o eliminar filas seleccionándolas y presionando Supr.")
+
+    # (Opcional) Mantener método anterior de editar estado por índice
+    st.subheader("✏️ Editar estado por índice (alternativa)")
     if len(asistencia) > 0:
         indice = st.number_input("Índice registro", min_value=0, max_value=len(asistencia)-1)
         nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"])
@@ -424,14 +468,16 @@ elif menu == "📊 Ver asistencia":
             asistencia.loc[indice, "Estado"] = nuevo_estado
             guardar_asistencia(asistencia)
             st.success("✅ Estado actualizado")
+            st.rerun()
 
-    st.subheader("🗑️ Eliminar registro")
+    st.subheader("🗑️ Eliminar registro por índice")
     if len(asistencia) > 0:
         eliminar = st.number_input("Índice eliminar", min_value=0, max_value=len(asistencia)-1, key="elim")
         if st.button("🗑️ Eliminar registro"):
             asistencia = asistencia.drop(eliminar)
             guardar_asistencia(asistencia)
             st.success("✅ Registro eliminado")
+            st.rerun()
 
     st.subheader("⬇️ Descargar asistencia del día")
     hoy = str(datetime.now(ZONA_HORARIA).date())
