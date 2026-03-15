@@ -1,5 +1,9 @@
+streamlit
 pandas
 qrcode
 opencv-python-headless
 openpyxl
 numpy
+pytz
+gspread
+oauth2client
