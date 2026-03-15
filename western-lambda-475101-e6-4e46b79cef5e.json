@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "western-lambda-475101-e6",
+  "private_key_id": "4e46b79cef5ed1227411ff9ed57d65b50506f3b5",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDRkcuElMm910bV\nbkHsETKPNnPvLtoG+ZmoG+FH82nvjEa4Blg9P08VB90ghPEsJFzQCx4hbqXmykY/\neYzQ5dzetgQSsrsmhSy2mOWCTyBtQy60K+yaE29I7QjJeMsB+uyJ04dtU4YRT4fY\niRlQmORkJJpkvT1OzK8XusQvdkyMWKFTAIbn+Ra/OBR2ddVLfRVgHtuyMiw+/Kk5\n8E806KXruBPgHPSPm25+VeB+TmAnCrcejykO3HM8p/AFMXo5DEdozffiMENTrlHS\nu3ds0Rp234hIh8G8/TWb07bKyoGbAK+0EkudHiRRf8Fdqp4/mVIWxCrm6Kmy/ROJ\nvlH1Da0zAgMBAAECggEALtxxjENy+xLMwYPmlMFhs1ljQiwRT7b3b3pQfTTGTuzo\nkVTF3WgvKE46WX+wqAS3hkO+KI6j5T/8xkvJO5rysRA1R/MUWzAzR99XjrRf1V7M\n7jfWL7vByiZKrTZn+pjf1I/qu/0NwQguIbLCaN3PUD9JENaqA1lMm7tFDDHhOw5c\nymeB56cTEP37DUwAL99d9eZe0k/rz9Z7qua9RgWe/uJUwX5lAZdmR8wBpmlt+gGn\nq7fAFdZV/3/RgfjKYa+aMJIuRFDgX66tHRtly7tpCzeYG3DeKRsx7o7FX/XyHWby\noLs9BLmkuvGrOeguBK0jTU4QhKQggVdrFR9RlYwFvQKBgQDzQXUtAbkc+q51Rn7J\nkWsDIchGN1u6OLi55UqDlemzscTtoHcjw+xNBLwCC0Kvk+lnzFbJj6FeuzyxEDsE\nUQ9e/5pHzsPrONe/fAXDeRAnpmlkYal7aOTAXkVA1AKzzSuxzl5xyhBmOty183tb\n7yMyKVKZYpQGKCBlmQWOjSvixQKBgQDcjInjGTLeu7THP2yYYYlcixvd2dJCaHic\n2AitAsExXjxrvBpuHz16vQSNo5l2L4K5C8cW+0MnVw0NgXYDZ+ND9pBJBq1TXqSz\nezPQSOBwupi5KBtYPlKqBMvJerotP69zRv+pgXYzDQNiI3RBGkvDPx0b1UnQcDtY\ncjZzDPHvlwKBgA1cuyMNxS1iV9L5XF2WL1qssGOrBs7j7sHHZqBzy7KjQT4MYn8E\ndCaG7AzwsWkTpu6cuue3jBW4E01mptdF3KJLSB5JrVludet+1JI4RDrpWUC6XKT6\nzhYDF6rH+p4F1zCdNXLqtpvm/9i+1zflmvlWa8MhNyBfc+ggz71U4+RBAoGABMul\nf+OfYIpyTtbJNLMCOpnnvDYtRTZiUP69iY2Cx+EFrU4EwRo6yv1rKO1Cu/gifoWM\nCari9esFpKKI/1/16BdnYb8ca7CmIiTupnu/LZRRF82QcqXARGQgTjw16h/1X6tO\nic//0vJYfXzJ3VSGCzPHHUDQ/xBBqhWpq2y/ofcCgYEAiBLrhz416OZoytbR604w\nXIq+CFyR/e6R+3jkK+1mUs+JkTSHECWc4wFCBqBguFl7pfGwdhoQH0l+rDQaa2No\nv3RB6ObsD+tN7Ro/CetRYtC03vjnzTVJj9QdlFamoxYNRxxsZlheUj6rFVqYm3Wx\ngiIeS3uB5YvGkrKEY3iOIKk=\n-----END PRIVATE KEY-----\n",
+  "client_email": "asistencia-qr@western-lambda-475101-e6.iam.gserviceaccount.com",
+  "client_id": "115123935588308757136",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/asistencia-qr%40western-lambda-475101-e6.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
