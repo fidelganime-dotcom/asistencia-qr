@@ -343,12 +343,18 @@ elif menu == "📋 Lista estudiantes":
     estudiantes = leer_estudiantes()
     st.dataframe(estudiantes, use_container_width=True)
 
-    # Ver QR
-    st.subheader("🔍 Ver QR del estudiante")
-    ru_ver = st.text_input("Ingrese RU para ver QR")
+    # Ver QR e información del estudiante
+    st.subheader("🔍 Ver información y QR del estudiante")
+    ru_ver = st.text_input("Ingrese RU para ver información y QR")
     if ru_ver != "":
         estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
         if len(estudiante) > 0:
+            st.write("### Datos del estudiante")
+            st.write(f"**RU:** {estudiante.iloc[0]['RU']}")
+            st.write(f"**Nombres:** {estudiante.iloc[0]['Nombres']}")
+            st.write(f"**Apellido paterno:** {estudiante.iloc[0]['Apellido_paterno']}")
+            st.write(f"**Apellido materno:** {estudiante.iloc[0]['Apellido_materno']}")
+            st.write("### QR")
             st.image(estudiante.iloc[0]["QR"], width=350)
         else:
             st.warning("⚠️ RU no encontrado")
