@@ -29,7 +29,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# ESTILOS CSS (MODO OSCURO + ANIMACIONES + MENÚ DE BOTONES)
+# ESTILOS CSS (MODO OSCURO + ANIMACIONES + MENÚ HORIZONTAL CON COLORES)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -52,52 +52,52 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Menú de botones horizontales */
-    .menu-container {
-        display: flex;
+    /* Menú horizontal estilo botones */
+    div.row-widget.stRadio > div {
+        flex-direction: row;
         justify-content: center;
-        gap: 15px;
+        gap: 20px;
         background-color: var(--bg-card);
         padding: 15px 20px;
         border-radius: 50px;
         border: 1px solid var(--border);
         margin-bottom: 30px;
         box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-        flex-wrap: wrap;
     }
-    .menu-button {
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
+    div.row-widget.stRadio > div label {
+        color: var(--text-secondary) !important;
         font-size: 1.1rem;
         font-weight: 500;
-        padding: 10px 25px;
+        padding: 8px 20px;
         border-radius: 30px;
-        cursor: pointer;
         transition: all 0.2s ease;
-        font-family: inherit;
         border: 1px solid transparent;
     }
-    .menu-button:hover {
+    div.row-widget.stRadio > div label:hover {
         background-color: rgba(124, 58, 237, 0.1);
-        color: var(--accent-light);
+        color: var(--accent-light) !important;
         border-color: var(--accent);
     }
-    .menu-button.active {
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-        color: white;
-        box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);
+    /* Colores específicos para cada opción activa */
+    div.row-widget.stRadio > div label:nth-child(1) input:checked + div {
+        background: linear-gradient(135deg, #3b82f6, #60a5fa) !important; /* Azul */
+        color: white !important;
     }
-    /* Colores específicos para cada botón (se mantiene el gradiente activo) */
-    .menu-button[data-key="0"] { /* Registrar */
+    div.row-widget.stRadio > div label:nth-child(2) input:checked + div {
+        background: linear-gradient(135deg, #10b981, #34d399) !important; /* Verde */
+        color: white !important;
     }
-    .menu-button[data-key="1"] { /* Lista */
+    div.row-widget.stRadio > div label:nth-child(3) input:checked + div {
+        background: linear-gradient(135deg, #f59e0b, #fbbf24) !important; /* Naranja */
+        color: white !important;
     }
-    .menu-button[data-key="2"] { /* Escanear */
+    div.row-widget.stRadio > div label:nth-child(4) input:checked + div {
+        background: linear-gradient(135deg, #ef4444, #f87171) !important; /* Rojo */
+        color: white !important;
     }
-    .menu-button[data-key="3"] { /* Manual */
-    }
-    .menu-button[data-key="4"] { /* Ver */
+    div.row-widget.stRadio > div label:nth-child(5) input:checked + div {
+        background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important; /* Púrpura */
+        color: white !important;
     }
 
     /* Inputs, selects, botones, tablas */
@@ -238,7 +238,7 @@ if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
 
 # ------------------------------------------------------------
-# TÍTULO Y MENÚ DE BOTONES HORIZONTAL
+# TÍTULO Y MENÚ HORIZONTAL
 # ------------------------------------------------------------
 st.title("📷 Sistema de Asistencia con QR")
 
@@ -250,38 +250,6 @@ opciones_menu = [
     "📊 Ver asistencia"
 ]
 
-# Crear columnas para los botones (5 columnas de igual ancho)
-cols = st.columns(5)
-for i, opcion in enumerate(opciones_menu):
-    with cols[i]:
-        # Determinar si este botón es el activo
-        activo = (st.session_state.menu_actual == opcion)
-        # Usar un st.button normal, pero con clase condicional mediante HTML customizado
-        # Para poder aplicar clases personalizadas, usamos markdown + HTML con un botón simulado
-        # O podemos usar st.button y luego modificar con JavaScript, pero es más sencillo
-        # usar un botón de HTML directamente y manejar la acción con un submit oculto.
-        # Mejor usaremos st.button y modificaremos su estilo mediante selectores de atributos.
-        # Pero st.button no permite clases fácilmente. Podemos usar st.components.v1.html para crear botones personalizados
-        # que al hacer clic ejecuten una función de Python mediante st.session_state.
-        # Una forma más sencilla: usar st.button y luego usar CSS para dar estilo al botón activo basado en el texto del botón.
-        # Sin embargo, el botón activo debe resaltarse, y eso lo podemos hacer con CSS inspeccionando el contenido.
-        # Otra opción: usar st.markdown con enlaces y manejar el estado con query params, pero es complicado.
-        # Lo más directo: usar st.button y cambiar su estilo según el estado mediante el selector :focus, pero no es ideal.
-        # Implementaremos con botones HTML personalizados que actualizan session_state mediante un formulario.
-        # Pero para simplicidad, mantendré el st.radio pero le daré apariencia de botones con CSS.
-        # Dado que el usuario pidió botones de colores, podemos modificar el CSS de los radio buttons para que parezcan botones y tengan color activo.
-        # Ya tenemos CSS que hace que los radio buttons se vean como botones. Solo necesitamos que el activo tenga un color diferente.
-        # En el CSS actual, el label del radio checked tiene background-color: var(--accent). Eso ya lo hace.
-        # Por lo tanto, con el st.radio existente y el CSS que ya teníamos, los radios ya se ven como botones y el activo es morado.
-        # El usuario quiere "botones de diferentes colores", quizás quiere que cada botón tenga un color distinto (no solo morado).
-        # Podemos asignar un color de fondo diferente a cada opción cuando está activa.
-        # Vamos a modificar el CSS para dar colores específicos a cada opción activa.
-        pass
-
-# Como es más sencillo, mantendré el st.radio pero le añadiré colores específicos a cada opción activa mediante CSS.
-# Reemplazaré el st.radio por un st.radio con estilo, pero ahora con clases específicas para cada índice.
-
-# Mostrar el menú con st.radio (ya tiene estilo de botones)
 menu = st.radio(
     "",
     opciones_menu,
@@ -292,32 +260,6 @@ menu = st.radio(
 
 # Actualizar session_state con la opción seleccionada
 st.session_state.menu_actual = menu
-
-# Añadir CSS adicional para dar colores diferentes a cada opción activa
-st.markdown("""
-<style>
-    /* Color para el botón activo de Registrar (índice 0) */
-    div.row-widget.stRadio > div label[data-baseweb="radio"]:nth-child(1) input:checked + div {
-        background: linear-gradient(135deg, #3b82f6, #60a5fa) !important; /* Azul */
-    }
-    /* Color para el botón activo de Lista (índice 1) */
-    div.row-widget.stRadio > div label[data-baseweb="radio"]:nth-child(2) input:checked + div {
-        background: linear-gradient(135deg, #10b981, #34d399) !important; /* Verde */
-    }
-    /* Color para el botón activo de Escanear (índice 2) */
-    div.row-widget.stRadio > div label[data-baseweb="radio"]:nth-child(3) input:checked + div {
-        background: linear-gradient(135deg, #f59e0b, #fbbf24) !important; /* Naranja */
-    }
-    /* Color para el botón activo de Manual (índice 3) */
-    div.row-widget.stRadio > div label[data-baseweb="radio"]:nth-child(4) input:checked + div {
-        background: linear-gradient(135deg, #ef4444, #f87171) !important; /* Rojo */
-    }
-    /* Color para el botón activo de Ver (índice 4) */
-    div.row-widget.stRadio > div label[data-baseweb="radio"]:nth-child(5) input:checked + div {
-        background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important; /* Púrpura */
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # SIDEBAR: CARGAR ARCHIVOS EXCEL
@@ -333,6 +275,7 @@ with st.sidebar:
     # Cargar archivo de estudiantes
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
     if archivo_est is not None:
+        # Guardar el archivo subido en la carpeta uploads
         ruta_destino = os.path.join("uploads", archivo_est.name)
         with open(ruta_destino, "wb") as f:
             f.write(archivo_est.getbuffer())
@@ -371,6 +314,7 @@ def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
         return pd.read_excel(st.session_state.ruta_estudiantes)
     else:
+        # Crear DataFrame vacío con columnas correctas
         return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
 
 def guardar_estudiantes(df):
@@ -424,18 +368,19 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
     estudiantes = leer_estudiantes()
     st.dataframe(estudiantes, use_container_width=True)
 
-    # Ver QR e información del estudiante
+    # Ver información y QR del estudiante en una sola línea
     st.subheader("🔍 Ver información y QR del estudiante")
     ru_ver = st.text_input("Ingrese RU para ver información y QR")
     if ru_ver != "":
         estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
         if len(estudiante) > 0:
-            st.write("### Datos del estudiante")
-            st.write(f"**RU:** {estudiante.iloc[0]['RU']}")
-            st.write(f"**Nombres:** {estudiante.iloc[0]['Nombres']}")
-            st.write(f"**Apellido paterno:** {estudiante.iloc[0]['Apellido_paterno']}")
-            st.write(f"**Apellido materno:** {estudiante.iloc[0]['Apellido_materno']}")
-            st.write("### QR")
+            # Mostrar datos en una línea con formato cursiva y negritas
+            st.markdown(
+                f"*Datos del estudiante:* **RU:** {estudiante.iloc[0]['RU']}, "
+                f"**Nombres:** {estudiante.iloc[0]['Nombres']}, "
+                f"**Apellido paterno:** {estudiante.iloc[0]['Apellido_paterno']}, "
+                f"**Apellido materno:** {estudiante.iloc[0]['Apellido_materno']}"
+            )
             st.image(estudiante.iloc[0]["QR"], width=350)
         else:
             st.warning("⚠️ RU no encontrado")
@@ -561,4 +506,3 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga)
     else:
         st.info("No hay registros para hoy.")
-        
