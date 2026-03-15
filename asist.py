@@ -6,6 +6,7 @@ import os
 import cv2
 import numpy as np
 import pytz
+import shutil
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
@@ -28,7 +29,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# ESTILOS CSS (MODO OSCURO + ANIMACIONES + BOTONES DE MENÚ ELEGANTES)
+# ESTILOS CSS (MODO OSCURO + ANIMACIONES + MENÚ HORIZONTAL)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -51,52 +52,36 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Estilos para los botones del menú (dentro de columnas) */
-    div[data-testid="column"] .stButton button {
-        background: linear-gradient(135deg, #2a2f3a 0%, #1e2128 100%);
-        border: 1px solid #3d4350 !important;
-        border-radius: 50px !important;
-        padding: 12px 20px !important;
-        color: #b0b3b8 !important;
-        font-size: 1.1rem !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
-        width: 100%;
-        border: none;
-        margin: 0;
+    /* Menú horizontal */
+    div.row-widget.stRadio > div {
+        flex-direction: row;
+        justify-content: center;
+        gap: 20px;
+        background-color: var(--bg-card);
+        padding: 15px 20px;
+        border-radius: 50px;
+        border: 1px solid var(--border);
+        margin-bottom: 30px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.3);
     }
-    div[data-testid="column"] .stButton button:hover {
-        transform: translateY(-2px) !important;
-        background: linear-gradient(135deg, #353b48 0%, #2a2f3a 100%) !important;
-        border-color: var(--accent) !important;
+    div.row-widget.stRadio > div label {
+        color: var(--text-secondary) !important;
+        font-size: 1.1rem;
+        font-weight: 500;
+        padding: 8px 20px;
+        border-radius: 30px;
+        transition: all 0.2s ease;
+    }
+    div.row-widget.stRadio > div label:hover {
+        background-color: rgba(124, 58, 237, 0.1);
+        color: var(--accent-light) !important;
+    }
+    div.row-widget.stRadio > div label[data-baseweb="radio"] input:checked + div {
+        background-color: var(--accent);
         color: white !important;
-        box-shadow: 0 8px 15px rgba(124, 58, 237, 0.3) !important;
-    }
-    div[data-testid="column"] .stButton button:focus {
-        outline: none !important;
-        box-shadow: 0 0 0 2px var(--accent) !important;
     }
 
-    /* Estilo para otros botones (guardar, descargar, etc.) */
-    .stButton button:not(div[data-testid="column"] .stButton button) {
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .stButton button:hover:not(div[data-testid="column"] .stButton button) {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 12px rgba(124, 58, 237, 0.3);
-        filter: brightness(1.1);
-    }
-
-    /* Inputs, selects, etc. */
+    /* Inputs, selects, botones, tablas */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
         background-color: var(--bg-card) !important;
         border-color: var(--border) !important;
@@ -109,23 +94,39 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2) !important;
     }
 
-    /* Editor de datos */
-    .stDataFrame, div[data-testid="stDataEditor"] {
+    .stButton button {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 12px rgba(124, 58, 237, 0.3);
+        filter: brightness(1.1);
+    }
+
+    .stDataFrame {
         background-color: var(--bg-card);
         border-radius: 12px;
         padding: 1rem;
         border: 1px solid var(--border);
         overflow: hidden;
     }
-    .stDataFrame table, .stDataEditor table {
+    .stDataFrame table {
         color: var(--text-primary) !important;
     }
-    .stDataFrame th, .stDataEditor th {
+    .stDataFrame th {
         background-color: var(--bg-sidebar) !important;
         color: var(--text-primary) !important;
         font-weight: 600;
     }
-    .stDataFrame td, .stDataEditor td {
+    .stDataFrame td {
         background-color: var(--bg-card) !important;
         color: var(--text-secondary) !important;
     }
@@ -163,6 +164,22 @@ st.markdown("""
         to { opacity: 1; transform: translateY(0); }
     }
 
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: var(--bg-card);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--accent);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-light);
+    }
+
     /* Cámara */
     div[data-testid="stCameraInput"] video {
         width: 100% !important;
@@ -175,11 +192,20 @@ st.markdown("""
     div[data-testid="stCameraInput"] {
         width: 100% !important;
     }
+
+    /* Estilo para los uploaders */
+    .uploader-box {
+        background-color: var(--bg-card);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid var(--border);
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# INICIALIZAR SESSION STATE PARA RUTAS DE ARCHIVOS Y MENÚ
+# INICIALIZAR SESSION STATE PARA RUTAS DE ARCHIVOS
 # ------------------------------------------------------------
 if "ruta_estudiantes" not in st.session_state:
     st.session_state.ruta_estudiantes = "estudiantes.xlsx"
@@ -190,6 +216,11 @@ if "archivo_estudiantes_subido" not in st.session_state:
 if "archivo_asistencia_subido" not in st.session_state:
     st.session_state.archivo_asistencia_subido = None
 
+# ------------------------------------------------------------
+# TÍTULO Y MENÚ HORIZONTAL
+# ------------------------------------------------------------
+st.title("📷 Sistema de Asistencia con QR")
+
 opciones_menu = [
     "📝 Registrar estudiante",
     "📋 Lista estudiantes",
@@ -197,25 +228,13 @@ opciones_menu = [
     "✍️ Registrar asistencia manual",
     "📊 Ver asistencia"
 ]
-if "menu_opcion" not in st.session_state:
-    st.session_state.menu_opcion = opciones_menu[0]
 
-# ------------------------------------------------------------
-# TÍTULO
-# ------------------------------------------------------------
-st.title("📷 Sistema de Asistencia con QR")
-
-# ------------------------------------------------------------
-# MENÚ DE BOTONES HORIZONTALES (ELEGANTES)
-# ------------------------------------------------------------
-cols = st.columns(len(opciones_menu))
-for i, opcion in enumerate(opciones_menu):
-    with cols[i]:
-        if st.button(opcion, key=f"menu_{i}", use_container_width=True):
-            st.session_state.menu_opcion = opcion
-            st.rerun()
-
-menu = st.session_state.menu_opcion
+menu = st.radio(
+    "",
+    opciones_menu,
+    horizontal=True,
+    label_visibility="collapsed"
+)
 
 # ------------------------------------------------------------
 # SIDEBAR: CARGAR ARCHIVOS EXCEL
@@ -224,11 +243,14 @@ with st.sidebar:
     st.markdown("## 📂 Cargar archivos Excel")
     st.markdown("Sube tus propios archivos para trabajar con ellos. Si no subes ninguno, se usarán los archivos por defecto (`estudiantes.xlsx` y `asistencia.xlsx`).")
 
+    # Crear carpeta uploads si no existe
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
 
+    # Cargar archivo de estudiantes
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
     if archivo_est is not None:
+        # Guardar el archivo subido en la carpeta uploads
         ruta_destino = os.path.join("uploads", archivo_est.name)
         with open(ruta_destino, "wb") as f:
             f.write(archivo_est.getbuffer())
@@ -236,6 +258,7 @@ with st.sidebar:
         st.session_state.archivo_estudiantes_subido = archivo_est.name
         st.success(f"✅ Archivo de estudiantes cargado: {archivo_est.name}")
 
+    # Cargar archivo de asistencia
     archivo_asis = st.file_uploader("📗 Asistencia", type=["xlsx"], key="upload_asis")
     if archivo_asis is not None:
         ruta_destino = os.path.join("uploads", archivo_asis.name)
@@ -260,36 +283,23 @@ with st.sidebar:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
 
 # ------------------------------------------------------------
-# FUNCIONES AUXILIARES PARA LEER/GUARDAR DATAFRAMES (CON GESTIÓN DE TIPOS)
+# FUNCIONES AUXILIARES PARA LEER/GUARDAR DATAFRAMES
 # ------------------------------------------------------------
 def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
-        df = pd.read_excel(st.session_state.ruta_estudiantes)
+        return pd.read_excel(st.session_state.ruta_estudiantes)
     else:
-        df = pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
-    
-    # Asegurar tipos de datos para evitar errores en data_editor
-    # Convertir todas las columnas a string para simplificar (excepto si RU es numérico, pero lo dejamos string)
-    df = df.astype(str)
-    # Reemplazar 'nan' por cadena vacía
-    df = df.replace('nan', '')
-    return df
+        # Crear DataFrame vacío con columnas correctas
+        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
 
 def guardar_estudiantes(df):
-    # Antes de guardar, restaurar los tipos originales (opcional)
-    # Pero el Excel guardará como texto, lo cual es aceptable
     df.to_excel(st.session_state.ruta_estudiantes, index=False)
 
 def leer_asistencia():
     if os.path.exists(st.session_state.ruta_asistencia):
-        df = pd.read_excel(st.session_state.ruta_asistencia)
+        return pd.read_excel(st.session_state.ruta_asistencia)
     else:
-        df = pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-    
-    # Asegurar tipos
-    df = df.astype(str)
-    df = df.replace('nan', '')
-    return df
+        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
 
 def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
@@ -307,7 +317,7 @@ if menu == "📝 Registrar estudiante":
 
         if st.button("💾 Guardar estudiante"):
             df = leer_estudiantes()
-            if ru in df["RU"].values:
+            if ru in df["RU"].astype(str).values:
                 st.error("❌ Este RU ya existe")
             else:
                 if not os.path.exists("qr"):
@@ -326,53 +336,39 @@ if menu == "📝 Registrar estudiante":
                     st.download_button("⬇️ Descargar QR", data=file, file_name=f"{ru}_qr.png", mime="image/png")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES (CON EDITOR)
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif menu == "📋 Lista estudiantes":
-    st.subheader("📋 Lista de estudiantes (editable)")
-
+    st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
-
-    # Configurar columnas: deshabilitar edición en QR
-    column_config = {
-        "RU": st.column_config.TextColumn("RU", required=True),
-        "Nombres": st.column_config.TextColumn("Nombres", required=True),
-        "Apellido_paterno": st.column_config.TextColumn("Apellido paterno", required=True),
-        "Apellido_materno": st.column_config.TextColumn("Apellido materno", required=True),
-        "QR": st.column_config.TextColumn("QR", disabled=True, help="Ruta del código QR (no editable)")
-    }
-
-    edited_df = st.data_editor(
-        estudiantes,
-        column_config=column_config,
-        use_container_width=True,
-        num_rows="dynamic",
-        key="editor_estudiantes"
-    )
-
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        if st.button("💾 Guardar cambios", key="guardar_est"):
-            # Asegurar que los datos sean strings y reemplazar vacíos
-            edited_df = edited_df.astype(str).replace('nan', '')
-            guardar_estudiantes(edited_df)
-            st.success("✅ Cambios guardados correctamente")
-    with col2:
-        st.caption("Puedes editar celdas, agregar filas (al final) o eliminar filas seleccionándolas y presionando Supr.")
+    st.dataframe(estudiantes, use_container_width=True)
 
     # Ver QR
     st.subheader("🔍 Ver QR del estudiante")
     ru_ver = st.text_input("Ingrese RU para ver QR")
     if ru_ver != "":
-        estudiante = estudiantes[estudiantes["RU"] == ru_ver]
+        estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
         if len(estudiante) > 0:
-            ruta_qr = estudiante.iloc[0]["QR"]
-            if os.path.exists(ruta_qr):
-                st.image(ruta_qr, width=350)
-            else:
-                st.warning("⚠️ Archivo QR no encontrado")
+            st.image(estudiante.iloc[0]["QR"], width=350)
         else:
             st.warning("⚠️ RU no encontrado")
+
+    # Eliminar estudiante
+    st.subheader("🗑️ Eliminar estudiante")
+    if len(estudiantes) > 0:
+        eliminar = st.number_input("Índice a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
+        if st.button("🗑️ Eliminar"):
+            estudiantes = estudiantes.drop(eliminar)
+            guardar_estudiantes(estudiantes)
+            st.success("✅ Estudiante eliminado")
+
+    # Descargar Excel
+    st.subheader("⬇️ Descargar Excel estudiantes")
+    if len(estudiantes) > 0:
+        archivo_descarga = "registro_estudiantes_temp.xlsx"
+        estudiantes.to_excel(archivo_descarga, index=False)
+        with open(archivo_descarga, "rb") as file:
+            st.download_button("📥 Descargar Excel", data=file, file_name="estudiantes_exportados.xlsx")
 
 # ------------------------------------------------------------
 # ESCANEAR QR
@@ -389,7 +385,7 @@ elif menu == "📸 Escanear QR":
         if data:
             ru = data
             estudiantes = leer_estudiantes()
-            estudiante = estudiantes[estudiantes["RU"] == ru]
+            estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
 
             if len(estudiante) > 0:
                 nombres = estudiante.iloc[0]["Nombres"]
@@ -399,10 +395,10 @@ elif menu == "📸 Escanear QR":
                 fecha, hora = obtener_fecha_hora_exacta()
 
                 asistencia = leer_asistencia()
-                ya = asistencia[(asistencia["RU"] == ru) & (asistencia["Fecha"] == str(fecha))]
+                ya = asistencia[(asistencia["RU"].astype(str) == ru) & (asistencia["Fecha"].astype(str) == str(fecha))]
 
                 if len(ya) == 0:
-                    nuevo = pd.DataFrame([[ru, nombres, paterno, materno, str(fecha), hora, "Presente"]],
+                    nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     guardar_asistencia(asistencia)
@@ -420,69 +416,57 @@ elif menu == "📸 Escanear QR":
 elif menu == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
     estudiantes = leer_estudiantes()
-    if len(estudiantes) == 0:
-        st.warning("No hay estudiantes registrados. Primero registra estudiantes.")
-    else:
-        estudiantes["nombre_completo"] = estudiantes["RU"] + " - " + estudiantes["Nombres"] + " " + estudiantes["Apellido_paterno"]
-        seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
-        ru = seleccionado.split(" - ")[0]
-        estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
+    estudiantes["nombre_completo"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"] + " " + estudiantes["Apellido_paterno"]
+    seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
+    ru = seleccionado.split(" - ")[0]
+    estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
 
-        if st.button("✅ Registrar asistencia"):
-            estudiante = estudiantes[estudiantes["RU"] == ru]
-            nombres = estudiante.iloc[0]["Nombres"]
-            paterno = estudiante.iloc[0]["Apellido_paterno"]
-            materno = estudiante.iloc[0]["Apellido_materno"]
+    if st.button("✅ Registrar asistencia"):
+        estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
+        nombres = estudiante.iloc[0]["Nombres"]
+        paterno = estudiante.iloc[0]["Apellido_paterno"]
+        materno = estudiante.iloc[0]["Apellido_materno"]
 
-            fecha, hora = obtener_fecha_hora_exacta()
+        fecha, hora = obtener_fecha_hora_exacta()
 
-            asistencia = leer_asistencia()
-            nuevo = pd.DataFrame([[ru, nombres, paterno, materno, str(fecha), hora, estado]],
-                                  columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-            asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-            guardar_asistencia(asistencia)
-            st.success(f"✅ Asistencia registrada a las {hora}")
+        asistencia = leer_asistencia()
+        nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
+                              columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+        asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
+        guardar_asistencia(asistencia)
+        st.success(f"✅ Asistencia registrada a las {hora}")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (CON EDITOR)
+# VER ASISTENCIA
 # ------------------------------------------------------------
 elif menu == "📊 Ver asistencia":
-    st.subheader("📊 Registros de asistencia (editable)")
-
+    st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
+    st.dataframe(asistencia, use_container_width=True)
 
-    # Configurar columnas: todas editables, pero podemos definir tipos
-    column_config_asis = {
-        "RU": st.column_config.TextColumn("RU", required=True),
-        "Nombres": st.column_config.TextColumn("Nombres", required=True),
-        "Apellido_paterno": st.column_config.TextColumn("Apellido paterno", required=True),
-        "Apellido_materno": st.column_config.TextColumn("Apellido materno", required=True),
-        "Fecha": st.column_config.TextColumn("Fecha", required=True),
-        "Hora": st.column_config.TextColumn("Hora", required=True),
-        "Estado": st.column_config.SelectboxColumn("Estado", options=["Presente", "Tarde", "Permiso", "Ausente"], required=True)
-    }
+    # Editar estado
+    st.subheader("✏️ Editar estado")
+    if len(asistencia) > 0:
+        indice = st.number_input("Índice registro", min_value=0, max_value=len(asistencia)-1)
+        nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"])
+        if st.button("🔄 Actualizar estado"):
+            asistencia.loc[indice, "Estado"] = nuevo_estado
+            guardar_asistencia(asistencia)
+            st.success("✅ Estado actualizado")
 
-    edited_asis = st.data_editor(
-        asistencia,
-        column_config=column_config_asis,
-        use_container_width=True,
-        num_rows="dynamic",
-        key="editor_asistencia"
-    )
+    # Eliminar registro
+    st.subheader("🗑️ Eliminar registro")
+    if len(asistencia) > 0:
+        eliminar = st.number_input("Índice eliminar", min_value=0, max_value=len(asistencia)-1, key="elim")
+        if st.button("🗑️ Eliminar registro"):
+            asistencia = asistencia.drop(eliminar)
+            guardar_asistencia(asistencia)
+            st.success("✅ Registro eliminado")
 
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        if st.button("💾 Guardar cambios", key="guardar_asis"):
-            edited_asis = edited_asis.astype(str).replace('nan', '')
-            guardar_asistencia(edited_asis)
-            st.success("✅ Cambios guardados correctamente")
-    with col2:
-        st.caption("Puedes editar celdas, agregar filas o eliminar filas seleccionándolas y presionando Supr.")
-
-    # Descargar asistencia del día
+    # Descargar Excel del día
     st.subheader("⬇️ Descargar asistencia del día")
     hoy = str(datetime.now(ZONA_HORARIA).date())
-    asistencia_hoy = asistencia[asistencia["Fecha"] == hoy]
+    asistencia_hoy = asistencia[asistencia["Fecha"].astype(str) == hoy]
     if len(asistencia_hoy) > 0:
         archivo_descarga = f"asistencia_{hoy}.xlsx"
         asistencia_hoy.to_excel(archivo_descarga, index=False)
