@@ -9,9 +9,9 @@ import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# ------------------------------------------------------------
+# ------------------------------------------------
 # CONEXIÓN GOOGLE SHEETS
-# ------------------------------------------------------------
+# ------------------------------------------------
 
 scope = [
 "https://spreadsheets.google.com/feeds",
@@ -25,10 +25,16 @@ scope
 
 client = gspread.authorize(credenciales)
 
-# Abrir hoja
-sheet_estudiantes = client.open("asistencia_qr").worksheet("estudiantes")
-sheet_asistencia = client.open("asistencia_qr").worksheet("asistencia")
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1P7V72uACNS1PRrPRuSNfux7AFjfdHvUXeCTSr8yukyI/edit"
 
+sheet = client.open_by_url(SHEET_URL)
+
+sheet_estudiantes = sheet.worksheet("estudiantes")
+sheet_asistencia = sheet.worksheet("asistencia")
+
+# ------------------------------------------------
+# FUNCIONES
+# ------------------------------------------------
 
 def obtener_estudiantes():
     data = sheet_estudiantes.get_all_records()
@@ -44,23 +50,19 @@ def obtener_asistencia():
 def guardar_asistencia(data):
     sheet_asistencia.append_row(data)
 
-
-# ------------------------------------------------------------
+# ------------------------------------------------
 # ZONA HORARIA
-# ------------------------------------------------------------
+# ------------------------------------------------
 
-ZONA_HORARIA = pytz.timezone('America/La_Paz')
+zona = pytz.timezone("America/La_Paz")
 
-def obtener_fecha_hora_exacta():
-    ahora = datetime.now(ZONA_HORARIA)
-    fecha = ahora.date()
-    hora = ahora.strftime("%H:%M:%S")
-    return fecha, hora
+def fecha_hora():
+    ahora = datetime.now(zona)
+    return ahora.date(), ahora.strftime("%H:%M:%S")
 
-
-# ------------------------------------------------------------
-# CONFIGURACIÓN STREAMLIT
-# ------------------------------------------------------------
+# ------------------------------------------------
+# STREAMLIT
+# ------------------------------------------------
 
 st.set_page_config(
 page_title="Sistema de Asistencia QR",
@@ -80,13 +82,11 @@ menu = st.sidebar.selectbox(
 ]
 )
 
-# ------------------------------------------------------------
+# ------------------------------------------------
 # REGISTRAR ESTUDIANTE
-# ------------------------------------------------------------
+# ------------------------------------------------
 
 if menu == "Registrar estudiante":
-
-    st.subheader("Registrar nuevo estudiante")
 
     ru = st.text_input("RU")
     nombres = st.text_input("Nombres")
@@ -98,6 +98,7 @@ if menu == "Registrar estudiante":
         estudiantes = obtener_estudiantes()
 
         if ru in estudiantes["RU"].astype(str).values:
+
             st.error("Este RU ya existe")
 
         else:
@@ -120,45 +121,44 @@ if menu == "Registrar estudiante":
 
             st.success("Estudiante registrado")
 
-            st.image(ruta_qr, width=300)
+            st.image(ruta_qr,width=250)
 
-# ------------------------------------------------------------
+# ------------------------------------------------
 # LISTA ESTUDIANTES
-# ------------------------------------------------------------
+# ------------------------------------------------
 
 elif menu == "Lista estudiantes":
-
-    st.subheader("Lista de estudiantes")
 
     estudiantes = obtener_estudiantes()
 
     st.dataframe(estudiantes)
 
-    ru_ver = st.text_input("Ingresar RU para ver QR")
+    ru_buscar = st.text_input("Ver QR por RU")
 
-    if ru_ver != "":
+    if ru_buscar != "":
 
-        estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
+        est = estudiantes[estudiantes["RU"].astype(str)==ru_buscar]
 
-        if len(estudiante) > 0:
-            st.image(estudiante.iloc[0]["QR"], width=300)
+        if len(est)>0:
+
+            st.image(est.iloc[0]["QR"],width=250)
 
         else:
+
             st.warning("RU no encontrado")
 
-# ------------------------------------------------------------
+# ------------------------------------------------
 # ESCANEAR QR
-# ------------------------------------------------------------
+# ------------------------------------------------
 
 elif menu == "Escanear QR":
 
-    st.subheader("Escanear código QR")
-
-    foto = st.camera_input("Escanear QR")
+    foto = st.camera_input("Escanea el QR")
 
     if foto is not None:
 
         file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
+
         frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
         detector = cv2.QRCodeDetector()
@@ -171,24 +171,24 @@ elif menu == "Escanear QR":
 
             estudiantes = obtener_estudiantes()
 
-            estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
+            estudiante = estudiantes[estudiantes["RU"].astype(str)==ru]
 
-            if len(estudiante) > 0:
+            if len(estudiante)>0:
 
                 nombres = estudiante.iloc[0]["Nombres"]
                 paterno = estudiante.iloc[0]["Apellido_paterno"]
                 materno = estudiante.iloc[0]["Apellido_materno"]
 
-                fecha, hora = obtener_fecha_hora_exacta()
+                fecha,hora = fecha_hora()
 
                 asistencia = obtener_asistencia()
 
                 ya = asistencia[
-                (asistencia["RU"].astype(str) == ru) &
-                (asistencia["Fecha"].astype(str) == str(fecha))
+                (asistencia["RU"].astype(str)==ru) &
+                (asistencia["Fecha"].astype(str)==str(fecha))
                 ]
 
-                if len(ya) == 0:
+                if len(ya)==0:
 
                     guardar_asistencia([
                         ru,
@@ -200,7 +200,7 @@ elif menu == "Escanear QR":
                         "Presente"
                     ])
 
-                    st.success(f"Asistencia registrada {nombres}")
+                    st.success(f"Asistencia registrada: {nombres}")
 
                 else:
 
@@ -214,31 +214,37 @@ elif menu == "Escanear QR":
 
             st.warning("No se detectó QR")
 
-# ------------------------------------------------------------
-# REGISTRO MANUAL
-# ------------------------------------------------------------
+# ------------------------------------------------
+# ASISTENCIA MANUAL
+# ------------------------------------------------
 
 elif menu == "Registrar asistencia manual":
 
     estudiantes = obtener_estudiantes()
 
-    estudiantes["nombre"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"]
+    estudiantes["nombre"] = estudiantes["RU"].astype(str)+" - "+estudiantes["Nombres"]
 
-    seleccionado = st.selectbox("Seleccionar estudiante", estudiantes["nombre"])
+    seleccionado = st.selectbox(
+    "Seleccionar estudiante",
+    estudiantes["nombre"]
+    )
 
     ru = seleccionado.split(" - ")[0]
 
-    estado = st.selectbox("Estado", ["Presente","Tarde","Permiso","Ausente"])
+    estado = st.selectbox(
+    "Estado",
+    ["Presente","Tarde","Permiso","Ausente"]
+    )
 
-    if st.button("Registrar asistencia"):
+    if st.button("Registrar"):
 
-        estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
+        estudiante = estudiantes[estudiantes["RU"].astype(str)==ru]
 
         nombres = estudiante.iloc[0]["Nombres"]
         paterno = estudiante.iloc[0]["Apellido_paterno"]
         materno = estudiante.iloc[0]["Apellido_materno"]
 
-        fecha, hora = obtener_fecha_hora_exacta()
+        fecha,hora = fecha_hora()
 
         guardar_asistencia([
             ru,
@@ -252,14 +258,11 @@ elif menu == "Registrar asistencia manual":
 
         st.success("Asistencia registrada")
 
-
-# ------------------------------------------------------------
+# ------------------------------------------------
 # VER ASISTENCIA
-# ------------------------------------------------------------
+# ------------------------------------------------
 
 elif menu == "Ver asistencia":
-
-    st.subheader("Registros de asistencia")
 
     asistencia = obtener_asistencia()
 
