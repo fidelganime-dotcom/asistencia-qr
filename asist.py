@@ -20,22 +20,6 @@ def obtener_fecha_hora_exacta():
     return fecha, hora
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA VERIFICAR REGISTRO DUPLICADO
-# ------------------------------------------------------------
-def verificar_registro_duplicado(ru, fecha):
-    """
-    Verifica si un estudiante ya tiene registro de asistencia en la fecha actual
-    Retorna: (tiene_registro, registro_existente)
-    """
-    asistencia = leer_asistencia()
-    registro_existente = asistencia[(asistencia["RU"].astype(str) == str(ru)) & 
-                                   (asistencia["Fecha"].astype(str) == str(fecha))]
-    
-    if len(registro_existente) > 0:
-        return True, registro_existente.iloc[0]
-    return False, None
-
-# ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(
@@ -62,7 +46,6 @@ st.markdown("""
         --warning: #f59e0b;
         --error: #ef4444;
         --info: #3b82f6;
-        --duplicate: #f97316;
     }
 
     .stApp {
@@ -227,14 +210,6 @@ st.markdown("""
         transform: translateY(0) scale(0.98);
     }
 
-    /* Botón deshabilitado */
-    .stButton button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-    }
-
     /* DataFrames elegantes */
     .stDataFrame {
         background: rgba(26, 29, 36, 0.7);
@@ -296,16 +271,6 @@ st.markdown("""
     .stAlert.error { 
         border-left-color: var(--error);
         background: linear-gradient(90deg, rgba(239, 68, 68, 0.1) 0%, rgba(26, 29, 36, 0.9) 100%) !important;
-    }
-    
-    .stAlert.info { 
-        border-left-color: var(--info);
-        background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(26, 29, 36, 0.9) 100%) !important;
-    }
-    
-    .stAlert.duplicate { 
-        border-left-color: var(--duplicate);
-        background: linear-gradient(90deg, rgba(249, 115, 22, 0.1) 0%, rgba(26, 29, 36, 0.9) 100%) !important;
     }
 
     @keyframes slideIn {
@@ -407,21 +372,6 @@ st.markdown("""
         background: linear-gradient(90deg, transparent, var(--accent), transparent);
         margin: 2rem 0;
     }
-    
-    /* Tarjeta de advertencia de duplicado */
-    .duplicate-card {
-        background: rgba(249, 115, 22, 0.1);
-        border: 1px solid var(--duplicate);
-        border-radius: 12px;
-        padding: 1rem;
-        margin: 1rem 0;
-        text-align: center;
-    }
-    
-    .duplicate-card h4 {
-        color: var(--duplicate);
-        margin: 0;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -438,8 +388,6 @@ if "archivo_asistencia_subido" not in st.session_state:
     st.session_state.archivo_asistencia_subido = None
 if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
-if "ultimo_registro" not in st.session_state:
-    st.session_state.ultimo_registro = None
 
 # ------------------------------------------------------------
 # TÍTULO Y MENÚ HORIZONTAL (CON BOTONES DE COLORES ELEGANTES)
@@ -543,20 +491,6 @@ def leer_asistencia():
 
 def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
-
-def verificar_registro_duplicado(ru, fecha):
-    """
-    Verifica si un estudiante ya tiene registro de asistencia en la fecha actual
-    Retorna: (tiene_registro, registro_existente)
-    """
-    asistencia = leer_asistencia()
-    if len(asistencia) > 0:
-        registro_existente = asistencia[(asistencia["RU"].astype(str) == str(ru)) & 
-                                       (asistencia["Fecha"].astype(str) == str(fecha))]
-        
-        if len(registro_existente) > 0:
-            return True, registro_existente.iloc[0]
-    return False, None
 
 # ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE (ELEGANTE)
@@ -669,7 +603,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (ELEGANTE) - CON VERIFICACIÓN DE DUPLICADOS
+# ESCANEAR QR (ELEGANTE)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR de asistencia")
@@ -687,12 +621,6 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
         3. La foto se tomará automáticamente
         4. Espera la confirmación del registro
         """)
-        
-        # Mostrar el último registro si existe
-        if st.session_state.ultimo_registro:
-            st.markdown("### 🕒 Último registro")
-            st.success(f"**RU:** {st.session_state.ultimo_registro['RU']}\n"
-                      f"**Hora:** {st.session_state.ultimo_registro['Hora']}")
     
     if foto is not None:
         with st.spinner("🔍 Procesando QR..."):
@@ -713,24 +641,14 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 
                 fecha, hora = obtener_fecha_hora_exacta()
 
-                # VERIFICAR SI YA TIENE REGISTRO HOY
-                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                asistencia = leer_asistencia()
+                ya = asistencia[(asistencia["RU"].astype(str) == ru) & (asistencia["Fecha"].astype(str) == str(fecha))]
 
-                if not tiene_registro:
-                    # No tiene registro, proceder con el registro
+                if len(ya) == 0:
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-                    asistencia = leer_asistencia()
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     guardar_asistencia(asistencia)
-                    
-                    # Guardar en session state
-                    st.session_state.ultimo_registro = {
-                        "RU": ru,
-                        "Nombres": nombres,
-                        "Hora": hora,
-                        "Fecha": fecha
-                    }
                     
                     st.balloons()
                     st.success(f"""
@@ -741,38 +659,14 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                     **Fecha:** {fecha}
                     """)
                 else:
-                    # YA TIENE REGISTRO - Mostrar advertencia
-                    st.markdown("""
-                    <div class="duplicate-card">
-                        <h4>⚠️ REGISTRO DUPLICADO DETECTADO</h4>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    col_dup1, col_dup2 = st.columns(2)
-                    with col_dup1:
-                        st.error(f"""
-                        ### ❌ No se puede registrar
-                        **Estudiante:** {nombres} {paterno} {materno}
-                        **RU:** {ru}
-                        **Motivo:** Ya tiene un registro hoy
-                        """)
-                    
-                    with col_dup2:
-                        st.warning(f"""
-                        ### 📋 Registro existente
-                        **Hora:** {registro_existente['Hora']}
-                        **Estado:** {registro_existente['Estado']}
-                        **Fecha:** {registro_existente['Fecha']}
-                        
-                        *Solo se permite un registro por día*
-                        """)
+                    st.warning(f"⚠️ {nombres} {paterno} ya registró asistencia hoy a las {ya.iloc[0]['Hora']}")
             else:
                 st.error("❌ Estudiante no encontrado en la base de datos")
         else:
             st.error("❌ No se pudo detectar un código QR válido")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (ELEGANTE) - CON VERIFICACIÓN DE DUPLICADOS
+# REGISTRO MANUAL (ELEGANTE)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
@@ -804,59 +698,26 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             **Apellidos:** {estudiante_sel['Apellido_paterno']} {estudiante_sel['Apellido_materno']}
             """)
             
-            fecha, hora = obtener_fecha_hora_exacta()
-            
-            # VERIFICAR SI YA TIENE REGISTRO HOY
-            tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-            
-            if tiene_registro:
-                # Mostrar advertencia de registro duplicado
-                st.markdown("""
-                <div class="duplicate-card">
-                    <h4>⚠️ REGISTRO DUPLICADO DETECTADO</h4>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.warning(f"""
-                **Este estudiante ya tiene un registro hoy:**
-                - **Hora:** {registro_existente['Hora']}
-                - **Estado:** {registro_existente['Estado']}
-                
-                *Solo se permite un registro por día*
-                """)
-                
-                # Botón deshabilitado si ya tiene registro
-                if st.button("✅ REGISTRAR ASISTENCIA", use_container_width=True, disabled=True):
-                    pass
-                st.caption("⚠️ Botón deshabilitado - Registro duplicado")
-            else:
-                # No tiene registro, botón habilitado
-                if st.button("✅ REGISTRAR ASISTENCIA", use_container_width=True):
-                    nombres = estudiante_sel["Nombres"]
-                    paterno = estudiante_sel["Apellido_paterno"]
-                    materno = estudiante_sel["Apellido_materno"]
+            if st.button("✅ REGISTRAR ASISTENCIA", use_container_width=True):
+                estudiante = estudiantes[estudiantes["RU"].astype(str) == ru].iloc[0]
+                nombres = estudiante["Nombres"]
+                paterno = estudiante["Apellido_paterno"]
+                materno = estudiante["Apellido_materno"]
 
-                    asistencia = leer_asistencia()
-                    nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
-                                          columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-                    asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-                    guardar_asistencia(asistencia)
-                    
-                    # Guardar en session state
-                    st.session_state.ultimo_registro = {
-                        "RU": ru,
-                        "Nombres": nombres,
-                        "Hora": hora,
-                        "Fecha": fecha
-                    }
-                    
-                    st.balloons()
-                    st.success(f"✅ Asistencia registrada correctamente a las {hora}")
+                fecha, hora = obtener_fecha_hora_exacta()
+
+                asistencia = leer_asistencia()
+                nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
+                                      columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+                asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
+                guardar_asistencia(asistencia)
+                
+                st.success(f"✅ Asistencia registrada correctamente a las {hora}")
     else:
         st.warning("⚠️ No hay estudiantes registrados. Primero debes registrar estudiantes.")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (ELEGANTE) - CON INDICADORES DE DUPLICADOS
+# VER ASISTENCIA (ELEGANTE)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
@@ -911,38 +772,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         with col_stats4:
             total_registros = len(asistencia)
             st.metric("📊 Total registros", total_registros)
-        
-        # Verificar duplicados por día (control de calidad)
-        st.markdown("### 🔍 Verificación de integridad")
-        
-        # Agrupar por RU y Fecha para encontrar posibles duplicados
-        duplicados = asistencia.groupby(['RU', 'Fecha']).size().reset_index(name='count')
-        duplicados = duplicados[duplicados['count'] > 1]
-        
-        if len(duplicados) > 0:
-            st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de múltiples registros para un mismo estudiante en el mismo día")
-            
-            # Mostrar los duplicados
-            registros_duplicados = []
-            for _, row in duplicados.iterrows():
-                ru_dup = row['RU']
-                fecha_dup = row['Fecha']
-                registros = asistencia[(asistencia['RU'].astype(str) == str(ru_dup)) & 
-                                      (asistencia['Fecha'].astype(str) == str(fecha_dup))]
-                registros_duplicados.append(registros)
-            
-            if registros_duplicados:
-                df_duplicados = pd.concat(registros_duplicados)
-                st.dataframe(df_duplicados, use_container_width=True)
-                
-                if st.button("🧹 LIMPIAR DUPLICADOS (Mantener solo el primer registro)", use_container_width=True):
-                    # Mantener solo el primer registro para cada combinación RU-Fecha
-                    asistencia_limpia = asistencia.drop_duplicates(subset=['RU', 'Fecha'], keep='first')
-                    guardar_asistencia(asistencia_limpia)
-                    st.success("✅ Duplicados eliminados. Se mantuvo el primer registro de cada día.")
-                    st.rerun()
-        else:
-            st.success("✅ No se encontraron registros duplicados. La base de datos está integra.")
         
         # Editar y eliminar
         tab_edit, tab_delete, tab_export = st.tabs(["✏️ Editar estado", "🗑️ Eliminar registro", "📥 Exportar"])
