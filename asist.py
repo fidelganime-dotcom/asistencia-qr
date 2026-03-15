@@ -6,17 +6,16 @@ import os
 import cv2
 import numpy as np
 import pytz
-import shutil
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
 # ------------------------------------------------------------
-ZONA_HORARIA = pytz.timezone('America/La_Paz')  # Cambia según tu ubicación
+ZONA_HORARIA = pytz.timezone('America/La_Paz')
 
 def obtener_fecha_hora_exacta():
     ahora = datetime.now(ZONA_HORARIA)
     fecha = ahora.date()
-    hora = ahora.strftime("%H:%M:%S.%f")[:-3]  # Con milisegundos
+    hora = ahora.strftime("%H:%M:%S.%f")[:-3]
     return fecha, hora
 
 # ------------------------------------------------------------
@@ -39,12 +38,7 @@ st.markdown("""
         --bg-sidebar: #1a1d24;
         --text-primary: #fafafa;
         --text-secondary: #b0b3b8;
-        --accent: #7c3aed;
-        --accent-light: #9f7aea;
         --border: #2d3138;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --error: #ef4444;
     }
 
     .stApp {
@@ -52,200 +46,98 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Menú horizontal con botones de colores */
-    div.row-widget.stRadio > div {
-        flex-direction: row;
+    /* Contenedor del menú */
+    .menu-container {
+        display: flex;
         justify-content: center;
-        gap: 20px;
+        gap: 15px;
         background-color: var(--bg-card);
         padding: 15px 20px;
         border-radius: 50px;
         border: 1px solid var(--border);
         margin-bottom: 30px;
         box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-    }
-    div.row-widget.stRadio > div label {
-        color: var(--text-secondary) !important;
-        font-size: 1.1rem;
-        font-weight: 500;
-        padding: 8px 20px;
-        border-radius: 30px;
-        transition: all 0.2s ease;
-        border: 1px solid transparent;
-        background-color: rgba(124, 58, 237, 0.1); /* color base semitransparente */
-    }
-    div.row-widget.stRadio > div label:hover {
-        filter: brightness(1.2);
-        border-color: currentColor;
-    }
-    /* Colores específicos para cada opción (inactivo) */
-    div.row-widget.stRadio > div label:nth-child(1) {
-        background-color: rgba(59, 130, 246, 0.2);
-        border-color: #3b82f6;
-    }
-    div.row-widget.stRadio > div label:nth-child(2) {
-        background-color: rgba(16, 185, 129, 0.2);
-        border-color: #10b981;
-    }
-    div.row-widget.stRadio > div label:nth-child(3) {
-        background-color: rgba(245, 158, 11, 0.2);
-        border-color: #f59e0b;
-    }
-    div.row-widget.stRadio > div label:nth-child(4) {
-        background-color: rgba(239, 68, 68, 0.2);
-        border-color: #ef4444;
-    }
-    div.row-widget.stRadio > div label:nth-child(5) {
-        background-color: rgba(139, 92, 246, 0.2);
-        border-color: #8b5cf6;
-    }
-    /* Colores para la opción activa (checked) */
-    div.row-widget.stRadio > div label:nth-child(1) input:checked + div {
-        background: linear-gradient(135deg, #3b82f6, #60a5fa) !important;
-        color: white !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(2) input:checked + div {
-        background: linear-gradient(135deg, #10b981, #34d399) !important;
-        color: white !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(3) input:checked + div {
-        background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
-        color: white !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(4) input:checked + div {
-        background: linear-gradient(135deg, #ef4444, #f87171) !important;
-        color: white !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(5) input:checked + div {
-        background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important;
-        color: white !important;
+        flex-wrap: wrap;
     }
 
-    /* Inputs, selects, botones, tablas */
+    /* Estilo base de los botones del menú */
+    .menu-button {
+        display: inline-block;
+        padding: 10px 25px;
+        border-radius: 30px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        text-decoration: none;
+        color: white !important;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .menu-button:hover {
+        filter: brightness(1.1);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 12px rgba(0,0,0,0.5);
+    }
+    /* Botón activo: borde más grueso y brillante */
+    .menu-button.active {
+        border: 2px solid white;
+        box-shadow: 0 0 15px currentColor;
+    }
+
+    /* Colores específicos para cada opción */
+    .btn-registrar { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+    .btn-lista     { background: linear-gradient(135deg, #10b981, #34d399); }
+    .btn-escanear  { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .btn-manual    { background: linear-gradient(135deg, #ef4444, #f87171); }
+    .btn-ver       { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+
+    /* Inputs, selects, tablas... (resto de estilos sin cambios) */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
         background-color: var(--bg-card) !important;
         border-color: var(--border) !important;
         color: var(--text-primary) !important;
         border-radius: 8px;
-        transition: all 0.2s ease;
     }
-    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
-        border-color: var(--accent) !important;
-        box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2) !important;
-    }
-
     .stButton button {
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+        background: linear-gradient(135deg, #7c3aed, #9f7aea);
         color: white;
         border: none;
         border-radius: 8px;
         padding: 0.5rem 1.5rem;
         font-weight: 600;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .stButton button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 12px rgba(124, 58, 237, 0.3);
-        filter: brightness(1.1);
-    }
-
     .stDataFrame {
         background-color: var(--bg-card);
         border-radius: 12px;
         padding: 1rem;
         border: 1px solid var(--border);
-        overflow: hidden;
     }
-    .stDataFrame table {
-        color: var(--text-primary) !important;
-    }
-    .stDataFrame th {
-        background-color: var(--bg-sidebar) !important;
-        color: var(--text-primary) !important;
-        font-weight: 600;
-    }
-    .stDataFrame td {
-        background-color: var(--bg-card) !important;
-        color: var(--text-secondary) !important;
-    }
-
     .stImage img {
         border-radius: 16px;
-        border: 3px solid var(--accent);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-        transition: transform 0.3s ease;
+        border: 3px solid #7c3aed;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
-    .stImage img:hover {
-        transform: scale(1.02);
-    }
-
     div.stMarkdown, div.stAlert {
         background-color: var(--bg-card);
         border-radius: 12px;
         padding: 1.5rem;
         border: 1px solid var(--border);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        margin-bottom: 1rem;
         color: var(--text-primary);
     }
-
-    .stAlert {
-        border-left: 4px solid;
-        animation: slideIn 0.3s ease;
-    }
-    .stAlert.success { border-left-color: var(--success); }
-    .stAlert.warning { border-left-color: var(--warning); }
-    .stAlert.error { border-left-color: var(--error); }
-
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    ::-webkit-scrollbar-track {
-        background: var(--bg-card);
-    }
-    ::-webkit-scrollbar-thumb {
-        background: var(--accent);
-        border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--accent-light);
-    }
-
     /* Cámara */
     div[data-testid="stCameraInput"] video {
         width: 100% !important;
         height: 75vh !important;
         object-fit: cover;
         border-radius: 16px;
-        border: 2px solid var(--accent);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-    }
-    div[data-testid="stCameraInput"] {
-        width: 100% !important;
-    }
-
-    /* Estilo para los uploaders */
-    .uploader-box {
-        background-color: var(--bg-card);
-        border-radius: 12px;
-        padding: 1rem;
-        border: 1px solid var(--border);
-        margin-bottom: 1rem;
+        border: 2px solid #7c3aed;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# INICIALIZAR SESSION STATE PARA RUTAS DE ARCHIVOS Y MENÚ
+# INICIALIZAR SESSION STATE Y PARÁMETROS DE URL
 # ------------------------------------------------------------
 if "ruta_estudiantes" not in st.session_state:
     st.session_state.ruta_estudiantes = "estudiantes.xlsx"
@@ -255,14 +147,8 @@ if "archivo_estudiantes_subido" not in st.session_state:
     st.session_state.archivo_estudiantes_subido = None
 if "archivo_asistencia_subido" not in st.session_state:
     st.session_state.archivo_asistencia_subido = None
-if "menu_actual" not in st.session_state:
-    st.session_state.menu_actual = "📝 Registrar estudiante"
 
-# ------------------------------------------------------------
-# TÍTULO Y MENÚ HORIZONTAL (CON BOTONES DE COLORES)
-# ------------------------------------------------------------
-st.title("📷 Sistema de Asistencia con QR")
-
+# Leer opción de menú desde query params (por defecto, primera opción)
 opciones_menu = [
     "📝 Registrar estudiante",
     "📋 Lista estudiantes",
@@ -270,16 +156,31 @@ opciones_menu = [
     "✍️ Registrar asistencia manual",
     "📊 Ver asistencia"
 ]
+param_menu = st.query_params.get("menu", "0")
+try:
+    indice_activo = int(param_menu)
+    if indice_activo < 0 or indice_activo >= len(opciones_menu):
+        indice_activo = 0
+except:
+    indice_activo = 0
 
-menu = st.radio(
-    "",
-    opciones_menu,
-    horizontal=True,
-    label_visibility="collapsed",
-    key="menu_radio"
-)
+st.session_state.menu_actual = opciones_menu[indice_activo]
 
-st.session_state.menu_actual = menu
+# ------------------------------------------------------------
+# TÍTULO Y MENÚ DE BOTONES PERSONALIZADOS
+# ------------------------------------------------------------
+st.title("📷 Sistema de Asistencia con QR")
+
+# Generar HTML del menú
+menu_html = '<div class="menu-container">'
+for i, opcion in enumerate(opciones_menu):
+    clase_boton = ["btn-registrar", "btn-lista", "btn-escanear", "btn-manual", "btn-ver"][i]
+    activo = "active" if i == indice_activo else ""
+    # Construir enlace que actualiza query param
+    url = f"?menu={i}"
+    menu_html += f'<a href="{url}" class="menu-button {clase_boton} {activo}">{opcion}</a>'
+menu_html += '</div>'
+st.markdown(menu_html, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # SIDEBAR: CARGAR ARCHIVOS EXCEL
@@ -345,39 +246,35 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
-# REGISTRAR ESTUDIANTE
+# CONTENIDO SEGÚN OPCIÓN SELECCIONADA
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.subheader("📝 Registrar nuevo estudiante")
-    with st.container():
-        ru = st.text_input("🔢 RU")
-        nombres = st.text_input("👤 Nombres")
-        paterno = st.text_input("👨 Apellido paterno")
-        materno = st.text_input("👩 Apellido materno")
+    ru = st.text_input("🔢 RU")
+    nombres = st.text_input("👤 Nombres")
+    paterno = st.text_input("👨 Apellido paterno")
+    materno = st.text_input("👩 Apellido materno")
 
-        if st.button("💾 Guardar estudiante"):
-            df = leer_estudiantes()
-            if ru in df["RU"].astype(str).values:
-                st.error("❌ Este RU ya existe")
-            else:
-                if not os.path.exists("qr"):
-                    os.mkdir("qr")
-                ruta_qr = f"qr/{ru}.png"
-                qr = qrcode.make(ru)
-                qr.save(ruta_qr)
+    if st.button("💾 Guardar estudiante"):
+        df = leer_estudiantes()
+        if ru in df["RU"].astype(str).values:
+            st.error("❌ Este RU ya existe")
+        else:
+            if not os.path.exists("qr"):
+                os.mkdir("qr")
+            ruta_qr = f"qr/{ru}.png"
+            qr = qrcode.make(ru)
+            qr.save(ruta_qr)
 
-                nuevo = pd.DataFrame([[ru, nombres, paterno, materno, ruta_qr]],
-                                      columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
-                df = pd.concat([df, nuevo], ignore_index=True)
-                guardar_estudiantes(df)
-                st.success("✅ Estudiante registrado")
-                st.image(ruta_qr, width=350)
-                with open(ruta_qr, "rb") as file:
-                    st.download_button("⬇️ Descargar QR", data=file, file_name=f"{ru}_qr.png", mime="image/png")
+            nuevo = pd.DataFrame([[ru, nombres, paterno, materno, ruta_qr]],
+                                  columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
+            df = pd.concat([df, nuevo], ignore_index=True)
+            guardar_estudiantes(df)
+            st.success("✅ Estudiante registrado")
+            st.image(ruta_qr, width=350)
+            with open(ruta_qr, "rb") as file:
+                st.download_button("⬇️ Descargar QR", data=file, file_name=f"{ru}_qr.png", mime="image/png")
 
-# ------------------------------------------------------------
-# LISTA ESTUDIANTES
-# ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
@@ -388,7 +285,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
     if ru_ver != "":
         estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
         if len(estudiante) > 0:
-            # Datos en una línea, con cursiva y negritas
             st.markdown(
                 f"*Datos del estudiante:* **RU:** {estudiante.iloc[0]['RU']}, "
                 f"**Nombres:** {estudiante.iloc[0]['Nombres']}, "
@@ -414,9 +310,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         with open(archivo_descarga, "rb") as file:
             st.download_button("📥 Descargar Excel", data=file, file_name="estudiantes_exportados.xlsx")
 
-# ------------------------------------------------------------
-# ESCANEAR QR
-# ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
     foto = st.camera_input("Toma una foto del código QR")
@@ -454,9 +347,6 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
         else:
             st.warning("⚠️ No se detectó QR")
 
-# ------------------------------------------------------------
-# REGISTRO MANUAL
-# ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
     estudiantes = leer_estudiantes()
@@ -480,9 +370,6 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         guardar_asistencia(asistencia)
         st.success(f"✅ Asistencia registrada a las {hora}")
 
-# ------------------------------------------------------------
-# VER ASISTENCIA
-# ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
@@ -515,4 +402,3 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga)
     else:
         st.info("No hay registros para hoy.")
-        
