@@ -132,6 +132,20 @@ elif menu=="Lista estudiantes":
 
     st.dataframe(estudiantes,use_container_width=True)
 
+    # VER QR
+
+    ru_ver=st.text_input("Ver QR del estudiante")
+
+    if ru_ver!="":
+
+        estudiante=estudiantes[estudiantes["RU"].astype(str)==ru_ver]
+
+        if len(estudiante)>0:
+
+            ruta=estudiante.iloc[0]["QR"]
+
+            st.image(ruta,width=350)
+
 # EDITAR
 
     st.subheader("Editar estudiante")
@@ -197,19 +211,7 @@ elif menu=="Lista estudiantes":
             file_name=archivo_descarga
         )
 
-# VER QR
 
-    ru_ver=st.text_input("Ver QR del estudiante")
-
-    if ru_ver!="":
-
-        estudiante=estudiantes[estudiantes["RU"].astype(str)==ru_ver]
-
-        if len(estudiante)>0:
-
-            ruta=estudiante.iloc[0]["QR"]
-
-            st.image(ruta,width=350)
 
 # --------------------------------------------------
 # ESCANEAR QR
