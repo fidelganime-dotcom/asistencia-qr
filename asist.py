@@ -5,9 +5,23 @@ from datetime import datetime
 import os
 import cv2
 import numpy as np
-# DESARROLLADO POR JOSUE INGENIERA SISTEMAS UAP
+import pytz  # Para zona horaria exacta
+
 # ------------------------------------------------------------
-# CONFIGURACIÓN Y ESTILOS (MODO OSCURO + ANIMACIONES)
+# CONFIGURACIÓN DE ZONA HORARIA (cambiar según tu ubicación)
+# ------------------------------------------------------------
+ZONA_HORARIA = pytz.timezone('America/La_Paz')  # Ejemplo: Bolivia
+
+def obtener_fecha_hora_exacta():
+    """Retorna (fecha, hora_con_milisegundos) en la zona horaria configurada."""
+    ahora = datetime.now(ZONA_HORARIA)
+    fecha = ahora.date()
+    # Formato con milisegundos (3 dígitos). Si no quieres milisegundos cambia a "%H:%M:%S"
+    hora = ahora.strftime("%H:%M:%S.%f")[:-3]
+    return fecha, hora
+
+# ------------------------------------------------------------
+# CONFIGURACIÓN DE LA PÁGINA Y ESTILOS (MODO OSCURO + ANIMACIONES)
 # ------------------------------------------------------------
 st.set_page_config(
     page_title="Sistema de Asistencia con QR",
@@ -183,7 +197,7 @@ archivo_asistencia = "asistencia.xlsx"
 # Título con emoji
 st.title("📷 Sistema de Asistencia con QR")
 
-# Menú lateral con iconos (emojis)
+# Menú lateral con iconos
 menu = st.sidebar.selectbox(
     "📌 Menú",
     [
@@ -291,9 +305,8 @@ elif menu == "📸 Escanear QR":
                 paterno = estudiante.iloc[0]["Apellido_paterno"]
                 materno = estudiante.iloc[0]["Apellido_materno"]
 
-                ahora = datetime.now()
-                fecha = ahora.date()
-                hora = ahora.strftime("%H:%M:%S")
+                # OBTENER FECHA Y HORA EXACTA CON ZONA HORARIA
+                fecha, hora = obtener_fecha_hora_exacta()
 
                 asistencia = pd.read_excel(archivo_asistencia)
                 ya = asistencia[(asistencia["RU"].astype(str) == ru) & (asistencia["Fecha"].astype(str) == str(fecha))]
@@ -303,7 +316,7 @@ elif menu == "📸 Escanear QR":
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     asistencia.to_excel(archivo_asistencia, index=False)
-                    st.success(f"✅ Asistencia registrada: {nombres} {paterno}")
+                    st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                 else:
                     st.warning("⚠️ Ya registró asistencia hoy")
             else:
@@ -328,16 +341,15 @@ elif menu == "✍️ Registrar asistencia manual":
         paterno = estudiante.iloc[0]["Apellido_paterno"]
         materno = estudiante.iloc[0]["Apellido_materno"]
 
-        ahora = datetime.now()
-        fecha = ahora.date()
-        hora = ahora.strftime("%H:%M:%S")
+        # OBTENER FECHA Y HORA EXACTA CON ZONA HORARIA
+        fecha, hora = obtener_fecha_hora_exacta()
 
         asistencia = pd.read_excel(archivo_asistencia)
         nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
                               columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
         asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
         asistencia.to_excel(archivo_asistencia, index=False)
-        st.success("✅ Asistencia registrada")
+        st.success(f"✅ Asistencia registrada a las {hora}")
 
 # ------------------------------------------------------------
 # VER ASISTENCIA
@@ -368,7 +380,7 @@ elif menu == "📊 Ver asistencia":
 
     # Descargar Excel del día
     st.subheader("⬇️ Descargar asistencia del día")
-    hoy = str(datetime.now().date())
+    hoy = str(datetime.now(ZONA_HORARIA).date())
     asistencia_hoy = asistencia[asistencia["Fecha"].astype(str) == hoy]
     archivo_descarga = f"asistencia_{hoy}.xlsx"
     asistencia_hoy.to_excel(archivo_descarga, index=False)
