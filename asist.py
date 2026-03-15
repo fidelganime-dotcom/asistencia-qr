@@ -6,11 +6,12 @@ import os
 import cv2
 import numpy as np
 import pytz
+import shutil
 
 # ------------------------------------------------------------
-# CONFIGURACIÓN DE ZONA HORARIA (cambiar según tu ubicación)
+# CONFIGURACIÓN DE ZONA HORARIA
 # ------------------------------------------------------------
-ZONA_HORARIA = pytz.timezone('America/La_Paz')  # Ejemplo: Bolivia
+ZONA_HORARIA = pytz.timezone('America/La_Paz')  # Cambia según tu ubicación
 
 def obtener_fecha_hora_exacta():
     ahora = datetime.now(ZONA_HORARIA)
@@ -19,18 +20,19 @@ def obtener_fecha_hora_exacta():
     return fecha, hora
 
 # ------------------------------------------------------------
-# CONFIGURACIÓN DE LA PÁGINA Y ESTILOS (MODO OSCURO + ANIMACIONES + MENÚ HORIZONTAL)
+# CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(
     page_title="Sistema de Asistencia con QR",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados (incluye menú horizontal)
+# ------------------------------------------------------------
+# ESTILOS CSS (MODO OSCURO + ANIMACIONES + MENÚ HORIZONTAL)
+# ------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Variables de color modo oscuro */
     :root {
         --bg-dark: #0e1117;
         --bg-card: #1e2128;
@@ -45,7 +47,6 @@ st.markdown("""
         --error: #ef4444;
     }
 
-    /* Fondo general */
     .stApp {
         background-color: var(--bg-dark);
         color: var(--text-primary);
@@ -79,11 +80,8 @@ st.markdown("""
         background-color: var(--accent);
         color: white !important;
     }
-    div[role="radiogroup"] > label {
-        background-color: transparent !important;
-    }
 
-    /* Inputs y selects */
+    /* Inputs, selects, botones, tablas */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
         background-color: var(--bg-card) !important;
         border-color: var(--border) !important;
@@ -96,7 +94,6 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2) !important;
     }
 
-    /* Botones */
     .stButton button {
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
         color: white;
@@ -114,7 +111,6 @@ st.markdown("""
         filter: brightness(1.1);
     }
 
-    /* Dataframes */
     .stDataFrame {
         background-color: var(--bg-card);
         border-radius: 12px;
@@ -135,7 +131,6 @@ st.markdown("""
         color: var(--text-secondary) !important;
     }
 
-    /* Imágenes QR */
     .stImage img {
         border-radius: 16px;
         border: 3px solid var(--accent);
@@ -146,7 +141,6 @@ st.markdown("""
         transform: scale(1.02);
     }
 
-    /* Tarjetas / contenedores */
     div.stMarkdown, div.stAlert {
         background-color: var(--bg-card);
         border-radius: 12px;
@@ -157,22 +151,14 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Mensajes */
     .stAlert {
         border-left: 4px solid;
         animation: slideIn 0.3s ease;
     }
-    .stAlert.success {
-        border-left-color: var(--success);
-    }
-    .stAlert.warning {
-        border-left-color: var(--warning);
-    }
-    .stAlert.error {
-        border-left-color: var(--error);
-    }
+    .stAlert.success { border-left-color: var(--success); }
+    .stAlert.warning { border-left-color: var(--warning); }
+    .stAlert.error { border-left-color: var(--error); }
 
-    /* Animación */
     @keyframes slideIn {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -206,8 +192,29 @@ st.markdown("""
     div[data-testid="stCameraInput"] {
         width: 100% !important;
     }
+
+    /* Estilo para los uploaders */
+    .uploader-box {
+        background-color: var(--bg-card);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid var(--border);
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# INICIALIZAR SESSION STATE PARA RUTAS DE ARCHIVOS
+# ------------------------------------------------------------
+if "ruta_estudiantes" not in st.session_state:
+    st.session_state.ruta_estudiantes = "estudiantes.xlsx"
+if "ruta_asistencia" not in st.session_state:
+    st.session_state.ruta_asistencia = "asistencia.xlsx"
+if "archivo_estudiantes_subido" not in st.session_state:
+    st.session_state.archivo_estudiantes_subido = None
+if "archivo_asistencia_subido" not in st.session_state:
+    st.session_state.archivo_asistencia_subido = None
 
 # ------------------------------------------------------------
 # TÍTULO Y MENÚ HORIZONTAL
@@ -230,19 +237,72 @@ menu = st.radio(
 )
 
 # ------------------------------------------------------------
-# ARCHIVOS Y CONSTANTES
+# SIDEBAR: CARGAR ARCHIVOS EXCEL
 # ------------------------------------------------------------
-archivo_estudiantes = "estudiantes.xlsx"
-archivo_asistencia = "asistencia.xlsx"
+with st.sidebar:
+    st.markdown("## 📂 Cargar archivos Excel")
+    st.markdown("Sube tus propios archivos para trabajar con ellos. Si no subes ninguno, se usarán los archivos por defecto (`estudiantes.xlsx` y `asistencia.xlsx`).")
 
-# Crear archivos si no existen
-if not os.path.exists(archivo_estudiantes):
-    df = pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
-    df.to_excel(archivo_estudiantes, index=False)
+    # Crear carpeta uploads si no existe
+    if not os.path.exists("uploads"):
+        os.makedirs("uploads")
 
-if not os.path.exists(archivo_asistencia):
-    df = pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-    df.to_excel(archivo_asistencia, index=False)
+    # Cargar archivo de estudiantes
+    archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
+    if archivo_est is not None:
+        # Guardar el archivo subido en la carpeta uploads
+        ruta_destino = os.path.join("uploads", archivo_est.name)
+        with open(ruta_destino, "wb") as f:
+            f.write(archivo_est.getbuffer())
+        st.session_state.ruta_estudiantes = ruta_destino
+        st.session_state.archivo_estudiantes_subido = archivo_est.name
+        st.success(f"✅ Archivo de estudiantes cargado: {archivo_est.name}")
+
+    # Cargar archivo de asistencia
+    archivo_asis = st.file_uploader("📗 Asistencia", type=["xlsx"], key="upload_asis")
+    if archivo_asis is not None:
+        ruta_destino = os.path.join("uploads", archivo_asis.name)
+        with open(ruta_destino, "wb") as f:
+            f.write(archivo_asis.getbuffer())
+        st.session_state.ruta_asistencia = ruta_destino
+        st.session_state.archivo_asistencia_subido = archivo_asis.name
+        st.success(f"✅ Archivo de asistencia cargado: {archivo_asis.name}")
+
+    st.markdown("---")
+    st.markdown("### 📁 Archivos en uso:")
+    st.info(f"**Estudiantes:** `{st.session_state.ruta_estudiantes}`")
+    st.info(f"**Asistencia:** `{st.session_state.ruta_asistencia}`")
+
+    st.markdown("---")
+    st.markdown("### ⬇️ Descargar archivos actualizados")
+    if os.path.exists(st.session_state.ruta_estudiantes):
+        with open(st.session_state.ruta_estudiantes, "rb") as f:
+            st.download_button("📥 Descargar estudiantes", data=f, file_name=os.path.basename(st.session_state.ruta_estudiantes))
+    if os.path.exists(st.session_state.ruta_asistencia):
+        with open(st.session_state.ruta_asistencia, "rb") as f:
+            st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
+
+# ------------------------------------------------------------
+# FUNCIONES AUXILIARES PARA LEER/GUARDAR DATAFRAMES
+# ------------------------------------------------------------
+def leer_estudiantes():
+    if os.path.exists(st.session_state.ruta_estudiantes):
+        return pd.read_excel(st.session_state.ruta_estudiantes)
+    else:
+        # Crear DataFrame vacío con columnas correctas
+        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
+
+def guardar_estudiantes(df):
+    df.to_excel(st.session_state.ruta_estudiantes, index=False)
+
+def leer_asistencia():
+    if os.path.exists(st.session_state.ruta_asistencia):
+        return pd.read_excel(st.session_state.ruta_asistencia)
+    else:
+        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+
+def guardar_asistencia(df):
+    df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE
@@ -256,7 +316,7 @@ if menu == "📝 Registrar estudiante":
         materno = st.text_input("👩 Apellido materno")
 
         if st.button("💾 Guardar estudiante"):
-            df = pd.read_excel(archivo_estudiantes)
+            df = leer_estudiantes()
             if ru in df["RU"].astype(str).values:
                 st.error("❌ Este RU ya existe")
             else:
@@ -269,7 +329,7 @@ if menu == "📝 Registrar estudiante":
                 nuevo = pd.DataFrame([[ru, nombres, paterno, materno, ruta_qr]],
                                       columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
                 df = pd.concat([df, nuevo], ignore_index=True)
-                df.to_excel(archivo_estudiantes, index=False)
+                guardar_estudiantes(df)
                 st.success("✅ Estudiante registrado")
                 st.image(ruta_qr, width=350)
                 with open(ruta_qr, "rb") as file:
@@ -280,7 +340,7 @@ if menu == "📝 Registrar estudiante":
 # ------------------------------------------------------------
 elif menu == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
-    estudiantes = pd.read_excel(archivo_estudiantes)
+    estudiantes = leer_estudiantes()
     st.dataframe(estudiantes, use_container_width=True)
 
     # Ver QR
@@ -299,15 +359,16 @@ elif menu == "📋 Lista estudiantes":
         eliminar = st.number_input("Índice a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
         if st.button("🗑️ Eliminar"):
             estudiantes = estudiantes.drop(eliminar)
-            estudiantes.to_excel(archivo_estudiantes, index=False)
+            guardar_estudiantes(estudiantes)
             st.success("✅ Estudiante eliminado")
 
     # Descargar Excel
     st.subheader("⬇️ Descargar Excel estudiantes")
-    archivo_descarga = "registro_estudiantes.xlsx"
-    estudiantes.to_excel(archivo_descarga, index=False)
-    with open(archivo_descarga, "rb") as file:
-        st.download_button("📥 Descargar Excel", data=file, file_name=archivo_descarga)
+    if len(estudiantes) > 0:
+        archivo_descarga = "registro_estudiantes_temp.xlsx"
+        estudiantes.to_excel(archivo_descarga, index=False)
+        with open(archivo_descarga, "rb") as file:
+            st.download_button("📥 Descargar Excel", data=file, file_name="estudiantes_exportados.xlsx")
 
 # ------------------------------------------------------------
 # ESCANEAR QR
@@ -323,7 +384,7 @@ elif menu == "📸 Escanear QR":
 
         if data:
             ru = data
-            estudiantes = pd.read_excel(archivo_estudiantes)
+            estudiantes = leer_estudiantes()
             estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
 
             if len(estudiante) > 0:
@@ -333,14 +394,14 @@ elif menu == "📸 Escanear QR":
 
                 fecha, hora = obtener_fecha_hora_exacta()
 
-                asistencia = pd.read_excel(archivo_asistencia)
+                asistencia = leer_asistencia()
                 ya = asistencia[(asistencia["RU"].astype(str) == ru) & (asistencia["Fecha"].astype(str) == str(fecha))]
 
                 if len(ya) == 0:
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-                    asistencia.to_excel(archivo_asistencia, index=False)
+                    guardar_asistencia(asistencia)
                     st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                 else:
                     st.warning("⚠️ Ya registró asistencia hoy")
@@ -354,7 +415,7 @@ elif menu == "📸 Escanear QR":
 # ------------------------------------------------------------
 elif menu == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
-    estudiantes = pd.read_excel(archivo_estudiantes)
+    estudiantes = leer_estudiantes()
     estudiantes["nombre_completo"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"] + " " + estudiantes["Apellido_paterno"]
     seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
     ru = seleccionado.split(" - ")[0]
@@ -368,11 +429,11 @@ elif menu == "✍️ Registrar asistencia manual":
 
         fecha, hora = obtener_fecha_hora_exacta()
 
-        asistencia = pd.read_excel(archivo_asistencia)
+        asistencia = leer_asistencia()
         nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
                               columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
         asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-        asistencia.to_excel(archivo_asistencia, index=False)
+        guardar_asistencia(asistencia)
         st.success(f"✅ Asistencia registrada a las {hora}")
 
 # ------------------------------------------------------------
@@ -380,7 +441,7 @@ elif menu == "✍️ Registrar asistencia manual":
 # ------------------------------------------------------------
 elif menu == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
-    asistencia = pd.read_excel(archivo_asistencia)
+    asistencia = leer_asistencia()
     st.dataframe(asistencia, use_container_width=True)
 
     # Editar estado
@@ -390,7 +451,7 @@ elif menu == "📊 Ver asistencia":
         nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"])
         if st.button("🔄 Actualizar estado"):
             asistencia.loc[indice, "Estado"] = nuevo_estado
-            asistencia.to_excel(archivo_asistencia, index=False)
+            guardar_asistencia(asistencia)
             st.success("✅ Estado actualizado")
 
     # Eliminar registro
@@ -399,14 +460,17 @@ elif menu == "📊 Ver asistencia":
         eliminar = st.number_input("Índice eliminar", min_value=0, max_value=len(asistencia)-1, key="elim")
         if st.button("🗑️ Eliminar registro"):
             asistencia = asistencia.drop(eliminar)
-            asistencia.to_excel(archivo_asistencia, index=False)
+            guardar_asistencia(asistencia)
             st.success("✅ Registro eliminado")
 
     # Descargar Excel del día
     st.subheader("⬇️ Descargar asistencia del día")
     hoy = str(datetime.now(ZONA_HORARIA).date())
     asistencia_hoy = asistencia[asistencia["Fecha"].astype(str) == hoy]
-    archivo_descarga = f"asistencia_{hoy}.xlsx"
-    asistencia_hoy.to_excel(archivo_descarga, index=False)
-    with open(archivo_descarga, "rb") as file:
-        st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga)
+    if len(asistencia_hoy) > 0:
+        archivo_descarga = f"asistencia_{hoy}.xlsx"
+        asistencia_hoy.to_excel(archivo_descarga, index=False)
+        with open(archivo_descarga, "rb") as file:
+            st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga)
+    else:
+        st.info("No hay registros para hoy.")
