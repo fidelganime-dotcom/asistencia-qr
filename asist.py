@@ -2,89 +2,104 @@ import streamlit as st
 import pandas as pd
 import qrcode
 from datetime import datetime
+import os
 import cv2
 import numpy as np
 import pytz
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import os
 
-# ----------------------------------------
-# ZONA HORARIA
-# ----------------------------------------
-ZONA_HORARIA = pytz.timezone('America/La_Paz')
+# ------------------------------------------------------------
+# CONEXIÓN GOOGLE SHEETS
+# ------------------------------------------------------------
 
-def obtener_fecha_hora():
-    ahora = datetime.now(ZONA_HORARIA)
-    return ahora.date(), ahora.strftime("%H:%M:%S")
-
-# ----------------------------------------
-# CONEXION GOOGLE SHEETS
-# ----------------------------------------
 scope = [
-'https://spreadsheets.google.com/feeds',
-'https://www.googleapis.com/auth/drive'
+"https://spreadsheets.google.com/feeds",
+"https://www.googleapis.com/auth/drive"
 ]
 
 credenciales = ServiceAccountCredentials.from_json_keyfile_name(
-"credenciales.json", scope
+"western-lambda-475101-e6-4e46b79cef5e.json",
+scope
 )
 
-cliente = gspread.authorize(credenciales)
+client = gspread.authorize(credenciales)
 
-SHEET_ID = "TU_ID_DE_GOOGLE_SHEET"
+# Abrir hoja
+sheet_estudiantes = client.open("asistencia_qr").worksheet("estudiantes")
+sheet_asistencia = client.open("asistencia_qr").worksheet("asistencia")
 
-sheet = cliente.open_by_key(SHEET_ID)
 
-hoja_estudiantes = sheet.worksheet("estudiantes")
-hoja_asistencia = sheet.worksheet("asistencia")
+def obtener_estudiantes():
+    data = sheet_estudiantes.get_all_records()
+    return pd.DataFrame(data)
 
-# ----------------------------------------
-# FUNCIONES
-# ----------------------------------------
-def cargar_estudiantes():
-    datos = hoja_estudiantes.get_all_records()
-    return pd.DataFrame(datos)
+def guardar_estudiante(data):
+    sheet_estudiantes.append_row(data)
 
-def cargar_asistencia():
-    datos = hoja_asistencia.get_all_records()
-    return pd.DataFrame(datos)
+def obtener_asistencia():
+    data = sheet_asistencia.get_all_records()
+    return pd.DataFrame(data)
 
-def guardar_estudiante(fila):
-    hoja_estudiantes.append_row(fila)
+def guardar_asistencia(data):
+    sheet_asistencia.append_row(data)
 
-def guardar_asistencia(fila):
-    hoja_asistencia.append_row(fila)
 
-# ----------------------------------------
-# STREAMLIT
-# ----------------------------------------
+# ------------------------------------------------------------
+# ZONA HORARIA
+# ------------------------------------------------------------
+
+ZONA_HORARIA = pytz.timezone('America/La_Paz')
+
+def obtener_fecha_hora_exacta():
+    ahora = datetime.now(ZONA_HORARIA)
+    fecha = ahora.date()
+    hora = ahora.strftime("%H:%M:%S")
+    return fecha, hora
+
+
+# ------------------------------------------------------------
+# CONFIGURACIÓN STREAMLIT
+# ------------------------------------------------------------
+
+st.set_page_config(
+page_title="Sistema de Asistencia QR",
+layout="wide"
+)
+
 st.title("📷 Sistema de Asistencia con QR")
 
-menu = st.sidebar.selectbox("Menú",[
+menu = st.sidebar.selectbox(
+"Menú",
+[
 "Registrar estudiante",
 "Lista estudiantes",
 "Escanear QR",
 "Registrar asistencia manual",
 "Ver asistencia"
-])
+]
+)
 
-# ----------------------------------------
+# ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE
-# ----------------------------------------
+# ------------------------------------------------------------
+
 if menu == "Registrar estudiante":
+
+    st.subheader("Registrar nuevo estudiante")
 
     ru = st.text_input("RU")
     nombres = st.text_input("Nombres")
     paterno = st.text_input("Apellido paterno")
     materno = st.text_input("Apellido materno")
 
-    if st.button("Guardar"):
+    if st.button("Guardar estudiante"):
 
-        estudiantes = cargar_estudiantes()
+        estudiantes = obtener_estudiantes()
 
         if ru in estudiantes["RU"].astype(str).values:
-            st.error("RU ya existe")
+            st.error("Este RU ya existe")
+
         else:
 
             if not os.path.exists("qr"):
@@ -96,155 +111,156 @@ if menu == "Registrar estudiante":
             qr.save(ruta_qr)
 
             guardar_estudiante([
-            ru,nombres,paterno,materno,ruta_qr
+                ru,
+                nombres,
+                paterno,
+                materno,
+                ruta_qr
             ])
 
             st.success("Estudiante registrado")
 
-            st.image(ruta_qr,width=300)
+            st.image(ruta_qr, width=300)
 
-# ----------------------------------------
+# ------------------------------------------------------------
 # LISTA ESTUDIANTES
-# ----------------------------------------
+# ------------------------------------------------------------
+
 elif menu == "Lista estudiantes":
 
-    estudiantes = cargar_estudiantes()
+    st.subheader("Lista de estudiantes")
+
+    estudiantes = obtener_estudiantes()
 
     st.dataframe(estudiantes)
 
-    archivo = "estudiantes.xlsx"
-    estudiantes.to_excel(archivo,index=False)
+    ru_ver = st.text_input("Ingresar RU para ver QR")
 
-    with open(archivo,"rb") as f:
-        st.download_button(
-        "Descargar Excel",
-        f,
-        file_name="estudiantes.xlsx"
-        )
+    if ru_ver != "":
 
-# ----------------------------------------
+        estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
+
+        if len(estudiante) > 0:
+            st.image(estudiante.iloc[0]["QR"], width=300)
+
+        else:
+            st.warning("RU no encontrado")
+
+# ------------------------------------------------------------
 # ESCANEAR QR
-# ----------------------------------------
+# ------------------------------------------------------------
+
 elif menu == "Escanear QR":
+
+    st.subheader("Escanear código QR")
 
     foto = st.camera_input("Escanear QR")
 
-    if foto:
+    if foto is not None:
 
-        file_bytes = np.asarray(bytearray(foto.read()),dtype=np.uint8)
-
-        frame = cv2.imdecode(file_bytes,cv2.IMREAD_COLOR)
+        file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
+        frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
         detector = cv2.QRCodeDetector()
 
-        data,bbox,_ = detector.detectAndDecode(frame)
+        data, bbox, _ = detector.detectAndDecode(frame)
 
         if data:
 
             ru = data
 
-            estudiantes = cargar_estudiantes()
+            estudiantes = obtener_estudiantes()
 
-            estudiante = estudiantes[
-            estudiantes["RU"].astype(str)==ru
-            ]
+            estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
 
-            if len(estudiante)>0:
+            if len(estudiante) > 0:
 
                 nombres = estudiante.iloc[0]["Nombres"]
                 paterno = estudiante.iloc[0]["Apellido_paterno"]
                 materno = estudiante.iloc[0]["Apellido_materno"]
 
-                fecha,hora = obtener_fecha_hora()
+                fecha, hora = obtener_fecha_hora_exacta()
 
-                asistencia = cargar_asistencia()
+                asistencia = obtener_asistencia()
 
                 ya = asistencia[
-                (asistencia["RU"].astype(str)==ru)
-                &
-                (asistencia["Fecha"].astype(str)==str(fecha))
+                (asistencia["RU"].astype(str) == ru) &
+                (asistencia["Fecha"].astype(str) == str(fecha))
                 ]
 
-                if len(ya)==0:
+                if len(ya) == 0:
 
                     guardar_asistencia([
-                    ru,
-                    nombres,
-                    paterno,
-                    materno,
-                    str(fecha),
-                    hora,
-                    "Presente"
+                        ru,
+                        nombres,
+                        paterno,
+                        materno,
+                        str(fecha),
+                        hora,
+                        "Presente"
                     ])
 
-                    st.success(f"Asistencia registrada {hora}")
+                    st.success(f"Asistencia registrada {nombres}")
 
                 else:
-                    st.warning("Ya registró hoy")
+
+                    st.warning("Ya registró asistencia hoy")
+
+            else:
+
+                st.error("Estudiante no encontrado")
 
         else:
-            st.warning("QR no detectado")
 
-# ----------------------------------------
+            st.warning("No se detectó QR")
+
+# ------------------------------------------------------------
 # REGISTRO MANUAL
-# ----------------------------------------
+# ------------------------------------------------------------
+
 elif menu == "Registrar asistencia manual":
 
-    estudiantes = cargar_estudiantes()
+    estudiantes = obtener_estudiantes()
 
-    estudiantes["nombre"]=(
-    estudiantes["RU"].astype(str)+" - "+
-    estudiantes["Nombres"]
-    )
+    estudiantes["nombre"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"]
 
-    sel = st.selectbox("Estudiante",estudiantes["nombre"])
+    seleccionado = st.selectbox("Seleccionar estudiante", estudiantes["nombre"])
 
-    ru = sel.split(" - ")[0]
+    ru = seleccionado.split(" - ")[0]
 
-    estado = st.selectbox("Estado",[
-    "Presente","Tarde","Permiso","Ausente"
-    ])
+    estado = st.selectbox("Estado", ["Presente","Tarde","Permiso","Ausente"])
 
-    if st.button("Registrar"):
+    if st.button("Registrar asistencia"):
 
-        estudiante = estudiantes[
-        estudiantes["RU"].astype(str)==ru
-        ]
+        estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
 
         nombres = estudiante.iloc[0]["Nombres"]
         paterno = estudiante.iloc[0]["Apellido_paterno"]
         materno = estudiante.iloc[0]["Apellido_materno"]
 
-        fecha,hora = obtener_fecha_hora()
+        fecha, hora = obtener_fecha_hora_exacta()
 
         guardar_asistencia([
-        ru,
-        nombres,
-        paterno,
-        materno,
-        str(fecha),
-        hora,
-        estado
+            ru,
+            nombres,
+            paterno,
+            materno,
+            str(fecha),
+            hora,
+            estado
         ])
 
-        st.success("Registrado")
+        st.success("Asistencia registrada")
 
-# ----------------------------------------
+
+# ------------------------------------------------------------
 # VER ASISTENCIA
-# ----------------------------------------
+# ------------------------------------------------------------
+
 elif menu == "Ver asistencia":
 
-    asistencia = cargar_asistencia()
+    st.subheader("Registros de asistencia")
+
+    asistencia = obtener_asistencia()
 
     st.dataframe(asistencia)
-
-    archivo = "asistencia.xlsx"
-
-    asistencia.to_excel(archivo,index=False)
-
-    with open(archivo,"rb") as f:
-        st.download_button(
-        "Descargar Excel",
-        f,
-        file_name="asistencia.xlsx"
-        )
