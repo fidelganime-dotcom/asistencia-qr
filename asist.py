@@ -9,13 +9,9 @@ import numpy as np
 # CONFIGURACION
 st.set_page_config(layout="wide")
 
-# CSS PARA HACER LA CAMARA GRANDE
+# CSS PARA AGRANDAR CAMARA
 st.markdown("""
 <style>
-
-button[kind="primary"]{
-font-size:20px;
-}
 
 div[data-testid="stCameraInput"] video{
 width:100% !important;
@@ -128,6 +124,7 @@ if menu=="Registrar estudiante":
                     mime="image/png"
                 )
 
+
 # -------------------------
 # LISTA ESTUDIANTES
 # -------------------------
@@ -136,15 +133,82 @@ elif menu=="Lista estudiantes":
 
     st.subheader("Lista de estudiantes")
 
-    df=pd.read_excel(archivo_estudiantes)
+    estudiantes=pd.read_excel(archivo_estudiantes)
 
-    st.dataframe(df,use_container_width=True)
+    st.dataframe(estudiantes,use_container_width=True)
+
+# EDITAR
+
+    st.subheader("Editar estudiante")
+
+    if len(estudiantes)>0:
+
+        indice=st.number_input(
+            "Indice del estudiante a editar",
+            min_value=0,
+            max_value=len(estudiantes)-1
+        )
+
+        ru=st.text_input("RU",value=str(estudiantes.loc[indice,"RU"]))
+        nombres=st.text_input("Nombres",value=estudiantes.loc[indice,"Nombres"])
+        paterno=st.text_input("Apellido paterno",value=estudiantes.loc[indice,"Apellido_paterno"])
+        materno=st.text_input("Apellido materno",value=estudiantes.loc[indice,"Apellido_materno"])
+
+        if st.button("Actualizar estudiante"):
+
+            estudiantes.loc[indice,"RU"]=ru
+            estudiantes.loc[indice,"Nombres"]=nombres
+            estudiantes.loc[indice,"Apellido_paterno"]=paterno
+            estudiantes.loc[indice,"Apellido_materno"]=materno
+
+            estudiantes.to_excel(archivo_estudiantes,index=False)
+
+            st.success("Estudiante actualizado")
+
+# ELIMINAR
+
+    st.subheader("Eliminar estudiante")
+
+    if len(estudiantes)>0:
+
+        eliminar=st.number_input(
+            "Indice del estudiante a eliminar",
+            min_value=0,
+            max_value=len(estudiantes)-1,
+            key="eliminar_est"
+        )
+
+        if st.button("Eliminar estudiante"):
+
+            estudiantes=estudiantes.drop(eliminar)
+
+            estudiantes.to_excel(archivo_estudiantes,index=False)
+
+            st.success("Estudiante eliminado")
+
+# DESCARGAR EXCEL
+
+    st.subheader("Descargar registro de estudiantes")
+
+    archivo_descarga="registro_estudiantes.xlsx"
+
+    estudiantes.to_excel(archivo_descarga,index=False)
+
+    with open(archivo_descarga,"rb") as file:
+
+        st.download_button(
+            "Descargar Excel estudiantes",
+            data=file,
+            file_name=archivo_descarga
+        )
+
+# VER QR
 
     ru_ver=st.text_input("Ver QR del estudiante (RU)")
 
     if ru_ver!="":
 
-        estudiante=df[df["RU"].astype(str)==ru_ver]
+        estudiante=estudiantes[estudiantes["RU"].astype(str)==ru_ver]
 
         if len(estudiante)>0:
 
@@ -310,6 +374,8 @@ elif menu=="Ver asistencia":
 
     st.dataframe(asistencia,use_container_width=True)
 
+# EDITAR ESTADO
+
     st.subheader("Editar estado")
 
     if len(asistencia)>0:
@@ -334,6 +400,8 @@ elif menu=="Ver asistencia":
             st.success("Estado actualizado")
 
 
+# ELIMINAR REGISTRO
+
     st.subheader("Eliminar registro")
 
     if len(asistencia)>0:
@@ -353,6 +421,8 @@ elif menu=="Ver asistencia":
 
             st.success("Registro eliminado")
 
+
+# DESCARGAR EXCEL DEL DIA
 
     st.subheader("Descargar asistencia del día")
 
