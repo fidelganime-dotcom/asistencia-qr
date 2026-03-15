@@ -9,7 +9,8 @@ import numpy as np
 # archivos
 archivo_estudiantes="estudiantes.xlsx"
 archivo_asistencia="asistencia.xlsx"
-archivo_extension="extension.xlsx"
+
+st.set_page_config(layout="wide")
 
 st.title("Sistema de Asistencia con QR")
 
@@ -19,46 +20,60 @@ menu=st.sidebar.selectbox("Menu",
 "Lista estudiantes",
 "Escanear QR",
 "Registrar asistencia manual",
-"Ver asistencia",
-"Extension universitaria"
+"Ver asistencia"
 ])
 
-# crear archivos si no existen
+# -------------------------
+# CREAR ARCHIVOS
+# -------------------------
+
 if not os.path.exists(archivo_estudiantes):
-    df=pd.DataFrame(columns=["RU","Nombre","Apellido","QR"])
+
+    df=pd.DataFrame(columns=[
+        "RU",
+        "Nombres",
+        "Apellido_paterno",
+        "Apellido_materno",
+        "QR"
+    ])
+
     df.to_excel(archivo_estudiantes,index=False)
 
+
 if not os.path.exists(archivo_asistencia):
+
     df=pd.DataFrame(columns=[
-    "RU","Nombre","Apellido","Fecha","Hora","Estado","Actividad"
+        "RU",
+        "Nombres",
+        "Apellido_paterno",
+        "Apellido_materno",
+        "Fecha",
+        "Hora",
+        "Estado"
     ])
+
     df.to_excel(archivo_asistencia,index=False)
 
-if not os.path.exists(archivo_extension):
-    df=pd.DataFrame(columns=[
-    "RU","Nombre","Apellido",
-    "Actividad","Fecha",
-    "Hora_inicio","Hora_fin"
-    ])
-    df.to_excel(archivo_extension,index=False)
 
-
-# -----------------------------
+# -------------------------
 # REGISTRAR ESTUDIANTE
-# -----------------------------
+# -------------------------
+
 if menu=="Registrar estudiante":
 
-    st.subheader("Nuevo estudiante")
+    st.subheader("Registrar nuevo estudiante")
 
     ru=st.text_input("RU")
-    nombre=st.text_input("Nombre")
-    apellido=st.text_input("Apellido")
+    nombres=st.text_input("Nombres")
+    paterno=st.text_input("Apellido paterno")
+    materno=st.text_input("Apellido materno")
 
-    if st.button("Guardar"):
+    if st.button("Guardar estudiante"):
 
         df=pd.read_excel(archivo_estudiantes)
 
         if ru in df["RU"].astype(str).values:
+
             st.error("Este RU ya existe")
 
         else:
@@ -71,27 +86,49 @@ if menu=="Registrar estudiante":
             qr=qrcode.make(ru)
             qr.save(ruta_qr)
 
-            nuevo=pd.DataFrame([[ru,nombre,apellido,ruta_qr]],
-            columns=["RU","Nombre","Apellido","QR"])
+            nuevo=pd.DataFrame([[
+                ru,
+                nombres,
+                paterno,
+                materno,
+                ruta_qr
+            ]],
+            columns=[
+                "RU",
+                "Nombres",
+                "Apellido_paterno",
+                "Apellido_materno",
+                "QR"
+            ])
 
             df=pd.concat([df,nuevo],ignore_index=True)
 
             df.to_excel(archivo_estudiantes,index=False)
 
             st.success("Estudiante registrado")
-            st.image(ruta_qr,width=200)
 
+            st.image(ruta_qr,width=350)
 
-# -----------------------------
+            with open(ruta_qr,"rb") as file:
+
+                st.download_button(
+                    label="Descargar QR",
+                    data=file,
+                    file_name=f"{ru}_qr.png",
+                    mime="image/png"
+                )
+
+# -------------------------
 # LISTA ESTUDIANTES
-# -----------------------------
+# -------------------------
+
 elif menu=="Lista estudiantes":
 
     st.subheader("Lista de estudiantes")
 
     df=pd.read_excel(archivo_estudiantes)
 
-    st.dataframe(df)
+    st.dataframe(df,use_container_width=True)
 
     ru_ver=st.text_input("Ver QR del estudiante (RU)")
 
@@ -100,29 +137,44 @@ elif menu=="Lista estudiantes":
         estudiante=df[df["RU"].astype(str)==ru_ver]
 
         if len(estudiante)>0:
-            st.image(estudiante.iloc[0]["QR"],width=200)
+
+            ruta=estudiante.iloc[0]["QR"]
+
+            st.image(ruta,width=350)
+
+            with open(ruta,"rb") as file:
+
+                st.download_button(
+                    "Descargar QR",
+                    data=file,
+                    file_name=f"{ru_ver}_qr.png"
+                )
+
         else:
             st.warning("RU no encontrado")
 
 
-# -----------------------------
-# ESCANEAR QR (CAMARA CELULAR)
-# -----------------------------
+# -------------------------
+# ESCANEAR QR
+# -------------------------
+
 elif menu=="Escanear QR":
 
-    st.subheader("Escanear QR con la cámara del celular")
+    st.subheader("Escanear QR")
 
-    actividad=st.text_input("Actividad (opcional)")
+    st.info("Apunta la cámara al QR del estudiante")
 
-    foto = st.camera_input("Apunta la cámara al QR")
+    foto=st.camera_input("Escanear QR")
 
     if foto is not None:
 
-        file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
-        frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        file_bytes=np.asarray(bytearray(foto.read()),dtype=np.uint8)
 
-        detector = cv2.QRCodeDetector()
-        data, bbox, _ = detector.detectAndDecode(frame)
+        frame=cv2.imdecode(file_bytes,cv2.IMREAD_COLOR)
+
+        detector=cv2.QRCodeDetector()
+
+        data,bbox,_=detector.detectAndDecode(frame)
 
         if data:
 
@@ -131,13 +183,14 @@ elif menu=="Escanear QR":
             estudiantes=pd.read_excel(archivo_estudiantes)
 
             estudiante=estudiantes[
-            estudiantes["RU"].astype(str)==ru
+                estudiantes["RU"].astype(str)==ru
             ]
 
             if len(estudiante)>0:
 
-                nombre=estudiante.iloc[0]["Nombre"]
-                apellido=estudiante.iloc[0]["Apellido"]
+                nombres=estudiante.iloc[0]["Nombres"]
+                paterno=estudiante.iloc[0]["Apellido_paterno"]
+                materno=estudiante.iloc[0]["Apellido_materno"]
 
                 fecha=datetime.now().date()
                 hora=datetime.now().strftime("%H:%M:%S")
@@ -145,47 +198,61 @@ elif menu=="Escanear QR":
                 asistencia=pd.read_excel(archivo_asistencia)
 
                 ya=asistencia[
-                (asistencia["RU"].astype(str)==ru) &
-                (asistencia["Fecha"].astype(str)==str(fecha))
+                    (asistencia["RU"].astype(str)==ru)
+                    &
+                    (asistencia["Fecha"].astype(str)==str(fecha))
                 ]
 
                 if len(ya)==0:
 
-                    nuevo=pd.DataFrame([[ 
-                    ru,nombre,apellido,fecha,hora,
-                    "Presente",actividad
+                    nuevo=pd.DataFrame([[
+
+                        ru,
+                        nombres,
+                        paterno,
+                        materno,
+                        fecha,
+                        hora,
+                        "Presente"
+
                     ]],
 
                     columns=[
-                    "RU","Nombre","Apellido",
-                    "Fecha","Hora","Estado","Actividad"
+                        "RU",
+                        "Nombres",
+                        "Apellido_paterno",
+                        "Apellido_materno",
+                        "Fecha",
+                        "Hora",
+                        "Estado"
                     ])
 
                     asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
 
-                    asistencia.to_excel(
-                    archivo_asistencia,index=False)
+                    asistencia.to_excel(archivo_asistencia,index=False)
 
-                    st.success(
-                    f"Asistencia registrada: {nombre} {apellido}"
-                    )
+                    st.success(f"Asistencia registrada: {nombres} {paterno}")
 
                 else:
+
                     st.warning("Ya registró asistencia hoy")
 
             else:
+
                 st.error("Estudiante no encontrado")
 
         else:
-            st.warning("No se detectó QR. Intenta nuevamente.")
+
+            st.warning("No se detectó QR")
 
 
-# -----------------------------
+# -------------------------
 # REGISTRO MANUAL
-# -----------------------------
+# -------------------------
+
 elif menu=="Registrar asistencia manual":
 
-    st.subheader("Registro manual")
+    st.subheader("Registrar asistencia manual")
 
     estudiantes=pd.read_excel(archivo_estudiantes)
 
@@ -197,29 +264,31 @@ elif menu=="Registrar asistencia manual":
 
         estudiantes["nombre_completo"]=(
         estudiantes["RU"].astype(str)+" - "+
-        estudiantes["Nombre"]+" "+estudiantes["Apellido"]
+        estudiantes["Nombres"]+" "+
+        estudiantes["Apellido_paterno"]
         )
 
         seleccionado=st.selectbox(
-        "Seleccionar estudiante",
-        estudiantes["nombre_completo"]
+            "Seleccionar estudiante",
+            estudiantes["nombre_completo"]
         )
 
         ru=seleccionado.split(" - ")[0]
 
         estudiante=estudiantes[
-        estudiantes["RU"].astype(str)==ru
+            estudiantes["RU"].astype(str)==ru
         ]
 
-        nombre=estudiante.iloc[0]["Nombre"]
-        apellido=estudiante.iloc[0]["Apellido"]
+        nombres=estudiante.iloc[0]["Nombres"]
+        paterno=estudiante.iloc[0]["Apellido_paterno"]
+        materno=estudiante.iloc[0]["Apellido_materno"]
 
-        st.image(estudiante.iloc[0]["QR"],width=200)
+        st.image(estudiante.iloc[0]["QR"],width=300)
 
-        estado=st.selectbox("Estado",
-        ["Presente","Tarde","Permiso","Ausente"])
-
-        actividad=st.text_input("Actividad (opcional)")
+        estado=st.selectbox(
+            "Estado",
+            ["Presente","Tarde","Permiso","Ausente"]
+        )
 
         if st.button("Registrar asistencia"):
 
@@ -228,13 +297,26 @@ elif menu=="Registrar asistencia manual":
 
             asistencia=pd.read_excel(archivo_asistencia)
 
-            nuevo=pd.DataFrame([[ 
-            ru,nombre,apellido,fecha,hora,estado,actividad
+            nuevo=pd.DataFrame([[
+
+                ru,
+                nombres,
+                paterno,
+                materno,
+                fecha,
+                hora,
+                estado
+
             ]],
 
             columns=[
-            "RU","Nombre","Apellido",
-            "Fecha","Hora","Estado","Actividad"
+                "RU",
+                "Nombres",
+                "Apellido_paterno",
+                "Apellido_materno",
+                "Fecha",
+                "Hora",
+                "Estado"
             ])
 
             asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
@@ -244,81 +326,78 @@ elif menu=="Registrar asistencia manual":
             st.success("Asistencia registrada")
 
 
-# -----------------------------
+# -------------------------
 # VER ASISTENCIA
-# -----------------------------
+# -------------------------
+
 elif menu=="Ver asistencia":
 
     st.subheader("Registros de asistencia")
 
     asistencia=pd.read_excel(archivo_asistencia)
 
-    st.dataframe(asistencia)
+    st.dataframe(asistencia,use_container_width=True)
 
-    st.subheader("Resumen")
+    st.subheader("Editar estado")
 
-    st.write(asistencia["Estado"].value_counts())
+    if len(asistencia)>0:
+
+        indice=st.number_input(
+            "Indice del registro a editar",
+            min_value=0,
+            max_value=len(asistencia)-1
+        )
+
+        nuevo_estado=st.selectbox(
+            "Nuevo estado",
+            ["Presente","Tarde","Permiso","Ausente"]
+        )
+
+        if st.button("Actualizar estado"):
+
+            asistencia.loc[indice,"Estado"]=nuevo_estado
+
+            asistencia.to_excel(archivo_asistencia,index=False)
+
+            st.success("Estado actualizado")
 
 
-# -----------------------------
-# EXTENSION UNIVERSITARIA
-# -----------------------------
-elif menu=="Extension universitaria":
+    st.subheader("Eliminar registro")
 
-    st.subheader("Registro de Actividades de Extension")
+    if len(asistencia)>0:
 
-    estudiantes=pd.read_excel(archivo_estudiantes)
+        eliminar=st.number_input(
+            "Indice del registro a eliminar",
+            min_value=0,
+            max_value=len(asistencia)-1,
+            key="eliminar"
+        )
 
-    estudiantes["nombre_completo"]=(
-    estudiantes["RU"].astype(str)+" - "+
-    estudiantes["Nombre"]+" "+estudiantes["Apellido"]
-    )
+        if st.button("Eliminar registro"):
 
-    seleccionado=st.selectbox(
-    "Seleccionar estudiante",
-    estudiantes["nombre_completo"]
-    )
+            asistencia=asistencia.drop(eliminar)
 
-    ru=seleccionado.split(" - ")[0]
+            asistencia.to_excel(archivo_asistencia,index=False)
 
-    estudiante=estudiantes[
-    estudiantes["RU"].astype(str)==ru
+            st.success("Registro eliminado")
+
+
+    st.subheader("Descargar asistencia del día")
+
+    hoy=str(datetime.now().date())
+
+    asistencia_hoy=asistencia[
+        asistencia["Fecha"].astype(str)==hoy
     ]
 
-    nombre=estudiante.iloc[0]["Nombre"]
-    apellido=estudiante.iloc[0]["Apellido"]
+    archivo_descarga=f"asistencia_{hoy}.xlsx"
 
-    actividad=st.text_input("Nombre de la actividad")
+    asistencia_hoy.to_excel(archivo_descarga,index=False)
 
-    hora_inicio=st.time_input("Hora inicio")
-    hora_fin=st.time_input("Hora fin")
+    with open(archivo_descarga,"rb") as file:
 
-    if st.button("Registrar actividad"):
-
-        fecha=datetime.now().date()
-
-        extension=pd.read_excel(archivo_extension)
-
-        nuevo=pd.DataFrame([[
-
-        ru,
-        nombre,
-        apellido,
-        actividad,
-        fecha,
-        hora_inicio,
-        hora_fin
-
-        ]],
-
-        columns=[
-        "RU","Nombre","Apellido",
-        "Actividad","Fecha",
-        "Hora_inicio","Hora_fin"
-        ])
-
-        extension=pd.concat([extension,nuevo],ignore_index=True)
-
-        extension.to_excel(archivo_extension,index=False)
-
-        st.success("Actividad registrada")
+        st.download_button(
+            "Descargar Excel del día",
+            data=file,
+            file_name=archivo_descarga
+        )
