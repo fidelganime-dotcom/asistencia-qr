@@ -376,7 +376,7 @@ st.session_state.menu_actual = menu
 # SIDEBAR
 # ------------------------------------------------------------
 with st.sidebar:
-    st.markdown("## 📂 Cargar archivos Excel")
+    st.markdown("## 📂 Desarrollado por Josué")
     st.markdown('<p style="color: #b0b3b8;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
 
     if not os.path.exists("uploads"):
