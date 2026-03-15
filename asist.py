@@ -146,33 +146,6 @@ elif menu=="Lista estudiantes":
 
             st.image(ruta,width=350)
 
-# EDITAR
-
-    st.subheader("Editar estudiante")
-
-    if len(estudiantes)>0:
-
-        indice=st.number_input(
-            "Indice del estudiante",
-            min_value=0,
-            max_value=len(estudiantes)-1
-        )
-
-        ru=st.text_input("RU",value=str(estudiantes.loc[indice,"RU"]))
-        nombres=st.text_input("Nombres",value=estudiantes.loc[indice,"Nombres"])
-        paterno=st.text_input("Apellido paterno",value=estudiantes.loc[indice,"Apellido_paterno"])
-        materno=st.text_input("Apellido materno",value=estudiantes.loc[indice,"Apellido_materno"])
-
-        if st.button("Actualizar estudiante"):
-
-            estudiantes.loc[indice,"RU"]=ru
-            estudiantes.loc[indice,"Nombres"]=nombres
-            estudiantes.loc[indice,"Apellido_paterno"]=paterno
-            estudiantes.loc[indice,"Apellido_materno"]=materno
-
-            estudiantes.to_excel(archivo_estudiantes,index=False)
-
-            st.success("Estudiante actualizado")
 
 # ELIMINAR
 
