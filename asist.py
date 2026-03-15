@@ -9,7 +9,7 @@ import numpy as np
 # CONFIGURACION
 st.set_page_config(layout="wide")
 
-# CSS PARA AGRANDAR CAMARA
+# AGRANDAR CAMARA
 st.markdown("""
 <style>
 
@@ -26,7 +26,6 @@ width:100% !important;
 </style>
 """, unsafe_allow_html=True)
 
-# archivos
 archivo_estudiantes="estudiantes.xlsx"
 archivo_asistencia="asistencia.xlsx"
 
@@ -41,9 +40,7 @@ menu=st.sidebar.selectbox("Menu",
 "Ver asistencia"
 ])
 
-# -------------------------
 # CREAR ARCHIVOS
-# -------------------------
 
 if not os.path.exists(archivo_estudiantes):
 
@@ -72,10 +69,9 @@ if not os.path.exists(archivo_asistencia):
 
     df.to_excel(archivo_asistencia,index=False)
 
-
-# -------------------------
+# --------------------------------------------------
 # REGISTRAR ESTUDIANTE
-# -------------------------
+# --------------------------------------------------
 
 if menu=="Registrar estudiante":
 
@@ -124,10 +120,9 @@ if menu=="Registrar estudiante":
                     mime="image/png"
                 )
 
-
-# -------------------------
+# --------------------------------------------------
 # LISTA ESTUDIANTES
-# -------------------------
+# --------------------------------------------------
 
 elif menu=="Lista estudiantes":
 
@@ -144,7 +139,7 @@ elif menu=="Lista estudiantes":
     if len(estudiantes)>0:
 
         indice=st.number_input(
-            "Indice del estudiante a editar",
+            "Indice del estudiante",
             min_value=0,
             max_value=len(estudiantes)-1
         )
@@ -172,7 +167,7 @@ elif menu=="Lista estudiantes":
     if len(estudiantes)>0:
 
         eliminar=st.number_input(
-            "Indice del estudiante a eliminar",
+            "Indice a eliminar",
             min_value=0,
             max_value=len(estudiantes)-1,
             key="eliminar_est"
@@ -188,7 +183,7 @@ elif menu=="Lista estudiantes":
 
 # DESCARGAR EXCEL
 
-    st.subheader("Descargar registro de estudiantes")
+    st.subheader("Descargar Excel estudiantes")
 
     archivo_descarga="registro_estudiantes.xlsx"
 
@@ -197,14 +192,14 @@ elif menu=="Lista estudiantes":
     with open(archivo_descarga,"rb") as file:
 
         st.download_button(
-            "Descargar Excel estudiantes",
+            "Descargar Excel",
             data=file,
             file_name=archivo_descarga
         )
 
 # VER QR
 
-    ru_ver=st.text_input("Ver QR del estudiante (RU)")
+    ru_ver=st.text_input("Ver QR del estudiante")
 
     if ru_ver!="":
 
@@ -216,27 +211,13 @@ elif menu=="Lista estudiantes":
 
             st.image(ruta,width=350)
 
-            with open(ruta,"rb") as file:
-
-                st.download_button(
-                    "Descargar QR",
-                    data=file,
-                    file_name=f"{ru_ver}_qr.png"
-                )
-
-        else:
-            st.warning("RU no encontrado")
-
-
-# -------------------------
+# --------------------------------------------------
 # ESCANEAR QR
-# -------------------------
+# --------------------------------------------------
 
 elif menu=="Escanear QR":
 
     st.subheader("Escanear QR")
-
-    st.info("Apunta la cámara al QR del estudiante")
 
     foto=st.camera_input("Escanear QR")
 
@@ -266,8 +247,10 @@ elif menu=="Escanear QR":
                 paterno=estudiante.iloc[0]["Apellido_paterno"]
                 materno=estudiante.iloc[0]["Apellido_materno"]
 
-                fecha=datetime.now().date()
-                hora=datetime.now().strftime("%H:%M:%S")
+                # HORA EXACTA DEL ESCANEO
+                ahora=datetime.now()
+                fecha=ahora.date()
+                hora=ahora.strftime("%H:%M:%S")
 
                 asistencia=pd.read_excel(archivo_asistencia)
 
@@ -300,10 +283,9 @@ elif menu=="Escanear QR":
 
             st.warning("No se detectó QR")
 
-
-# -------------------------
+# --------------------------------------------------
 # REGISTRO MANUAL
-# -------------------------
+# --------------------------------------------------
 
 elif menu=="Registrar asistencia manual":
 
@@ -311,24 +293,25 @@ elif menu=="Registrar asistencia manual":
 
     estudiantes=pd.read_excel(archivo_estudiantes)
 
-    if len(estudiantes)==0:
+    estudiantes["nombre_completo"]=(
+    estudiantes["RU"].astype(str)+" - "+
+    estudiantes["Nombres"]+" "+
+    estudiantes["Apellido_paterno"]
+    )
 
-        st.warning("No hay estudiantes registrados")
+    seleccionado=st.selectbox(
+        "Seleccionar estudiante",
+        estudiantes["nombre_completo"]
+    )
 
-    else:
+    ru=seleccionado.split(" - ")[0]
 
-        estudiantes["nombre_completo"]=(
-        estudiantes["RU"].astype(str)+" - "+
-        estudiantes["Nombres"]+" "+
-        estudiantes["Apellido_paterno"]
-        )
+    estado=st.selectbox(
+        "Estado",
+        ["Presente","Tarde","Permiso","Ausente"]
+    )
 
-        seleccionado=st.selectbox(
-            "Seleccionar estudiante",
-            estudiantes["nombre_completo"]
-        )
-
-        ru=seleccionado.split(" - ")[0]
+    if st.button("Registrar asistencia"):
 
         estudiante=estudiantes[
             estudiantes["RU"].astype(str)==ru
@@ -338,33 +321,24 @@ elif menu=="Registrar asistencia manual":
         paterno=estudiante.iloc[0]["Apellido_paterno"]
         materno=estudiante.iloc[0]["Apellido_materno"]
 
-        st.image(estudiante.iloc[0]["QR"],width=300)
+        ahora=datetime.now()
+        fecha=ahora.date()
+        hora=ahora.strftime("%H:%M:%S")
 
-        estado=st.selectbox(
-            "Estado",
-            ["Presente","Tarde","Permiso","Ausente"]
-        )
+        asistencia=pd.read_excel(archivo_asistencia)
 
-        if st.button("Registrar asistencia"):
+        nuevo=pd.DataFrame([[ru,nombres,paterno,materno,fecha,hora,estado]],
+        columns=["RU","Nombres","Apellido_paterno","Apellido_materno","Fecha","Hora","Estado"])
 
-            fecha=datetime.now().date()
-            hora=datetime.now().strftime("%H:%M:%S")
+        asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
 
-            asistencia=pd.read_excel(archivo_asistencia)
+        asistencia.to_excel(archivo_asistencia,index=False)
 
-            nuevo=pd.DataFrame([[ru,nombres,paterno,materno,fecha,hora,estado]],
-            columns=["RU","Nombres","Apellido_paterno","Apellido_materno","Fecha","Hora","Estado"])
+        st.success("Asistencia registrada")
 
-            asistencia=pd.concat([asistencia,nuevo],ignore_index=True)
-
-            asistencia.to_excel(archivo_asistencia,index=False)
-
-            st.success("Asistencia registrada")
-
-
-# -------------------------
+# --------------------------------------------------
 # VER ASISTENCIA
-# -------------------------
+# --------------------------------------------------
 
 elif menu=="Ver asistencia":
 
@@ -381,7 +355,7 @@ elif menu=="Ver asistencia":
     if len(asistencia)>0:
 
         indice=st.number_input(
-            "Indice del registro a editar",
+            "Indice registro",
             min_value=0,
             max_value=len(asistencia)-1
         )
@@ -399,7 +373,6 @@ elif menu=="Ver asistencia":
 
             st.success("Estado actualizado")
 
-
 # ELIMINAR REGISTRO
 
     st.subheader("Eliminar registro")
@@ -407,10 +380,10 @@ elif menu=="Ver asistencia":
     if len(asistencia)>0:
 
         eliminar=st.number_input(
-            "Indice del registro a eliminar",
+            "Indice eliminar",
             min_value=0,
             max_value=len(asistencia)-1,
-            key="eliminar"
+            key="elim"
         )
 
         if st.button("Eliminar registro"):
@@ -421,8 +394,7 @@ elif menu=="Ver asistencia":
 
             st.success("Registro eliminado")
 
-
-# DESCARGAR EXCEL DEL DIA
+# DESCARGAR EXCEL
 
     st.subheader("Descargar asistencia del día")
 
