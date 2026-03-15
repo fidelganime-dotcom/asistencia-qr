@@ -351,7 +351,7 @@ if "ultimo_registro" not in st.session_state:
 # ------------------------------------------------------------
 # TÍTULO Y MENÚ HORIZONTAL ELEGANTE
 # ------------------------------------------------------------
-st.title("🟨🟩 Sistema de Asistencia by Joswii")
+st.title("🟨🟩 Sistema de Asistencia")
 st.markdown('<p style="color: #b0b3b8; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
 
 opciones_menu = [
