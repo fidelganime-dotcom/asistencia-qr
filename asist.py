@@ -46,7 +46,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# ESTILOS CSS PARA BOTONES DE MENÚ
+# ESTILOS CSS MEJORADOS - BOTONES ELEGANTES Y MENÚ HORIZONTAL
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -71,42 +71,36 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* CONTENEDOR DE BOTONES DEL MENÚ */
-    .menu-container {
-        display: flex;
+    /* MENÚ HORIZONTAL CON BOTONES ELEGANTES */
+    div.row-widget.stRadio > div {
+        flex-direction: row;
         justify-content: center;
         gap: 15px;
         background: linear-gradient(145deg, #1a1d24, #15181f);
         padding: 20px 25px;
         border-radius: 60px;
         border: 1px solid rgba(124, 58, 237, 0.3);
-        margin: 20px 0 30px 0;
+        margin-bottom: 30px;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(124, 58, 237, 0.2);
         backdrop-filter: blur(10px);
-        flex-wrap: wrap;
     }
     
-    /* BOTONES DEL MENÚ */
-    .menu-button {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid transparent;
-        color: var(--text-secondary);
-        padding: 12px 24px;
-        border-radius: 40px;
+    div.row-widget.stRadio > div label {
+        color: var(--text-secondary) !important;
         font-size: 1rem;
         font-weight: 500;
-        letter-spacing: 0.5px;
-        cursor: pointer;
+        padding: 12px 24px;
+        border-radius: 40px;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid transparent;
+        background: rgba(255, 255, 255, 0.03);
+        letter-spacing: 0.5px;
         position: relative;
         overflow: hidden;
-        border: 1px solid;
-        min-width: 160px;
-        text-align: center;
     }
     
     /* Efecto de brillo en hover */
-    .menu-button::before {
+    div.row-widget.stRadio > div label::before {
         content: '';
         position: absolute;
         top: 50%;
@@ -121,70 +115,75 @@ st.markdown("""
         pointer-events: none;
     }
     
-    .menu-button:hover::before {
+    div.row-widget.stRadio > div label:hover::before {
         width: 300px;
         height: 300px;
     }
     
-    .menu-button:hover {
+    div.row-widget.stRadio > div label:hover {
         filter: brightness(1.2);
         transform: translateY(-2px);
+        border-color: currentColor;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
     }
-    
-    /* Colores específicos para cada botón (inactivo) */
-    .menu-button:nth-child(1) {
+
+    /* Colores específicos para cada opción con gradientes elegantes */
+    div.row-widget.stRadio > div label:nth-child(1) {
         background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05));
         border-color: #3b82f6;
         box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
     }
-    .menu-button:nth-child(2) {
+    div.row-widget.stRadio > div label:nth-child(2) {
         background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.05));
         border-color: #10b981;
         box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
     }
-    .menu-button:nth-child(3) {
+    div.row-widget.stRadio > div label:nth-child(3) {
         background: linear-gradient(145deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.05));
         border-color: #f59e0b;
         box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
     }
-    .menu-button:nth-child(4) {
+    div.row-widget.stRadio > div label:nth-child(4) {
         background: linear-gradient(145deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.05));
         border-color: #ef4444;
         box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
     }
-    .menu-button:nth-child(5) {
+    div.row-widget.stRadio > div label:nth-child(5) {
         background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.05));
         border-color: #8b5cf6;
         box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
     }
-    
-    /* Estilo para botón activo */
-    .menu-button.active {
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        transform: scale(1.05);
-    }
-    
-    .menu-button.active:nth-child(1) {
+
+    /* Colores para la opción activa (checked) con gradientes más intensos */
+    div.row-widget.stRadio > div label:nth-child(1) input:checked + div {
         background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8) !important;
+        color: white !important;
         box-shadow: 0 10px 20px -5px #3b82f6 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
-    .menu-button.active:nth-child(2) {
+    div.row-widget.stRadio > div label:nth-child(2) input:checked + div {
         background: linear-gradient(135deg, #10b981, #059669, #047857) !important;
+        color: white !important;
         box-shadow: 0 10px 20px -5px #10b981 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
-    .menu-button.active:nth-child(3) {
+    div.row-widget.stRadio > div label:nth-child(3) input:checked + div {
         background: linear-gradient(135deg, #f59e0b, #d97706, #b45309) !important;
+        color: white !important;
         box-shadow: 0 10px 20px -5px #f59e0b !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
-    .menu-button.active:nth-child(4) {
+    div.row-widget.stRadio > div label:nth-child(4) input:checked + div {
         background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c) !important;
+        color: white !important;
         box-shadow: 0 10px 20px -5px #ef4444 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
-    .menu-button.active:nth-child(5) {
+    div.row-widget.stRadio > div label:nth-child(5) input:checked + div {
         background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9) !important;
+        color: white !important;
         box-shadow: 0 10px 20px -5px #8b5cf6 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
 
     /* Estilos para botones elegantes */
@@ -345,62 +344,33 @@ if "archivo_estudiantes_subido" not in st.session_state:
 if "archivo_asistencia_subido" not in st.session_state:
     st.session_state.archivo_asistencia_subido = None
 if "menu_actual" not in st.session_state:
-    st.session_state.menu_actual = "Registrar estudiante"
+    st.session_state.menu_actual = "📝 Registrar estudiante"
 if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
 
 # ------------------------------------------------------------
-# FUNCIONES PARA CAMBIAR DE MENÚ
-# ------------------------------------------------------------
-def set_menu(menu_option):
-    st.session_state.menu_actual = menu_option
-
-# ------------------------------------------------------------
-# TÍTULO Y MENÚ CON BOTONES
+# TÍTULO Y MENÚ HORIZONTAL ELEGANTE
 # ------------------------------------------------------------
 st.title("📷 Sistema de Asistencia con QR")
 st.markdown('<p style="color: #b0b3b8; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
 
-# Crear menú con botones
-col1, col2, col3, col4, col5 = st.columns(5)
+opciones_menu = [
+    "📝 Registrar estudiante",
+    "📋 Lista estudiantes",
+    "📸 Escanear QR",
+    "✍️ Registrar asistencia manual",
+    "📊 Ver asistencia"
+]
 
-with col1:
-    btn_class = "menu-button active" if st.session_state.menu_actual == "Registrar estudiante" else "menu-button"
-    st.markdown(f'<div class="{btn_class}" onclick="document.querySelector(\'#menu_registrar\').click()">📝 Registrar estudiante</div>', unsafe_allow_html=True)
-    if st.button("Registrar estudiante", key="menu_registrar", help="Haz clic para ir a Registrar estudiante"):
-        set_menu("Registrar estudiante")
-        st.rerun()
+menu = st.radio(
+    "",
+    opciones_menu,
+    horizontal=True,
+    label_visibility="collapsed",
+    key="menu_radio"
+)
 
-with col2:
-    btn_class = "menu-button active" if st.session_state.menu_actual == "Lista estudiantes" else "menu-button"
-    st.markdown(f'<div class="{btn_class}" onclick="document.querySelector(\'#menu_lista\').click()">📋 Lista estudiantes</div>', unsafe_allow_html=True)
-    if st.button("Lista estudiantes", key="menu_lista", help="Haz clic para ir a Lista estudiantes"):
-        set_menu("Lista estudiantes")
-        st.rerun()
-
-with col3:
-    btn_class = "menu-button active" if st.session_state.menu_actual == "Escanear QR" else "menu-button"
-    st.markdown(f'<div class="{btn_class}" onclick="document.querySelector(\'#menu_escanear\').click()">📸 Escanear QR</div>', unsafe_allow_html=True)
-    if st.button("Escanear QR", key="menu_escanear", help="Haz clic para ir a Escanear QR"):
-        set_menu("Escanear QR")
-        st.rerun()
-
-with col4:
-    btn_class = "menu-button active" if st.session_state.menu_actual == "Registrar manual" else "menu-button"
-    st.markdown(f'<div class="{btn_class}" onclick="document.querySelector(\'#menu_manual\').click()">✍️ Registrar manual</div>', unsafe_allow_html=True)
-    if st.button("Registrar manual", key="menu_manual", help="Haz clic para ir a Registrar asistencia manual"):
-        set_menu("Registrar manual")
-        st.rerun()
-
-with col5:
-    btn_class = "menu-button active" if st.session_state.menu_actual == "Ver asistencia" else "menu-button"
-    st.markdown(f'<div class="{btn_class}" onclick="document.querySelector(\'#menu_ver\').click()">📊 Ver asistencia</div>', unsafe_allow_html=True)
-    if st.button("Ver asistencia", key="menu_ver", help="Haz clic para ir a Ver asistencia"):
-        set_menu("Ver asistencia")
-        st.rerun()
-
-# Línea divisoria decorativa
-st.markdown("<hr style='border: 1px solid rgba(124, 58, 237, 0.3); margin: 20px 0;'>", unsafe_allow_html=True)
+st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
 # SIDEBAR
@@ -466,11 +436,9 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
-# CONTENIDO SEGÚN EL MENÚ SELECCIONADO
-# ------------------------------------------------------------
-
 # REGISTRAR ESTUDIANTE
-if st.session_state.menu_actual == "Registrar estudiante":
+# ------------------------------------------------------------
+if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.subheader("📝 Registrar nuevo estudiante")
     
     with st.container():
@@ -507,8 +475,10 @@ if st.session_state.menu_actual == "Registrar estudiante":
                         with open(ruta_qr, "rb") as file:
                             st.download_button("⬇️ Descargar QR", data=file, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
 
-# LISTA ESTUDIANTES
-elif st.session_state.menu_actual == "Lista estudiantes":
+# ------------------------------------------------------------
+# LISTA ESTUDIANTES - CON BOTÓN DE BÚSQUEDA MEJORADO
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
     
@@ -571,8 +541,10 @@ elif st.session_state.menu_actual == "Lista estudiantes":
     else:
         st.info("📭 No hay estudiantes registrados")
 
+# ------------------------------------------------------------
 # ESCANEAR QR
-elif st.session_state.menu_actual == "Escanear QR":
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
     st.markdown('<p style="color: #b0b3b8;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     
@@ -621,8 +593,10 @@ elif st.session_state.menu_actual == "Escanear QR":
         else:
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
+# ------------------------------------------------------------
 # REGISTRO MANUAL
-elif st.session_state.menu_actual == "Registrar manual":
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
     estudiantes = leer_estudiantes()
     
@@ -674,8 +648,10 @@ elif st.session_state.menu_actual == "Registrar manual":
     else:
         st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
+# ------------------------------------------------------------
 # VER ASISTENCIA
-elif st.session_state.menu_actual == "Ver asistencia":
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
     
