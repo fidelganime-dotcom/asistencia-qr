@@ -561,4 +561,4 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga)
     else:
         st.info("No hay registros para hoy.")
-
+        
