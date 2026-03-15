@@ -6,6 +6,7 @@ import os
 import cv2
 import numpy as np
 import pytz
+import shutil
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
@@ -28,7 +29,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# ESTILOS CSS (MODO OSCURO + ANIMACIONES + BOTONES DE MENÚ ELEGANTES)
+# ESTILOS CSS (MODO OSCURO + ANIMACIONES + MENÚ HORIZONTAL)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -51,52 +52,36 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Estilos para los botones del menú (dentro de columnas) */
-    div[data-testid="column"] .stButton button {
-        background: linear-gradient(135deg, #2a2f3a 0%, #1e2128 100%);
-        border: 1px solid #3d4350 !important;
-        border-radius: 50px !important;
-        padding: 12px 20px !important;
-        color: #b0b3b8 !important;
-        font-size: 1.1rem !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important;
-        width: 100%;
-        border: none;
-        margin: 0;
+    /* Menú horizontal */
+    div.row-widget.stRadio > div {
+        flex-direction: row;
+        justify-content: center;
+        gap: 20px;
+        background-color: var(--bg-card);
+        padding: 15px 20px;
+        border-radius: 50px;
+        border: 1px solid var(--border);
+        margin-bottom: 30px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.3);
     }
-    div[data-testid="column"] .stButton button:hover {
-        transform: translateY(-2px) !important;
-        background: linear-gradient(135deg, #353b48 0%, #2a2f3a 100%) !important;
-        border-color: var(--accent) !important;
+    div.row-widget.stRadio > div label {
+        color: var(--text-secondary) !important;
+        font-size: 1.1rem;
+        font-weight: 500;
+        padding: 8px 20px;
+        border-radius: 30px;
+        transition: all 0.2s ease;
+    }
+    div.row-widget.stRadio > div label:hover {
+        background-color: rgba(124, 58, 237, 0.1);
+        color: var(--accent-light) !important;
+    }
+    div.row-widget.stRadio > div label[data-baseweb="radio"] input:checked + div {
+        background-color: var(--accent);
         color: white !important;
-        box-shadow: 0 8px 15px rgba(124, 58, 237, 0.3) !important;
-    }
-    div[data-testid="column"] .stButton button:focus {
-        outline: none !important;
-        box-shadow: 0 0 0 2px var(--accent) !important;
     }
 
-    /* Estilo para otros botones (guardar, descargar, etc.) */
-    .stButton button:not(div[data-testid="column"] .stButton button) {
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .stButton button:hover:not(div[data-testid="column"] .stButton button) {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 12px rgba(124, 58, 237, 0.3);
-        filter: brightness(1.1);
-    }
-
-    /* Inputs, selects, etc. */
+    /* Inputs, selects, botones, tablas */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
         background-color: var(--bg-card) !important;
         border-color: var(--border) !important;
@@ -107,6 +92,23 @@ st.markdown("""
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
         border-color: var(--accent) !important;
         box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2) !important;
+    }
+
+    .stButton button {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 12px rgba(124, 58, 237, 0.3);
+        filter: brightness(1.1);
     }
 
     .stDataFrame {
@@ -162,6 +164,22 @@ st.markdown("""
         to { opacity: 1; transform: translateY(0); }
     }
 
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: var(--bg-card);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--accent);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-light);
+    }
+
     /* Cámara */
     div[data-testid="stCameraInput"] video {
         width: 100% !important;
@@ -174,11 +192,20 @@ st.markdown("""
     div[data-testid="stCameraInput"] {
         width: 100% !important;
     }
+
+    /* Estilo para los uploaders */
+    .uploader-box {
+        background-color: var(--bg-card);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid var(--border);
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# INICIALIZAR SESSION STATE PARA RUTAS DE ARCHIVOS Y MENÚ
+# INICIALIZAR SESSION STATE PARA RUTAS DE ARCHIVOS
 # ------------------------------------------------------------
 if "ruta_estudiantes" not in st.session_state:
     st.session_state.ruta_estudiantes = "estudiantes.xlsx"
@@ -189,6 +216,11 @@ if "archivo_estudiantes_subido" not in st.session_state:
 if "archivo_asistencia_subido" not in st.session_state:
     st.session_state.archivo_asistencia_subido = None
 
+# ------------------------------------------------------------
+# TÍTULO Y MENÚ HORIZONTAL
+# ------------------------------------------------------------
+st.title("📷 Sistema de Asistencia con QR")
+
 opciones_menu = [
     "📝 Registrar estudiante",
     "📋 Lista estudiantes",
@@ -196,25 +228,13 @@ opciones_menu = [
     "✍️ Registrar asistencia manual",
     "📊 Ver asistencia"
 ]
-if "menu_opcion" not in st.session_state:
-    st.session_state.menu_opcion = opciones_menu[0]
 
-# ------------------------------------------------------------
-# TÍTULO
-# ------------------------------------------------------------
-st.title("📷 Sistema de Asistencia con QR")
-
-# ------------------------------------------------------------
-# MENÚ DE BOTONES HORIZONTALES (ELEGANTES)
-# ------------------------------------------------------------
-cols = st.columns(len(opciones_menu))
-for i, opcion in enumerate(opciones_menu):
-    with cols[i]:
-        if st.button(opcion, key=f"menu_{i}", use_container_width=True):
-            st.session_state.menu_opcion = opcion
-            st.rerun()
-
-menu = st.session_state.menu_opcion
+menu = st.radio(
+    "",
+    opciones_menu,
+    horizontal=True,
+    label_visibility="collapsed"
+)
 
 # ------------------------------------------------------------
 # SIDEBAR: CARGAR ARCHIVOS EXCEL
@@ -223,11 +243,14 @@ with st.sidebar:
     st.markdown("## 📂 Cargar archivos Excel")
     st.markdown("Sube tus propios archivos para trabajar con ellos. Si no subes ninguno, se usarán los archivos por defecto (`estudiantes.xlsx` y `asistencia.xlsx`).")
 
+    # Crear carpeta uploads si no existe
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
 
+    # Cargar archivo de estudiantes
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
     if archivo_est is not None:
+        # Guardar el archivo subido en la carpeta uploads
         ruta_destino = os.path.join("uploads", archivo_est.name)
         with open(ruta_destino, "wb") as f:
             f.write(archivo_est.getbuffer())
@@ -235,6 +258,7 @@ with st.sidebar:
         st.session_state.archivo_estudiantes_subido = archivo_est.name
         st.success(f"✅ Archivo de estudiantes cargado: {archivo_est.name}")
 
+    # Cargar archivo de asistencia
     archivo_asis = st.file_uploader("📗 Asistencia", type=["xlsx"], key="upload_asis")
     if archivo_asis is not None:
         ruta_destino = os.path.join("uploads", archivo_asis.name)
@@ -265,6 +289,7 @@ def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
         return pd.read_excel(st.session_state.ruta_estudiantes)
     else:
+        # Crear DataFrame vacío con columnas correctas
         return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
 
 def guardar_estudiantes(df):
@@ -318,6 +343,7 @@ elif menu == "📋 Lista estudiantes":
     estudiantes = leer_estudiantes()
     st.dataframe(estudiantes, use_container_width=True)
 
+    # Ver QR
     st.subheader("🔍 Ver QR del estudiante")
     ru_ver = st.text_input("Ingrese RU para ver QR")
     if ru_ver != "":
@@ -327,6 +353,7 @@ elif menu == "📋 Lista estudiantes":
         else:
             st.warning("⚠️ RU no encontrado")
 
+    # Eliminar estudiante
     st.subheader("🗑️ Eliminar estudiante")
     if len(estudiantes) > 0:
         eliminar = st.number_input("Índice a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
@@ -335,6 +362,7 @@ elif menu == "📋 Lista estudiantes":
             guardar_estudiantes(estudiantes)
             st.success("✅ Estudiante eliminado")
 
+    # Descargar Excel
     st.subheader("⬇️ Descargar Excel estudiantes")
     if len(estudiantes) > 0:
         archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -416,6 +444,7 @@ elif menu == "📊 Ver asistencia":
     asistencia = leer_asistencia()
     st.dataframe(asistencia, use_container_width=True)
 
+    # Editar estado
     st.subheader("✏️ Editar estado")
     if len(asistencia) > 0:
         indice = st.number_input("Índice registro", min_value=0, max_value=len(asistencia)-1)
@@ -425,6 +454,7 @@ elif menu == "📊 Ver asistencia":
             guardar_asistencia(asistencia)
             st.success("✅ Estado actualizado")
 
+    # Eliminar registro
     st.subheader("🗑️ Eliminar registro")
     if len(asistencia) > 0:
         eliminar = st.number_input("Índice eliminar", min_value=0, max_value=len(asistencia)-1, key="elim")
@@ -433,6 +463,7 @@ elif menu == "📊 Ver asistencia":
             guardar_asistencia(asistencia)
             st.success("✅ Registro eliminado")
 
+    # Descargar Excel del día
     st.subheader("⬇️ Descargar asistencia del día")
     hoy = str(datetime.now(ZONA_HORARIA).date())
     asistencia_hoy = asistencia[asistencia["Fecha"].astype(str) == hoy]
