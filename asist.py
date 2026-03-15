@@ -41,6 +41,7 @@ def verificar_registro_duplicado(ru, fecha):
 # ------------------------------------------------------------
 st.set_page_config(
     page_title="Sistema de Asistencia con QR",
+    page_icon="📷",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -50,53 +51,84 @@ st.set_page_config(
 # ------------------------------------------------------------
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    
     :root {
-        --bg-dark: #0e1117;
-        --bg-card: #1e2128;
-        --bg-sidebar: #1a1d24;
-        --text-primary: #fafafa;
-        --text-secondary: #b0b3b8;
-        --accent: #7c3aed;
-        --accent-light: #9f7aea;
+        --bg-dark: #0a0c10;
+        --bg-card: #15181f;
+        --bg-sidebar: #111318;
+        --text-primary: #ffffff;
+        --text-secondary: #9ca3af;
+        --accent: #8b5cf6;
+        --accent-light: #a78bfa;
+        --accent-dark: #7c3aed;
         --border: #2d3138;
         --success: #10b981;
         --warning: #f59e0b;
         --error: #ef4444;
         --duplicate: #f97316;
         --info: #3b82f6;
+        --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --gradient-4: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        --gradient-5: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
     }
 
     .stApp {
-        background-color: var(--bg-dark);
+        background: radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+                    radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+                    var(--bg-dark);
         color: var(--text-primary);
+    }
+
+    /* Título elegante */
+    h1 {
+        background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 800 !important;
+        font-size: 3rem !important;
+        letter-spacing: -0.5px;
+        margin-bottom: 0.5rem !important;
+        text-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
     }
 
     /* MENÚ HORIZONTAL CON BOTONES ELEGANTES */
     div.row-widget.stRadio > div {
         flex-direction: row;
         justify-content: center;
-        gap: 15px;
-        background: linear-gradient(145deg, #1a1d24, #15181f);
-        padding: 20px 25px;
-        border-radius: 60px;
-        border: 1px solid rgba(124, 58, 237, 0.3);
-        margin-bottom: 30px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(124, 58, 237, 0.2);
+        gap: 12px;
+        background: rgba(21, 24, 31, 0.8);
         backdrop-filter: blur(10px);
+        padding: 18px 22px;
+        border-radius: 100px;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        margin-bottom: 30px;
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5),
+                    0 0 0 1px rgba(139, 92, 246, 0.1) inset;
     }
     
     div.row-widget.stRadio > div label {
         color: var(--text-secondary) !important;
-        font-size: 1rem;
+        font-size: 0.95rem;
         font-weight: 500;
-        padding: 12px 24px;
-        border-radius: 40px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 12px 28px;
+        border-radius: 50px;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         border: 1px solid transparent;
-        background: rgba(255, 255, 255, 0.03);
-        letter-spacing: 0.5px;
+        background: rgba(255, 255, 255, 0.02);
+        letter-spacing: 0.3px;
         position: relative;
         overflow: hidden;
+        cursor: pointer;
+        text-transform: uppercase;
+        font-size: 0.85rem;
     }
     
     /* Efecto de brillo en hover */
@@ -121,69 +153,72 @@ st.markdown("""
     }
     
     div.row-widget.stRadio > div label:hover {
-        filter: brightness(1.2);
-        transform: translateY(-2px);
-        border-color: currentColor;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
     }
 
     /* Colores específicos para cada opción con gradientes elegantes */
     div.row-widget.stRadio > div label:nth-child(1) {
-        background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05));
+        background: linear-gradient(145deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
         border-color: #3b82f6;
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.1);
     }
     div.row-widget.stRadio > div label:nth-child(2) {
-        background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.05));
+        background: linear-gradient(145deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
         border-color: #10b981;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.1);
     }
     div.row-widget.stRadio > div label:nth-child(3) {
-        background: linear-gradient(145deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.05));
+        background: linear-gradient(145deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
         border-color: #f59e0b;
-        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.1);
     }
     div.row-widget.stRadio > div label:nth-child(4) {
-        background: linear-gradient(145deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.05));
+        background: linear-gradient(145deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
         border-color: #ef4444;
-        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1);
     }
     div.row-widget.stRadio > div label:nth-child(5) {
-        background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.05));
+        background: linear-gradient(145deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));
         border-color: #8b5cf6;
-        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.1);
     }
 
     /* Colores para la opción activa (checked) con gradientes más intensos */
     div.row-widget.stRadio > div label:nth-child(1) input:checked + div {
         background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8) !important;
         color: white !important;
-        box-shadow: 0 10px 20px -5px #3b82f6 !important;
+        box-shadow: 0 15px 30px -8px #3b82f6 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     div.row-widget.stRadio > div label:nth-child(2) input:checked + div {
         background: linear-gradient(135deg, #10b981, #059669, #047857) !important;
         color: white !important;
-        box-shadow: 0 10px 20px -5px #10b981 !important;
+        box-shadow: 0 15px 30px -8px #10b981 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     div.row-widget.stRadio > div label:nth-child(3) input:checked + div {
         background: linear-gradient(135deg, #f59e0b, #d97706, #b45309) !important;
         color: white !important;
-        box-shadow: 0 10px 20px -5px #f59e0b !important;
+        box-shadow: 0 15px 30px -8px #f59e0b !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     div.row-widget.stRadio > div label:nth-child(4) input:checked + div {
         background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c) !important;
         color: white !important;
-        box-shadow: 0 10px 20px -5px #ef4444 !important;
+        box-shadow: 0 15px 30px -8px #ef4444 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     div.row-widget.stRadio > div label:nth-child(5) input:checked + div {
         background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9) !important;
         color: white !important;
-        box-shadow: 0 10px 20px -5px #8b5cf6 !important;
+        box-shadow: 0 15px 30px -8px #8b5cf6 !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     /* Estilos para botones elegantes */
@@ -191,16 +226,18 @@ st.markdown("""
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
         color: white;
         border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.8rem;
+        border-radius: 16px;
+        padding: 0.7rem 2rem;
         font-weight: 600;
         font-size: 1rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 8px 15px -3px rgba(124, 58, 237, 0.3);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);
         border: 1px solid rgba(255, 255, 255, 0.1);
         letter-spacing: 0.5px;
         position: relative;
         overflow: hidden;
+        text-transform: uppercase;
+        font-size: 0.9rem;
     }
     
     .stButton button::before {
@@ -219,16 +256,19 @@ st.markdown("""
     }
     
     .stButton button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 15px 25px -5px rgba(124, 58, 237, 0.5);
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 20px 30px -8px rgba(139, 92, 246, 0.6);
         filter: brightness(1.1);
+    }
+    
+    .stButton button:active {
+        transform: translateY(0) scale(0.98);
     }
     
     /* Botón de búsqueda especial */
     .stButton button[data-testid="baseButton-secondary"] {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
-        padding: 0.5rem 1.5rem;
-        font-size: 0.95rem;
+        box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
     }
     
     /* Botón deshabilitado */
@@ -242,69 +282,83 @@ st.markdown("""
 
     /* Inputs elegantes */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
+        background: rgba(21, 24, 31, 0.8) !important;
+        backdrop-filter: blur(10px);
         border: 2px solid var(--border) !important;
         color: var(--text-primary) !important;
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
+        border-radius: 16px !important;
+        padding: 14px 18px !important;
         font-size: 1rem !important;
         transition: all 0.3s ease !important;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2) !important;
     }
     
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2), 0 4px 15px rgba(0, 0, 0, 0.3) !important;
         transform: scale(1.01);
     }
 
     /* Tarjetas elegantes */
     .info-card {
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
-        border-radius: 20px;
-        padding: 1.5rem;
-        border: 1px solid rgba(124, 58, 237, 0.2);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        background: rgba(21, 24, 31, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        padding: 1.8rem;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
         margin-bottom: 1.5rem;
     }
     
     .student-info {
-        background: linear-gradient(145deg, rgba(124, 58, 237, 0.1), rgba(124, 58, 237, 0.05));
-        border-radius: 16px;
-        padding: 1.2rem;
-        border-left: 4px solid var(--accent);
-        margin: 1rem 0;
+        background: linear-gradient(145deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 1.5rem;
+        border-left: 6px solid var(--accent);
+        margin: 1.5rem 0;
+        box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.3);
     }
 
     /* Tablas elegantes */
     .stDataFrame {
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
-        border-radius: 20px;
-        padding: 1.2rem;
-        border: 1px solid rgba(124, 58, 237, 0.2);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        background: rgba(21, 24, 31, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        padding: 1.5rem;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
         overflow: hidden;
     }
     
     .stDataFrame table {
         color: var(--text-primary) !important;
         border-collapse: separate;
-        border-spacing: 0 8px;
+        border-spacing: 0 10px;
     }
     
     .stDataFrame th {
         background: linear-gradient(145deg, #2d3138, #262a32) !important;
         color: var(--text-primary) !important;
         font-weight: 600;
-        padding: 12px !important;
+        padding: 15px !important;
         border-bottom: 2px solid var(--accent) !important;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
     }
     
     .stDataFrame td {
-        background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
+        background: rgba(30, 33, 40, 0.6) !important;
         color: var(--text-secondary) !important;
-        padding: 10px !important;
+        padding: 12px !important;
         border-bottom: 1px solid var(--border) !important;
+        transition: all 0.3s ease;
+    }
+    
+    .stDataFrame tr:hover td {
+        background: rgba(139, 92, 246, 0.1) !important;
+        color: var(--text-primary) !important;
     }
 
     /* Cámara elegante */
@@ -312,9 +366,15 @@ st.markdown("""
         width: 100% !important;
         height: 70vh !important;
         object-fit: cover;
-        border-radius: 20px;
-        border: 2px solid var(--accent);
-        box-shadow: 0 15px 30px -5px rgba(124, 58, 237, 0.4);
+        border-radius: 24px;
+        border: 3px solid var(--accent);
+        box-shadow: 0 25px 40px -15px rgba(139, 92, 246, 0.5);
+        transition: all 0.3s ease;
+    }
+    
+    div[data-testid="stCameraInput"] video:hover {
+        transform: scale(1.01);
+        border-color: var(--accent-light);
     }
 
     /* Animaciones */
@@ -323,11 +383,442 @@ st.markdown("""
         to { opacity: 1; transform: translateY(0); }
     }
     
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
     .stAlert {
         animation: fadeIn 0.4s ease-out;
+        border-radius: 20px;
+        border-left: 6px solid;
+        background: rgba(21, 24, 31, 0.9);
+        backdrop-filter: blur(10px);
+        padding: 1.2rem !important;
+    }
+    
+    .stSuccess {
+        border-left-color: var(--success) !important;
+    }
+    
+    .stWarning {
+        border-left-color: var(--warning) !important;
+    }
+    
+    .stError {
+        border-left-color: var(--error) !important;
+    }
+    
+    .stInfo {
+        border-left-color: var(--info) !important;
+    }
+
+    /* Sidebar elegante */
+    .css-1d391kg, .css-163ttbj, [data-testid="stSidebar"] {
+        background: rgba(17, 19, 24, 0.95);
+        backdrop-filter: blur(10px);
+        border-right: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    .css-1d391kg h2, .css-163ttbj h2 {
+        color: var(--text-primary);
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    
+    /* File uploader elegante */
+    .stFileUploader {
+        background: rgba(21, 24, 31, 0.6);
+        border-radius: 20px;
+        border: 2px dashed var(--accent);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stFileUploader:hover {
+        border-color: var(--accent-light);
+        background: rgba(139, 92, 246, 0.05);
+    }
+    
+    /* Progress bar elegante */
+    .stProgress > div > div {
+        background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        border-radius: 10px;
+        height: 8px;
+    }
+    
+    /* Tooltips personalizados */
+    .stTooltip {
+        background: var(--bg-card);
+        border: 1px solid var(--accent);
+        border-radius: 12px;
+        color: var(--text-primary);
+    }
+    
+    /* Scrollbar personalizado */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: var(--bg-dark);
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, var(--accent-light), var(--accent));
+    }
+    
+    /* Cards de estadísticas */
+    .metric-card {
+        background: linear-gradient(145deg, rgba(21, 24, 31, 0.8), rgba(17, 19, 24, 0.9));
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 1.5rem;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--accent);
+        box-shadow: 0 20px 35px -10px rgba(139, 92, 246, 0.3);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, var(--accent-light));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .metric-label {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Dividers elegantes */
+    hr {
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        height: 2px;
+        border: none;
+        margin: 2rem 0;
+    }
+    
+    /* Expander elegante */
+    .streamlit-expanderHeader {
+        background: rgba(21, 24, 31, 0.8);
+        backdrop-filter: blur(10px);
         border-radius: 16px;
-        border-left: 4px solid;
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        color: var(--text-primary) !important;
+        font-weight: 600;
+        padding: 1rem !important;
+        transition: all 0.3s ease;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        border-color: var(--accent);
+        background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .streamlit-expanderContent {
+        background: rgba(17, 19, 24, 0.6);
+        backdrop-filter: blur(10px);
+        border-radius: 0 0 16px 16px;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        border-top: none;
+        padding: 1.5rem;
+    }
+    
+    /* Checkbox elegante */
+    .stCheckbox {
+        color: var(--text-primary) !important;
+    }
+    
+    .stCheckbox input[type="checkbox"] {
+        accent-color: var(--accent);
+        transform: scale(1.2);
+    }
+    
+    /* Radio button elegante */
+    .stRadio {
+        color: var(--text-primary) !important;
+    }
+    
+    .stRadio input[type="radio"] {
+        accent-color: var(--accent);
+        transform: scale(1.2);
+    }
+    
+    /* Selectbox elegante */
+    .stSelectbox label {
+        color: var(--text-secondary) !important;
+        font-weight: 500;
+    }
+    
+    /* Number input elegante */
+    .stNumberInput input {
+        background: rgba(21, 24, 31, 0.8) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid var(--border) !important;
+        color: var(--text-primary) !important;
+        border-radius: 16px !important;
+        padding: 14px 18px !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .stNumberInput input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2) !important;
+    }
+    
+    /* Date input elegante */
+    .stDateInput input {
+        background: rgba(21, 24, 31, 0.8) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid var(--border) !important;
+        color: var(--text-primary) !important;
+        border-radius: 16px !important;
+        padding: 14px 18px !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .stDateInput input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2) !important;
+    }
+    
+    /* Time input elegante */
+    .stTimeInput input {
+        background: rgba(21, 24, 31, 0.8) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid var(--border) !important;
+        color: var(--text-primary) !important;
+        border-radius: 16px !important;
+        padding: 14px 18px !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .stTimeInput input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2) !important;
+    }
+    
+    /* Text area elegante */
+    .stTextArea textarea {
+        background: rgba(21, 24, 31, 0.8) !important;
+        backdrop-filter: blur(10px);
+        border: 2px solid var(--border) !important;
+        color: var(--text-primary) !important;
+        border-radius: 16px !important;
+        padding: 14px 18px !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .stTextArea textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2) !important;
+    }
+    
+    /* Caption elegante */
+    .stCaption {
+        color: var(--text-secondary) !important;
+        font-size: 0.9rem;
+        font-style: italic;
+    }
+    
+    /* Code block elegante */
+    .stCodeBlock {
+        background: rgba(21, 24, 31, 0.8) !important;
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        padding: 1rem;
+    }
+    
+    /* Markdown elegante */
+    .stMarkdown {
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+    
+    .stMarkdown a {
+        color: var(--accent);
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .stMarkdown a:hover {
+        color: var(--accent-light);
+        text-decoration: underline;
+    }
+    
+    /* Balloon effect */
+    .stBalloons {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    
+    /* Snow effect */
+    .stSnow {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    
+    /* Confetti effect */
+    .stConfetti {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+    }
+    
+    /* Toast notifications */
+    .stToast {
+        background: rgba(21, 24, 31, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        border: 1px solid var(--accent);
+        color: var(--text-primary);
+        padding: 1rem 1.5rem;
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Spinner elegante */
+    .stSpinner > div {
+        border-top-color: var(--accent) !important;
+        border-left-color: var(--accent-light) !important;
+        border-bottom-color: var(--accent) !important;
+        border-right-color: var(--accent-light) !important;
+    }
+    
+    /* Image container */
+    .stImage {
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+    }
+    
+    .stImage:hover {
+        transform: scale(1.02);
+        box-shadow: 0 25px 40px -10px rgba(139, 92, 246, 0.3);
+    }
+    
+    /* Audio player */
+    .stAudio {
+        border-radius: 16px;
+        background: rgba(21, 24, 31, 0.8);
+        backdrop-filter: blur(10px);
+        padding: 1rem;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    /* Video player */
+    .stVideo {
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+        border: 2px solid var(--accent);
+    }
+    
+    /* DataFrame toolbar */
+    .stDataFrame-toolbar {
+        background: rgba(21, 24, 31, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    /* Pagination */
+    .stDataFrame-pagination {
+        background: rgba(21, 24, 31, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 0.5rem;
+        margin-top: 1rem;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    /* Sort indicator */
+    .stDataFrame-sort {
+        color: var(--accent) !important;
+    }
+    
+    /* Filter indicator */
+    .stDataFrame-filter {
+        color: var(--accent) !important;
+    }
+    
+    /* Column header */
+    .stDataFrame-column-header {
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Row number */
+    .stDataFrame-row-number {
+        color: var(--text-secondary) !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Empty state */
+    .stDataFrame-empty {
+        color: var(--text-secondary) !important;
+        font-style: italic;
+        padding: 2rem !important;
+        text-align: center;
+    }
+    
+    /* Loading state */
+    .stDataFrame-loading {
+        color: var(--text-secondary) !important;
+        padding: 2rem !important;
+        text-align: center;
+    }
+    
+    /* Error state */
+    .stDataFrame-error {
+        color: var(--error) !important;
+        padding: 2rem !important;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -352,7 +843,7 @@ if "ultimo_registro" not in st.session_state:
 # TÍTULO Y MENÚ HORIZONTAL ELEGANTE
 # ------------------------------------------------------------
 st.title("📷 Sistema de Asistencia con QR")
-st.markdown('<p style="color: #b0b3b8; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
+st.markdown('<p style="color: #9ca3af; margin-top: -15px; margin-bottom: 30px; font-size: 1.1rem;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
 
 opciones_menu = [
     "📝 Registrar estudiante",
@@ -377,7 +868,7 @@ st.session_state.menu_actual = menu
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Cargar archivos Excel")
-    st.markdown('<p style="color: #b0b3b8;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #9ca3af; font-size: 0.9rem;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
 
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
@@ -546,7 +1037,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: #b0b3b8;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #9ca3af;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
