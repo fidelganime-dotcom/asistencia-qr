@@ -6,7 +6,6 @@ import os
 import cv2
 import numpy as np
 import pytz
-import shutil
 import io  # Para manejar archivos en memoria
 
 # ------------------------------------------------------------
@@ -469,6 +468,11 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                     # Generar QR en memoria (no se guarda en disco)
                     qr_img = qrcode.make(ru)  # Imagen PIL
 
+                    # Convertir a bytes para mostrar con st.image
+                    img_bytes = io.BytesIO()
+                    qr_img.save(img_bytes, format='PNG')
+                    img_bytes.seek(0)
+
                     # Crear nuevo registro (sin columna QR)
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
@@ -479,7 +483,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                     # Mostrar QR generado
                     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
                     with col_img2:
-                        st.image(qr_img, width=350, caption=f"QR de {nombres} {paterno}")
+                        st.image(img_bytes, width=350, caption=f"QR de {nombres} {paterno}")
                         # Preparar descarga desde memoria
                         buf = io.BytesIO()
                         qr_img.save(buf, format="PNG")
@@ -521,11 +525,15 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                         st.markdown(f"**Ap. Materno:** {estudiante.iloc[0]['Apellido_materno']}")
                     st.markdown('</div>', unsafe_allow_html=True)
                     
-                    # Generar QR dinámicamente a partir del RU
+                    # Generar QR dinámicamente a partir del RU y convertirlo a bytes
                     qr_img = qrcode.make(estudiante.iloc[0]["RU"])
+                    img_bytes = io.BytesIO()
+                    qr_img.save(img_bytes, format='PNG')
+                    img_bytes.seek(0)
+                    
                     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
                     with col_img2:
-                        st.image(qr_img, width=350, caption=f"QR de {estudiante.iloc[0]['Nombres']}")
+                        st.image(img_bytes, width=350, caption=f"QR de {estudiante.iloc[0]['Nombres']}")
             else:
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
