@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import pytz
 import io
+import base64
 from PIL import Image, ImageDraw, ImageFont
 
 # ------------------------------------------------------------
@@ -52,91 +53,54 @@ if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
 if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"  # dark o light
 
 # ------------------------------------------------------------
-# ESTILOS CSS CON VARIABLES PARA AMBOS TEMAS
+# ESTILOS CSS (solo tema oscuro, con mejoras)
 # ------------------------------------------------------------
-st.markdown(f"""
+st.markdown("""
 <style>
-    /* Variables para tema oscuro (por defecto) */
-    :root {{
+    :root {
         --primary-color: #0066ff;
         --primary-hover: #0052cc;
-        --secondary-color: #2d3748;
         --accent-color: #00ffcc;
         --text-primary: #f8fafc;
         --text-secondary: #cbd5e1;
         --bg-dark: #0f172a;
-        --bg-darker: #020617;
         --glass-bg: rgba(15, 23, 42, 0.7);
         --glass-border: rgba(255, 255, 255, 0.1);
         --shadow-3d: 0 10px 25px -5px rgba(0, 102, 255, 0.2), 0 10px 10px -5px rgba(0, 102, 255, 0.1);
         --shadow-hover: 0 20px 50px -10px rgba(0, 102, 255, 0.4);
         --success-gradient: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
-        --danger-gradient: linear-gradient(135deg, #ff3366 0%, #ff0066 100%);
-        --warning-gradient: linear-gradient(135deg, #ffcc00 0%, #ff9900 100%);
         --input-bg: rgba(15, 23, 42, 0.5);
         --input-bg-focus: rgba(15, 23, 42, 0.8);
         --table-header-bg: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%);
         --table-row-hover: rgba(0, 102, 255, 0.1);
         --badge-bg: var(--success-gradient);
         --badge-color: #020617;
-    }}
+    }
 
-    /* Variables para tema claro */
-    [data-theme="light"] {{
-        --primary-color: #0066ff;
-        --primary-hover: #0052cc;
-        --secondary-color: #e2e8f0;
-        --accent-color: #00cc99;
-        --text-primary: #1e293b;
-        --text-secondary: #475569;
-        --bg-dark: #f1f5f9;
-        --bg-darker: #e2e8f0;
-        --glass-bg: rgba(255, 255, 255, 0.8);
-        --glass-border: rgba(0, 0, 0, 0.1);
-        --shadow-3d: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
-        --shadow-hover: 0 20px 50px -10px rgba(0, 102, 255, 0.2);
-        --success-gradient: linear-gradient(135deg, #00cc99 0%, #0066ff 100%);
-        --danger-gradient: linear-gradient(135deg, #ff3366 0%, #ff0066 100%);
-        --warning-gradient: linear-gradient(135deg, #ffcc00 0%, #ff9900 100%);
-        --input-bg: rgba(255, 255, 255, 0.8);
-        --input-bg-focus: rgba(255, 255, 255, 1);
-        --table-header-bg: linear-gradient(135deg, #0066ff 0%, #0052cc 100%);
-        --table-row-hover: rgba(0, 102, 255, 0.05);
-        --badge-bg: var(--success-gradient);
-        --badge-color: white;
-    }}
-
-    /* Aplicar variables globales */
-    .stApp {{
+    .stApp {
         background-color: var(--bg-dark);
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        transition: background-color 0.3s ease;
-    }}
+    }
 
-    /* Sidebar estilo glass */
-    .css-1d391kg, .css-1lcbmhc {{
+    .css-1d391kg, .css-1lcbmhc {
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
         border-right: 1px solid var(--glass-border) !important;
         box-shadow: var(--shadow-3d) !important;
-        transition: all 0.3s ease;
-    }}
+    }
 
-    /* Títulos */
-    h1, h2, h3 {{
+    h1, h2, h3 {
         color: var(--text-primary);
         font-weight: 700;
         letter-spacing: -0.02em;
         text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
         position: relative;
         display: inline-block;
-    }}
+    }
 
-    h1::after, h2::after {{
+    h1::after, h2::after {
         content: '';
         position: absolute;
         bottom: -10px;
@@ -148,14 +112,13 @@ st.markdown(f"""
         transform: scaleX(0);
         transform-origin: left;
         transition: transform 0.3s ease;
-    }}
+    }
 
-    h1:hover::after, h2:hover::after {{
+    h1:hover::after, h2:hover::after {
         transform: scaleX(1);
-    }}
+    }
 
-    /* Subtítulo con fuente manuscrita */
-    .subtitle-script {{
+    .subtitle-script {
         color: var(--text-secondary);
         margin-top: -10px;
         font-family: 'Pacifico', 'Dancing Script', 'Brush Script MT', cursive;
@@ -163,10 +126,60 @@ st.markdown(f"""
         letter-spacing: 0.5px;
         font-weight: normal;
         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }}
+    }
 
-    /* Tarjetas estilo glass */
-    .info-card, .student-info, .stDataFrame {{
+    /* Estilo para la tarjeta de búsqueda */
+    .student-search-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 2rem;
+        margin: 1.5rem 0;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .student-search-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(0, 102, 255, 0.3);
+    }
+    .student-name {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent-color);
+        margin-bottom: 0.5rem;
+        text-shadow: 0 0 10px rgba(0,255,204,0.3);
+    }
+    .student-ru {
+        font-size: 1.3rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        letter-spacing: 1px;
+    }
+    .qr-container {
+        display: flex;
+        justify-content: center;
+        margin: 1.5rem 0;
+    }
+    .qr-container img {
+        border-radius: 16px;
+        box-shadow: var(--shadow-3d);
+        transition: transform 0.3s ease;
+        max-width: 100%;
+        height: auto;
+    }
+    .qr-container img:hover {
+        transform: scale(1.02);
+    }
+    .download-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+    }
+    .info-card, .student-info, .stDataFrame {
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
         border-radius: 16px;
@@ -177,9 +190,9 @@ st.markdown(f"""
         transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         position: relative;
         overflow: hidden;
-    }}
+    }
 
-    .info-card::before, .student-info::before, .stDataFrame::before {{
+    .info-card::before, .student-info::before, .stDataFrame::before {
         content: '';
         position: absolute;
         top: -50%;
@@ -191,26 +204,25 @@ st.markdown(f"""
         transition: all 0.5s ease;
         opacity: 0;
         pointer-events: none;
-    }}
+    }
 
-    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {{
+    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
         opacity: 1;
         animation: shine 3s infinite;
-    }}
+    }
 
-    @keyframes shine {{
-        0% {{ transform: rotate(30deg) translate(-10%, -10%); }}
-        100% {{ transform: rotate(30deg) translate(10%, 10%); }}
-    }}
+    @keyframes shine {
+        0% { transform: rotate(30deg) translate(-10%, -10%); }
+        100% { transform: rotate(30deg) translate(10%, 10%); }
+    }
 
-    .info-card:hover, .student-info:hover, .stDataFrame:hover {{
+    .info-card:hover, .student-info:hover, .stDataFrame:hover {
         transform: translateY(-5px);
         box-shadow: var(--shadow-hover);
         border-color: rgba(0, 102, 255, 0.3);
-    }}
+    }
 
-    /* Menú horizontal (radio) estilo moderno */
-    div.row-widget.stRadio > div {{
+    div.row-widget.stRadio > div {
         display: flex;
         flex-direction: row;
         justify-content: center;
@@ -222,9 +234,9 @@ st.markdown(f"""
         box-shadow: var(--shadow-3d);
         margin-bottom: 2rem;
         border: 1px solid var(--glass-border);
-    }}
+    }
 
-    div.row-widget.stRadio > div label {{
+    div.row-widget.stRadio > div label {
         background: transparent;
         color: var(--text-secondary);
         font-weight: 500;
@@ -233,26 +245,22 @@ st.markdown(f"""
         transition: all 0.3s ease;
         cursor: pointer;
         font-size: 0.9rem;
-        position: relative;
-        overflow: hidden;
-    }}
+    }
 
-    div.row-widget.stRadio > div label:hover {{
+    div.row-widget.stRadio > div label:hover {
         background: rgba(0, 102, 255, 0.2);
         color: var(--accent-color);
         transform: translateY(-2px);
-    }}
+    }
 
-    /* Estilo para el botón seleccionado */
-    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {{
+    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
         background: var(--success-gradient);
         color: var(--badge-color);
         box-shadow: var(--shadow-3d);
         font-weight: 600;
-    }}
+    }
 
-    /* Botones modernos 3D */
-    .stButton button {{
+    .stButton button {
         background: var(--primary-color);
         color: white;
         border: none;
@@ -265,11 +273,9 @@ st.markdown(f"""
         overflow: hidden;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         border-bottom: 3px solid rgba(0, 0, 0, 0.2);
-        transform-style: preserve-3d;
-        perspective: 1000px;
-    }}
+    }
 
-    .stButton button::before {{
+    .stButton button::before {
         content: '';
         position: absolute;
         top: 0;
@@ -278,67 +284,46 @@ st.markdown(f"""
         height: 100%;
         background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         transition: left 0.7s;
-    }}
+    }
 
-    .stButton button:hover::before {{
+    .stButton button:hover::before {
         left: 100%;
-    }}
+    }
 
-    .stButton button:hover {{
+    .stButton button:hover {
         background: var(--primary-hover);
         transform: translateY(-3px) scale(1.02);
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    }}
+    }
 
-    .stButton button:active {{
-        transform: translateY(1px);
-    }}
-
-    /* Botones secundarios */
-    .stButton button[data-testid="baseButton-secondary"] {{
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-    }}
-
-    .stButton button[data-testid="baseButton-secondary"]:hover {{
-        background: rgba(255, 255, 255, 0.2);
-    }}
-
-    /* Inputs estilo glass */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] {{
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
         background: var(--input-bg) !important;
         border: 1px solid var(--glass-border) !important;
         border-radius: 12px !important;
         color: var(--text-primary) !important;
         padding: 0.75rem 1rem !important;
-        transition: all 0.3s ease !important;
         backdrop-filter: blur(5px) !important;
-    }}
+    }
 
-    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {{
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
         background: var(--input-bg-focus) !important;
         border-color: var(--primary-color) !important;
         box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2) !important;
         transform: scale(1.01);
-    }}
+    }
 
-    .stTextInput input::placeholder {{
-        color: rgba(200, 200, 200, 0.6);
-    }}
-
-    /* Tablas estilo moderno */
-    .stDataFrame {{
+    .stDataFrame {
         padding: 0;
         overflow: hidden;
-    }}
+    }
 
-    .stDataFrame table {{
+    .stDataFrame table {
         width: 100%;
         border-collapse: collapse;
         color: var(--text-primary);
-    }}
+    }
 
-    .stDataFrame thead tr th {{
+    .stDataFrame thead tr th {
         background: var(--table-header-bg) !important;
         color: white !important;
         font-weight: 600;
@@ -347,73 +332,24 @@ st.markdown(f"""
         font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        position: relative;
-    }}
+    }
 
-    .stDataFrame thead tr th::after {{
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background: var(--accent-color);
-        transform: scaleX(0);
-        transition: transform 0.3s ease;
-    }}
-
-    .stDataFrame thead tr th:hover::after {{
-        transform: scaleX(1);
-    }}
-
-    .stDataFrame tbody tr {{
+    .stDataFrame tbody tr {
         transition: all 0.3s ease;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }}
+    }
 
-    .stDataFrame tbody tr:hover {{
+    .stDataFrame tbody tr:hover {
         background: var(--table-row-hover);
         transform: translateX(5px);
-    }}
+    }
 
-    .stDataFrame tbody td {{
+    .stDataFrame tbody td {
         padding: 0.75rem 1rem !important;
         border: none !important;
-        vertical-align: middle;
-        position: relative;
-    }}
+    }
 
-    .stDataFrame tbody td::before {{
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 0;
-        background: var(--primary-color);
-        transition: all 0.3s ease;
-    }}
-
-    .stDataFrame tbody tr:hover td::before {{
-        height: 60%;
-    }}
-
-    /* Badges */
-    .badge {{
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        background: var(--badge-bg);
-        color: var(--badge-color);
-        display: inline-block;
-    }}
-
-    /* Alertas estilo glass */
-    .stAlert {{
+    .stAlert {
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
         border: 1px solid var(--glass-border) !important;
@@ -421,44 +357,37 @@ st.markdown(f"""
         color: var(--text-primary) !important;
         padding: 1rem !important;
         box-shadow: var(--shadow-3d) !important;
-    }}
+    }
 
-    /* Cámara */
-    div[data-testid="stCameraInput"] video {{
+    div[data-testid="stCameraInput"] video {
         width: 100% !important;
         height: 70vh !important;
         object-fit: cover;
         border-radius: 16px;
         border: 2px solid var(--primary-color);
         box-shadow: var(--shadow-3d);
-    }}
+    }
 
-    /* Scrollbar personalizada */
-    ::-webkit-scrollbar {{
+    ::-webkit-scrollbar {
         width: 8px;
-    }}
-    ::-webkit-scrollbar-track {{
+    }
+    ::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.1);
-    }}
-    ::-webkit-scrollbar-thumb {{
+    }
+    ::-webkit-scrollbar-thumb {
         background: var(--primary-color);
         border-radius: 4px;
-    }}
-    ::-webkit-scrollbar-thumb:hover {{
-        background: var(--primary-hover);
-    }}
+    }
 
-    /* Animaciones */
-    @keyframes fadeInUp {{
-        from {{ opacity: 0; transform: translateY(20px); }}
-        to {{ opacity: 1; transform: translateY(0); }}
-    }}
-    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {{
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
         animation: fadeInUp 0.5s ease-out;
-    }}
+    }
     
-    /* Estilo para la información del QR (más grande) */
-    .qr-info {{
+    .qr-info {
         font-size: 1.3rem;
         font-weight: 600;
         color: var(--accent-color);
@@ -466,22 +395,21 @@ st.markdown(f"""
         margin-bottom: 0.5rem;
         letter-spacing: 0.5px;
         text-shadow: 0 0 8px rgba(0,255,204,0.3);
-    }}
-    .qr-ru {{
+    }
+    .qr-ru {
         font-size: 1.1rem;
         color: var(--text-secondary);
         text-align: center;
         margin-bottom: 1rem;
-    }}
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS Y SWITCH DE TEMA (JavaScript)
+# PARTÍCULAS ANIMADAS (JavaScript)
 # ------------------------------------------------------------
 st.markdown("""
 <script>
-    // Crear partículas flotantes
     function createParticles() {
         const container = document.createElement('div');
         container.style.position = 'fixed';
@@ -509,8 +437,6 @@ st.markdown("""
             container.appendChild(particle);
         }
     }
-    
-    // Insertar keyframes para la animación float
     const style = document.createElement('style');
     style.textContent = `
         @keyframes float {
@@ -522,57 +448,13 @@ st.markdown("""
     `;
     document.head.appendChild(style);
     window.addEventListener('load', createParticles);
-    
-    // Función para cambiar el tema
-    function setTheme(theme) {
-        if (theme === 'light') {
-            document.documentElement.setAttribute('data-theme', 'light');
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-        }
-        // Guardar preferencia en localStorage
-        localStorage.setItem('theme', theme);
-    }
-    
-    // Cargar tema guardado
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-        setTheme('light');
-    }
-    
-    // Escuchar mensajes desde Streamlit para cambiar tema
-    window.addEventListener('message', function(event) {
-        if (event.data.type === 'set_theme') {
-            setTheme(event.data.theme);
-        }
-    });
 </script>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# SIDEBAR CON SWITCH DE TEMA
+# SIDEBAR
 # ------------------------------------------------------------
 with st.sidebar:
-    st.markdown("## 🌓 Tema")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🌙 Oscuro", use_container_width=True, key="dark_btn"):
-            st.session_state.theme = "dark"
-            st.markdown("""
-                <script>
-                    window.parent.postMessage({type: 'set_theme', theme: 'dark'}, '*');
-                </script>
-            """, unsafe_allow_html=True)
-    with col2:
-        if st.button("☀️ Claro", use_container_width=True, key="light_btn"):
-            st.session_state.theme = "light"
-            st.markdown("""
-                <script>
-                    window.parent.postMessage({type: 'set_theme', theme: 'light'}, '*');
-                </script>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("---")
     st.markdown("## 📂 Desarrollado por Josué")
     st.markdown('<p style="color: var(--text-secondary);">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
     
@@ -608,18 +490,18 @@ with st.sidebar:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
 
 # ------------------------------------------------------------
-# TÍTULO CON LOGO (usando columnas)
+# TÍTULO CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
-header_cols = st.columns([1, 10])  # 1 parte para logo, 10 para título
+header_cols = st.columns([1, 10])
 with header_cols[0]:
     if os.path.exists(logo_path):
         st.image(logo_path, width=60)
     else:
-        st.write("")  # vacío si no existe
+        st.write("")
 with header_cols[1]:
-    st.title("INGENIERIA DE SISTEMAS")
-    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>', unsafe_allow_html=True)
+    st.title("Sistema de Asistencia")
+    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡somos excelencia!</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
@@ -662,7 +544,7 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["RU"])
@@ -796,7 +678,6 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                     df = pd.concat([df, nuevo], ignore_index=True)
                     guardar_estudiantes(df)
                     st.success("✅ Estudiante registrado exitosamente")
-                    # Mostrar QR más grande y datos más notorios
                     col_img1, col_img2, col_img3 = st.columns([1,2,1])
                     with col_img2:
                         st.markdown(f'<div class="qr-info">{nombres} {paterno}</div>', unsafe_allow_html=True)
@@ -825,16 +706,60 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         if buscar_click and ru_ver:
             estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
             if len(estudiante) > 0:
-                tarjeta_img = crear_tarjeta_estudiante(estudiante.iloc[0])
-                st.markdown("### 🎓 Tarjeta Ejecutiva del Estudiante")
-                st.image(tarjeta_img, use_container_width=False, width=550)
-                st.download_button(
-                    label="📥 Descargar Tarjeta (PNG)",
-                    data=tarjeta_img,
-                    file_name=f"tarjeta_{estudiante.iloc[0]['RU']}.png",
-                    mime="image/png",
-                    use_container_width=True
-                )
+                estudiante_data = estudiante.iloc[0]
+                nombres = estudiante_data["Nombres"]
+                paterno = estudiante_data["Apellido_paterno"]
+                ru = estudiante_data["RU"]
+                nombre_completo = f"{nombres} {paterno}".strip()
+                
+                # Generar QR
+                qr_img = qrcode.make(ru)
+                # Convertir QR a base64 para incrustar en HTML
+                qr_buffer = io.BytesIO()
+                qr_img.save(qr_buffer, format='PNG')
+                qr_buffer.seek(0)
+                qr_base64 = base64.b64encode(qr_buffer.read()).decode()
+                
+                # Mostrar tarjeta con QR incrustado
+                st.markdown(f"""
+                <div class="student-search-card">
+                    <div class="student-name">{nombre_completo}</div>
+                    <div class="student-ru">RU: {ru}</div>
+                    <div class="qr-container">
+                        <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
+                    </div>
+                    <div class="download-buttons">
+                        <div style="display: inline-block;" id="qr-download-btn"></div>
+                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Botones de descarga reales usando st.download_button (se colocan fuera del HTML pero visualmente dentro)
+                # Usamos columnas para alinear los botones bajo la tarjeta
+                col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
+                with col_btn1:
+                    st.download_button(
+                        label="📥 Descargar QR",
+                        data=qr_buffer.getvalue(),
+                        file_name=f"{ru}_qr.png",
+                        mime="image/png",
+                        key="download_qr_search",
+                        use_container_width=True
+                    )
+                with col_btn2:
+                    tarjeta_img = crear_tarjeta_estudiante(estudiante_data)
+                    st.download_button(
+                        label="📇 Descargar Tarjeta Ejecutiva",
+                        data=tarjeta_img,
+                        file_name=f"tarjeta_{ru}.png",
+                        mime="image/png",
+                        key="download_tarjeta_search",
+                        use_container_width=True
+                    )
+                with col_btn3:
+                    st.write("")  # espacio
+                
             else:
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
@@ -945,20 +870,15 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
     if len(asistencia) > 0:
-        # Formatear fecha y hora para mostrar sin microsegundos y solo fecha
         asistencia_mostrar = asistencia.copy()
-        # Convertir columna Fecha a solo fecha (si es datetime)
         if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['Fecha']):
             asistencia_mostrar['Fecha'] = asistencia_mostrar['Fecha'].dt.date
         else:
-            # Intentar convertir a datetime y luego extraer fecha
             asistencia_mostrar['Fecha'] = pd.to_datetime(asistencia_mostrar['Fecha'], errors='coerce').dt.date
         
-        # Formatear Hora: eliminar microsegundos
         if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['Hora']):
             asistencia_mostrar['Hora'] = asistencia_mostrar['Hora'].dt.strftime('%H:%M:%S')
         else:
-            # Si es string, tomar solo los primeros 8 caracteres (HH:MM:SS)
             asistencia_mostrar['Hora'] = asistencia_mostrar['Hora'].astype(str).str[:8]
         
         st.dataframe(asistencia_mostrar, use_container_width=True)
