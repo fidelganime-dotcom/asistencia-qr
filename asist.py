@@ -129,7 +129,17 @@ st.markdown("""
     .stDataFrame table { color: var(--text-primary) !important; border-collapse: separate; border-spacing: 0 8px; }
     .stDataFrame th { background: linear-gradient(145deg, #2d3138, #262a32) !important; color: var(--text-primary) !important; font-weight: 600; padding: 12px !important; border-bottom: 2px solid var(--accent) !important; }
     .stDataFrame td { background: linear-gradient(145deg, #1e2128, #1a1d24) !important; color: var(--text-secondary) !important; padding: 10px !important; border-bottom: 1px solid var(--border) !important; }
-    div[data-testid="stCameraInput"] video { width: 100% !important; height: 70vh !important; object-fit: cover; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 15px 30px -5px rgba(124,58,237,0.4); }
+    
+    /* Mejora para la cámara: ocupa toda la pantalla en móvil */
+    div[data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: 70vh !important;
+        object-fit: cover;
+        border-radius: 20px;
+        border: 2px solid var(--accent);
+        box-shadow: 0 15px 30px -5px rgba(124,58,237,0.4);
+    }
+    
     @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     .stAlert { animation: fadeIn 0.4s ease-out; border-radius: 16px; border-left: 4px solid; background: linear-gradient(145deg, #1e2128, #1a1d24); }
 </style>
@@ -150,6 +160,8 @@ if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
 if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
+if "camera_key" not in st.session_state:
+    st.session_state.camera_key = 0
 
 # ------------------------------------------------------------
 # TÍTULO Y MENÚ HORIZONTAL
@@ -168,7 +180,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# SIDEBAR
+# SIDEBAR (mantenida igual)
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
@@ -235,31 +247,20 @@ def guardar_asistencia(df):
 # FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
-    """
-    Crea una tarjeta cuadrada de 550x550 con:
-    - Fondo oscuro, borde azul oscuro
-    - Título "TARJETA DE IDENTIFICACIÓN" en negrita mayúsculas
-    - QR grande (350x350)
-    - RU y nombre completo con fuentes grandes
-    - Texto inferior: "INGENIERÍA DE SISTEMAS - UAP"
-    """
     ru = str(estudiante["RU"])
     nombres = estudiante["Nombres"]
     paterno = estudiante["Apellido_paterno"]
     materno = estudiante["Apellido_materno"]
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
-    # Generar QR
     qr = qrcode.make(ru)
     qr_size = 350
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
-    # Tamaño de la tarjeta
     card_size = 550
     card = Image.new('RGB', (card_size, card_size), color=(10, 20, 30))
     draw = ImageDraw.Draw(card)
 
-    # Intentar cargar fuente
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/Library/Fonts/Arial.ttf",
@@ -271,33 +272,28 @@ def crear_tarjeta_estudiante(estudiante):
             font_path = path
             break
 
-    # Definir fuentes
     if font_path:
-        title_font = ImageFont.truetype(font_path, 32)          # Título
-        ru_font = ImageFont.truetype(font_path, 28)            # RU
-        name_font = ImageFont.truetype(font_path, 26)          # Nombre
-        footer_font = ImageFont.truetype(font_path, 20)        # Pie
+        title_font = ImageFont.truetype(font_path, 32)
+        ru_font = ImageFont.truetype(font_path, 28)
+        name_font = ImageFont.truetype(font_path, 26)
+        footer_font = ImageFont.truetype(font_path, 20)
     else:
         title_font = ImageFont.load_default()
         ru_font = ImageFont.load_default()
         name_font = ImageFont.load_default()
         footer_font = ImageFont.load_default()
 
-    # Borde azul oscuro
     border_color = (25, 80, 150)
     border_width = 5
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
-    # --- Título ---
     title_text = "TARJETA DE IDENTIFICACIÓN"
-    # Calcular ancho para centrar
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
     title_y = 25
     draw.text((title_x, title_y), title_text, fill=(255, 255, 255), font=title_font)
 
-    # --- RU ---
     ru_text = f"RU: {ru}"
     bbox = draw.textbbox((0,0), ru_text, font=ru_font)
     ru_width = bbox[2] - bbox[0]
@@ -305,7 +301,6 @@ def crear_tarjeta_estudiante(estudiante):
     ru_y = title_y + 50
     draw.text((ru_x, ru_y), ru_text, fill=(255, 255, 255), font=ru_font)
 
-    # --- Nombre completo (con ajuste de líneas) ---
     max_width = card_size - 40
     words = nombre_completo.split()
     lines = []
@@ -335,12 +330,10 @@ def crear_tarjeta_estudiante(estudiante):
         y = start_y + i * line_spacing
         draw.text((x, y), line, fill=(255, 255, 255), font=name_font)
 
-    # --- QR ---
     qr_x = (card_size - qr_size) // 2
     qr_y = start_y + total_height + 20
     card.paste(qr, (qr_x, qr_y))
 
-    # --- Texto inferior ---
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
     lines_footer = footer_text.split("\n")
     footer_y = qr_y + qr_size + 20
@@ -351,7 +344,6 @@ def crear_tarjeta_estudiante(estudiante):
         y = footer_y + i * 28
         draw.text((x, y), line, fill=(220, 220, 220), font=footer_font)
 
-    # Guardar en buffer
     img_bytes = io.BytesIO()
     card.save(img_bytes, format='PNG')
     img_bytes.seek(0)
@@ -449,34 +441,59 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR
+# ESCANEAR QR - MEJORADO PARA MÓVIL
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
     st.markdown('<p style="color: #b0b3b8;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
-    foto = st.camera_input("", label_visibility="collapsed")
+
+    # Usamos una clave dinámica para poder reiniciar la cámara
+    camera_key = f"camera_{st.session_state.camera_key}"
+    
+    # Widget de cámara
+    foto = st.camera_input("", key=camera_key, label_visibility="collapsed")
+
+    # Botón para reiniciar la cámara (nuevo escaneo)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🔄 Nuevo escaneo", use_container_width=True):
+            st.session_state.camera_key += 1
+            st.rerun()
+
+    # Procesar la foto si existe
     if foto is not None:
         file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
         frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         detector = cv2.QRCodeDetector()
         data, bbox, _ = detector.detectAndDecode(frame)
+
         if data:
             ru = data
             estudiantes = leer_estudiantes()
             estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
+
             if len(estudiante) > 0:
                 nombres = estudiante.iloc[0]["Nombres"]
                 paterno = estudiante.iloc[0]["Apellido_paterno"]
                 materno = estudiante.iloc[0]["Apellido_materno"]
+
                 fecha, hora = obtener_fecha_hora_exacta()
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+
                 if not tiene_registro:
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
                     asistencia = leer_asistencia()
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     guardar_asistencia(asistencia)
-                    st.session_state.ultimo_registro = {"RU": ru, "Nombres": nombres, "Hora": hora, "Fecha": fecha}
+
+                    st.session_state.ultimo_registro = {
+                        "RU": ru,
+                        "Nombres": nombres,
+                        "Hora": hora,
+                        "Fecha": fecha
+                    }
+
                     st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                 else:
                     st.warning(f"⚠️ {nombres} {paterno} ya registró asistencia hoy a las {registro_existente['Hora']}")
