@@ -500,7 +500,7 @@ with header_cols[0]:
     else:
         st.write("")
 with header_cols[1]:
-    st.title("Sistema de Asistencia")
+    st.title("INGENIERIA DE SISTEMAS")
     st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡somos excelencia!</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
