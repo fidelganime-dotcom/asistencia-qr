@@ -7,32 +7,27 @@ import cv2
 import numpy as np
 import pytz
 import io
-from PIL import Image, ImageDraw, ImageFont  # Importamos Pillow para la tarjeta
+from PIL import Image, ImageDraw, ImageFont  # Pillow para la tarjeta
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
 # ------------------------------------------------------------
-ZONA_HORARIA = pytz.timezone('America/La_Paz')  # Cambia según tu ubicación
+ZONA_HORARIA = pytz.timezone('America/La_Paz')
 
 def obtener_fecha_hora_exacta():
     ahora = datetime.now(ZONA_HORARIA)
     fecha = ahora.date()
-    hora = ahora.strftime("%H:%M:%S.%f")[:-3]  # Con milisegundos
+    hora = ahora.strftime("%H:%M:%S.%f")[:-3]
     return fecha, hora
 
 # ------------------------------------------------------------
 # FUNCIÓN PARA VERIFICAR REGISTRO DUPLICADO
 # ------------------------------------------------------------
 def verificar_registro_duplicado(ru, fecha):
-    """
-    Verifica si un estudiante ya tiene registro de asistencia en la fecha actual
-    Retorna: (tiene_registro, registro_existente)
-    """
     asistencia = leer_asistencia()
     if len(asistencia) > 0:
-        registro_existente = asistencia[(asistencia["RU"].astype(str) == str(ru)) & 
+        registro_existente = asistencia[(asistencia["RU"].astype(str) == str(ru)) &
                                        (asistencia["Fecha"].astype(str) == str(fecha))]
-        
         if len(registro_existente) > 0:
             return True, registro_existente.iloc[0]
     return False, None
@@ -40,14 +35,10 @@ def verificar_registro_duplicado(ru, fecha):
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
-st.set_page_config(
-    page_title="Sistema de Asistencia con QR",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# ESTILOS CSS MEJORADOS - BOTONES ELEGANTES Y MENÚ HORIZONTAL
+# ESTILOS CSS MEJORADOS (MISMO QUE ANTES, SE MANTIENE)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -66,270 +57,81 @@ st.markdown("""
         --duplicate: #f97316;
         --info: #3b82f6;
     }
-
-    .stApp {
-        background-color: var(--bg-dark);
-        color: var(--text-primary);
-    }
-
-    /* MENÚ HORIZONTAL CON BOTONES ELEGANTES */
+    .stApp { background-color: var(--bg-dark); color: var(--text-primary); }
     div.row-widget.stRadio > div {
-        flex-direction: row;
-        justify-content: center;
-        gap: 15px;
+        flex-direction: row; justify-content: center; gap: 15px;
         background: linear-gradient(145deg, #1a1d24, #15181f);
-        padding: 20px 25px;
-        border-radius: 60px;
+        padding: 20px 25px; border-radius: 60px;
         border: 1px solid rgba(124, 58, 237, 0.3);
-        margin-bottom: 30px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(124, 58, 237, 0.2);
+        margin-bottom: 30px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(10px);
     }
-    
     div.row-widget.stRadio > div label {
-        color: var(--text-secondary) !important;
-        font-size: 1rem;
-        font-weight: 500;
-        padding: 12px 24px;
-        border-radius: 40px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid transparent;
-        background: rgba(255, 255, 255, 0.03);
-        letter-spacing: 0.5px;
-        position: relative;
-        overflow: hidden;
+        color: var(--text-secondary) !important; font-size: 1rem; font-weight: 500;
+        padding: 12px 24px; border-radius: 40px; transition: all 0.3s;
+        border: 1px solid transparent; background: rgba(255,255,255,0.03);
+        letter-spacing: 0.5px; position: relative; overflow: hidden;
     }
-    
-    /* Efecto de brillo en hover */
     div.row-widget.stRadio > div label::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
+        content: ''; position: absolute; top: 50%; left: 50%;
+        width: 0; height: 0; border-radius: 50%;
         background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-        z-index: 0;
-        pointer-events: none;
+        transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s;
+        z-index: 0; pointer-events: none;
     }
-    
-    div.row-widget.stRadio > div label:hover::before {
-        width: 300px;
-        height: 300px;
-    }
-    
+    div.row-widget.stRadio > div label:hover::before { width: 300px; height: 300px; }
     div.row-widget.stRadio > div label:hover {
-        filter: brightness(1.2);
-        transform: translateY(-2px);
-        border-color: currentColor;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        filter: brightness(1.2); transform: translateY(-2px);
+        border-color: currentColor; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     }
-
-    /* Colores específicos para cada opción con gradientes elegantes */
-    div.row-widget.stRadio > div label:nth-child(1) {
-        background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05));
-        border-color: #3b82f6;
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(2) {
-        background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.05));
-        border-color: #10b981;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(3) {
-        background: linear-gradient(145deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.05));
-        border-color: #f59e0b;
-        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(4) {
-        background: linear-gradient(145deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.05));
-        border-color: #ef4444;
-        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
-    }
-    div.row-widget.stRadio > div label:nth-child(5) {
-        background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.05));
-        border-color: #8b5cf6;
-        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
-    }
-
-    /* Colores para la opción activa (checked) con gradientes más intensos */
-    div.row-widget.stRadio > div label:nth-child(1) input:checked + div {
-        background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8) !important;
-        color: white !important;
-        box-shadow: 0 10px 20px -5px #3b82f6 !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(2) input:checked + div {
-        background: linear-gradient(135deg, #10b981, #059669, #047857) !important;
-        color: white !important;
-        box-shadow: 0 10px 20px -5px #10b981 !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(3) input:checked + div {
-        background: linear-gradient(135deg, #f59e0b, #d97706, #b45309) !important;
-        color: white !important;
-        box-shadow: 0 10px 20px -5px #f59e0b !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(4) input:checked + div {
-        background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c) !important;
-        color: white !important;
-        box-shadow: 0 10px 20px -5px #ef4444 !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    div.row-widget.stRadio > div label:nth-child(5) input:checked + div {
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9) !important;
-        color: white !important;
-        box-shadow: 0 10px 20px -5px #8b5cf6 !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-
-    /* Estilos para botones elegantes */
+    div.row-widget.stRadio > div label:nth-child(1) { background: linear-gradient(145deg, rgba(59,130,246,0.15), rgba(37,99,235,0.05)); border-color: #3b82f6; }
+    div.row-widget.stRadio > div label:nth-child(2) { background: linear-gradient(145deg, rgba(16,185,129,0.15), rgba(5,150,105,0.05)); border-color: #10b981; }
+    div.row-widget.stRadio > div label:nth-child(3) { background: linear-gradient(145deg, rgba(245,158,11,0.15), rgba(217,119,6,0.05)); border-color: #f59e0b; }
+    div.row-widget.stRadio > div label:nth-child(4) { background: linear-gradient(145deg, rgba(239,68,68,0.15), rgba(220,38,38,0.05)); border-color: #ef4444; }
+    div.row-widget.stRadio > div label:nth-child(5) { background: linear-gradient(145deg, rgba(139,92,246,0.15), rgba(124,58,237,0.05)); border-color: #8b5cf6; }
+    div.row-widget.stRadio > div label:nth-child(1) input:checked + div { background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8) !important; color: white !important; box-shadow: 0 10px 20px -5px #3b82f6 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
+    div.row-widget.stRadio > div label:nth-child(2) input:checked + div { background: linear-gradient(135deg, #10b981, #059669, #047857) !important; color: white !important; box-shadow: 0 10px 20px -5px #10b981 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
+    div.row-widget.stRadio > div label:nth-child(3) input:checked + div { background: linear-gradient(135deg, #f59e0b, #d97706, #b45309) !important; color: white !important; box-shadow: 0 10px 20px -5px #f59e0b !important; border: 1px solid rgba(255,255,255,0.2) !important; }
+    div.row-widget.stRadio > div label:nth-child(4) input:checked + div { background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c) !important; color: white !important; box-shadow: 0 10px 20px -5px #ef4444 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
+    div.row-widget.stRadio > div label:nth-child(5) input:checked + div { background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9) !important; color: white !important; box-shadow: 0 10px 20px -5px #8b5cf6 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
     .stButton button {
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.8rem;
-        font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 8px 15px -3px rgba(124, 58, 237, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        letter-spacing: 0.5px;
-        position: relative;
-        overflow: hidden;
+        color: white; border: none; border-radius: 12px; padding: 0.6rem 1.8rem;
+        font-weight: 600; font-size: 1rem; transition: all 0.3s;
+        box-shadow: 0 8px 15px -3px rgba(124,58,237,0.3);
+        border: 1px solid rgba(255,255,255,0.1); letter-spacing: 0.5px;
+        position: relative; overflow: hidden;
     }
-    
     .stButton button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        content: ''; position: absolute; top: 0; left: -100%;
+        width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
         transition: left 0.5s;
     }
-    
-    .stButton button:hover::before {
-        left: 100%;
-    }
-    
-    .stButton button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 15px 25px -5px rgba(124, 58, 237, 0.5);
-        filter: brightness(1.1);
-    }
-    
-    /* Botón de búsqueda especial */
-    .stButton button[data-testid="baseButton-secondary"] {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        padding: 0.5rem 1.5rem;
-        font-size: 0.95rem;
-    }
-    
-    /* Botón deshabilitado */
-    .stButton button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-        background: linear-gradient(135deg, #4b5563, #374151);
-    }
-
-    /* Inputs elegantes */
+    .stButton button:hover::before { left: 100%; }
+    .stButton button:hover { transform: translateY(-3px); box-shadow: 0 15px 25px -5px rgba(124,58,237,0.5); filter: brightness(1.1); }
+    .stButton button[data-testid="baseButton-secondary"] { background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 0.5rem 1.5rem; font-size: 0.95rem; }
+    .stButton button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; background: linear-gradient(135deg, #4b5563, #374151); }
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
         background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
-        border: 2px solid var(--border) !important;
-        color: var(--text-primary) !important;
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
-        font-size: 1rem !important;
-        transition: all 0.3s ease !important;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        border: 2px solid var(--border) !important; color: var(--text-primary) !important;
+        border-radius: 12px !important; padding: 12px 16px !important;
+        font-size: 1rem !important; transition: all 0.3s ease !important;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.3) !important;
     }
-    
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 0 0 3px rgba(124,58,237,0.2), inset 0 2px 4px rgba(0,0,0,0.3) !important;
         transform: scale(1.01);
     }
-
-    /* Tarjetas elegantes */
-    .info-card {
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
-        border-radius: 20px;
-        padding: 1.5rem;
-        border: 1px solid rgba(124, 58, 237, 0.2);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-        margin-bottom: 1.5rem;
-    }
-    
-    .student-info {
-        background: linear-gradient(145deg, rgba(124, 58, 237, 0.1), rgba(124, 58, 237, 0.05));
-        border-radius: 16px;
-        padding: 1.2rem;
-        border-left: 4px solid var(--accent);
-        margin: 1rem 0;
-    }
-
-    /* Tablas elegantes */
-    .stDataFrame {
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
-        border-radius: 20px;
-        padding: 1.2rem;
-        border: 1px solid rgba(124, 58, 237, 0.2);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-        overflow: hidden;
-    }
-    
-    .stDataFrame table {
-        color: var(--text-primary) !important;
-        border-collapse: separate;
-        border-spacing: 0 8px;
-    }
-    
-    .stDataFrame th {
-        background: linear-gradient(145deg, #2d3138, #262a32) !important;
-        color: var(--text-primary) !important;
-        font-weight: 600;
-        padding: 12px !important;
-        border-bottom: 2px solid var(--accent) !important;
-    }
-    
-    .stDataFrame td {
-        background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
-        color: var(--text-secondary) !important;
-        padding: 10px !important;
-        border-bottom: 1px solid var(--border) !important;
-    }
-
-    /* Cámara elegante */
-    div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: 70vh !important;
-        object-fit: cover;
-        border-radius: 20px;
-        border: 2px solid var(--accent);
-        box-shadow: 0 15px 30px -5px rgba(124, 58, 237, 0.4);
-    }
-
-    /* Animaciones */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .stAlert {
-        animation: fadeIn 0.4s ease-out;
-        border-radius: 16px;
-        border-left: 4px solid;
-        background: linear-gradient(145deg, #1e2128, #1a1d24);
-    }
+    .info-card { background: linear-gradient(145deg, #1e2128, #1a1d24); border-radius: 20px; padding: 1.5rem; border: 1px solid rgba(124,58,237,0.2); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); margin-bottom: 1.5rem; }
+    .student-info { background: linear-gradient(145deg, rgba(124,58,237,0.1), rgba(124,58,237,0.05)); border-radius: 16px; padding: 1.2rem; border-left: 4px solid var(--accent); margin: 1rem 0; }
+    .stDataFrame { background: linear-gradient(145deg, #1e2128, #1a1d24); border-radius: 20px; padding: 1.2rem; border: 1px solid rgba(124,58,237,0.2); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); overflow: hidden; }
+    .stDataFrame table { color: var(--text-primary) !important; border-collapse: separate; border-spacing: 0 8px; }
+    .stDataFrame th { background: linear-gradient(145deg, #2d3138, #262a32) !important; color: var(--text-primary) !important; font-weight: 600; padding: 12px !important; border-bottom: 2px solid var(--accent) !important; }
+    .stDataFrame td { background: linear-gradient(145deg, #1e2128, #1a1d24) !important; color: var(--text-secondary) !important; padding: 10px !important; border-bottom: 1px solid var(--border) !important; }
+    div[data-testid="stCameraInput"] video { width: 100% !important; height: 70vh !important; object-fit: cover; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 15px 30px -5px rgba(124,58,237,0.4); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .stAlert { animation: fadeIn 0.4s ease-out; border-radius: 16px; border-left: 4px solid; background: linear-gradient(145deg, #1e2128, #1a1d24); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -350,7 +152,7 @@ if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
 
 # ------------------------------------------------------------
-# TÍTULO Y MENÚ HORIZONTAL ELEGANTE
+# TÍTULO Y MENÚ HORIZONTAL
 # ------------------------------------------------------------
 st.title("🟨🟩 Sistema de Asistencia")
 st.markdown('<p style="color: #b0b3b8; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
@@ -362,27 +164,17 @@ opciones_menu = [
     "✍️ Registrar asistencia manual",
     "📊 Ver asistencia"
 ]
-
-menu = st.radio(
-    "",
-    opciones_menu,
-    horizontal=True,
-    label_visibility="collapsed",
-    key="menu_radio"
-)
-
+menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio")
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# SIDEBAR
+# SIDEBAR (MANTENIDA IGUAL)
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
     st.markdown('<p style="color: #b0b3b8;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
-
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
-
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
     if archivo_est is not None:
         ruta_destino = os.path.join("uploads", archivo_est.name)
@@ -391,7 +183,6 @@ with st.sidebar:
         st.session_state.ruta_estudiantes = ruta_destino
         st.session_state.archivo_estudiantes_subido = archivo_est.name
         st.success(f"✅ Archivo de estudiantes cargado: {archivo_est.name}")
-
     archivo_asis = st.file_uploader("📗 Asistencia", type=["xlsx"], key="upload_asis")
     if archivo_asis is not None:
         ruta_destino = os.path.join("uploads", archivo_asis.name)
@@ -400,12 +191,10 @@ with st.sidebar:
         st.session_state.ruta_asistencia = ruta_destino
         st.session_state.archivo_asistencia_subido = archivo_asis.name
         st.success(f"✅ Archivo de asistencia cargado: {archivo_asis.name}")
-
     st.markdown("---")
     st.markdown("### 📁 Archivos en uso:")
     st.info(f"**Estudiantes:** `{st.session_state.ruta_estudiantes}`")
     st.info(f"**Asistencia:** `{st.session_state.ruta_asistencia}`")
-
     st.markdown("---")
     st.markdown("### ⬇️ Descargar archivos actualizados")
     if os.path.exists(st.session_state.ruta_estudiantes):
@@ -421,7 +210,6 @@ with st.sidebar:
 def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
         df = pd.read_excel(st.session_state.ruta_estudiantes)
-        # Nos aseguramos de tener solo las columnas necesarias (eliminamos QR si existe)
         columnas_necesarias = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
         columnas_existentes = [col for col in columnas_necesarias if col in df.columns]
         df = df[columnas_existentes]
@@ -430,7 +218,6 @@ def leer_estudiantes():
         return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
 
 def guardar_estudiantes(df):
-    # Asegurar que solo guardamos las columnas correctas
     columnas_guardar = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
     df = df[columnas_guardar]
     df.to_excel(st.session_state.ruta_estudiantes, index=False)
@@ -445,79 +232,121 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA EJECUTIVA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA ESTILO CREDENCIAL
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     """
-    Crea una imagen de tarjeta ejecutiva con los datos del estudiante y su QR.
-    Retorna un objeto BytesIO con la imagen PNG.
+    Crea una imagen de tarjeta cuadrada (500x500) con:
+    - Fondo oscuro (negro/gris)
+    - Borde azul oscuro
+    - Texto blanco
+    - QR grande centrado
+    - Arriba: RU y nombre completo
+    - Abajo: "INGENIERÍA DE SISTEMAS - UAP"
     """
     ru = str(estudiante["RU"])
     nombres = estudiante["Nombres"]
     paterno = estudiante["Apellido_paterno"]
     materno = estudiante["Apellido_materno"]
-    nombre_completo = f"{nombres} {paterno} {materno}".strip()
-    
-    # Generar QR
+    nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
+
+    # Generar QR (tamaño grande)
     qr = qrcode.make(ru)
-    qr = qr.resize((250, 250))
-    
-    # Tamaño de la tarjeta
-    card_width, card_height = 800, 400
-    card = Image.new('RGB', (card_width, card_height), color=(255, 255, 255))
+    qr_size = 280  # Tamaño del QR en la tarjeta
+    qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
+
+    # Dimensiones de la tarjeta (cuadrada)
+    card_size = 500
+    card = Image.new('RGB', (card_size, card_size), color=(10, 20, 30))  # fondo oscuro
     draw = ImageDraw.Draw(card)
-    
-    # Intentar cargar una fuente elegante (si existe)
+
+    # Intentar cargar fuente del sistema
     font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",   # Linux común
-        "/Library/Fonts/Arial.ttf",                         # macOS
-        "C:\\Windows\\Fonts\\arial.ttf"                     # Windows
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/Library/Fonts/Arial.ttf",
+        "C:\\Windows\\Fonts\\arial.ttf"
     ]
     font_path = None
     for path in font_paths:
         if os.path.exists(path):
             font_path = path
             break
-    
+
     if font_path:
-        title_font = ImageFont.truetype(font_path, 20)
-        normal_font = ImageFont.truetype(font_path, 16)
-        bold_font = ImageFont.truetype(font_path, 18)
+        font_large = ImageFont.truetype(font_path, 28)
+        font_medium = ImageFont.truetype(font_path, 24)
+        font_small = ImageFont.truetype(font_path, 18)
     else:
-        title_font = ImageFont.load_default()
-        normal_font = ImageFont.load_default()
-        bold_font = ImageFont.load_default()
-    
-    # Borde decorativo
-    draw.rectangle([0, 0, card_width-1, card_height-1], outline=(124, 58, 237), width=4)
-    
-    # Fondo sutil (opcional)
-    draw.rectangle([10, 10, card_width-10, card_height-10], outline=(230, 230, 230), width=1)
-    
-    # Título
-    draw.text((30, 30), "TARJETA DE IDENTIFICACIÓN", fill=(124, 58, 237), font=title_font)
-    
-    # Datos
-    draw.text((30, 90), f"RU:", fill=(100, 100, 100), font=normal_font)
-    draw.text((100, 90), ru, fill=(0, 0, 0), font=bold_font)
-    
-    draw.text((30, 130), "Nombre Completo:", fill=(100, 100, 100), font=normal_font)
-    draw.text((30, 155), nombre_completo, fill=(50, 50, 150), font=bold_font)
-    
-    draw.text((30, 200), f"Apellido Paterno:", fill=(100, 100, 100), font=normal_font)
-    draw.text((200, 200), paterno, fill=(0, 0, 0), font=normal_font)
-    
-    draw.text((30, 240), f"Apellido Materno:", fill=(100, 100, 100), font=normal_font)
-    draw.text((200, 240), materno, fill=(0, 0, 0), font=normal_font)
-    
-    # Pegar QR
-    card.paste(qr, (card_width - qr.width - 30, int((card_height - qr.height)/2)))
-    
-    # Línea inferior con sistema
-    draw.line([30, 350, card_width-30, 350], fill=(200, 200, 200), width=2)
-    draw.text((30, 360), "Sistema de Asistencia QR", fill=(150, 150, 150), font=normal_font)
-    
-    # Guardar en memoria
+        font_large = ImageFont.load_default()
+        font_medium = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+
+    # Borde azul oscuro alrededor de la tarjeta
+    border_color = (25, 80, 150)   # Azul oscuro
+    border_width = 5
+    draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
+
+    # --- Área superior: datos ---
+    # Texto "RU: XXXX"
+    ru_text = f"RU: {ru}"
+    # Calcular ancho del texto para centrarlo
+    bbox = draw.textbbox((0,0), ru_text, font=font_large)
+    text_width = bbox[2] - bbox[0]
+    ru_x = (card_size - text_width) // 2
+    ru_y = 40
+    draw.text((ru_x, ru_y), ru_text, fill=(255, 255, 255), font=font_large)
+
+    # Nombre completo (puede ser largo, ajustamos)
+    name_y = ru_y + 40
+    # Si el nombre es muy largo, partirlo en dos líneas
+    max_width = card_size - 40
+    words = nombre_completo.split()
+    lines = []
+    current_line = ""
+    for w in words:
+        test_line = current_line + (" " + w if current_line else w)
+        bbox = draw.textbbox((0,0), test_line, font=font_medium)
+        if bbox[2] - bbox[0] <= max_width:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line)
+            current_line = w
+    if current_line:
+        lines.append(current_line)
+
+    # Si no hubo partición, usamos una línea
+    if not lines:
+        lines = [nombre_completo]
+
+    # Dibujar cada línea centrada
+    line_spacing = 30
+    total_height = len(lines) * line_spacing
+    start_y = name_y
+    for i, line in enumerate(lines):
+        bbox = draw.textbbox((0,0), line, font=font_medium)
+        line_width = bbox[2] - bbox[0]
+        x = (card_size - line_width) // 2
+        y = start_y + i * line_spacing
+        draw.text((x, y), line, fill=(255, 255, 255), font=font_medium)
+
+    # --- Posición del QR ---
+    qr_x = (card_size - qr_size) // 2
+    qr_y = name_y + 80  # separación después del nombre
+    card.paste(qr, (qr_x, qr_y))
+
+    # --- Texto inferior: "INGENIERÍA DE SISTEMAS - UAP" ---
+    footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
+    lines_footer = footer_text.split("\n")
+    footer_y = qr_y + qr_size + 25
+    for i, line in enumerate(lines_footer):
+        bbox = draw.textbbox((0,0), line, font=font_small)
+        line_width = bbox[2] - bbox[0]
+        x = (card_size - line_width) // 2
+        y = footer_y + i * 25
+        draw.text((x, y), line, fill=(200, 200, 200), font=font_small)
+
+    # Guardar en buffer
     img_bytes = io.BytesIO()
     card.save(img_bytes, format='PNG')
     img_bytes.seek(0)
@@ -528,7 +357,6 @@ def crear_tarjeta_estudiante(estudiante):
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.subheader("📝 Registrar nuevo estudiante")
-    
     with st.container():
         col1, col2 = st.columns(2)
         with col1:
@@ -537,69 +365,51 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
         with col2:
             paterno = st.text_input("👨 Apellido paterno", placeholder="Ingrese el apellido paterno")
             materno = st.text_input("👩 Apellido materno", placeholder="Ingrese el apellido materno")
-
-        col1, col2, col3 = st.columns([1, 1, 1])
+        col1, col2, col3 = st.columns([1,1,1])
         with col2:
             if st.button("💾 Guardar estudiante", use_container_width=True):
                 df = leer_estudiantes()
                 if ru in df["RU"].astype(str).values:
                     st.error("❌ Este RU ya existe")
                 else:
-                    # Generar QR en memoria (no se guarda en disco)
-                    qr_img = qrcode.make(ru)  # Imagen PIL
-
-                    # Convertir a bytes para mostrar con st.image
+                    qr_img = qrcode.make(ru)
                     img_bytes = io.BytesIO()
                     qr_img.save(img_bytes, format='PNG')
                     img_bytes.seek(0)
-
-                    # Crear nuevo registro (sin columna QR)
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
                     df = pd.concat([df, nuevo], ignore_index=True)
                     guardar_estudiantes(df)
                     st.success("✅ Estudiante registrado exitosamente")
-                    
-                    # Mostrar QR generado
-                    col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
+                    col_img1, col_img2, col_img3 = st.columns([1,2,1])
                     with col_img2:
                         st.image(img_bytes, width=350, caption=f"QR de {nombres} {paterno}")
-                        # Preparar descarga desde memoria
                         buf = io.BytesIO()
                         qr_img.save(buf, format="PNG")
                         buf.seek(0)
                         st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES - CON BOTÓN DE BÚSQUEDA MEJORADO
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
-    
     if len(estudiantes) > 0:
         st.dataframe(estudiantes, use_container_width=True)
-        
         st.markdown("---")
         st.subheader("🔍 Buscar estudiante")
-        
-        col1, col2, col3 = st.columns([3, 1, 3])
+        col1, col2, col3 = st.columns([3,1,3])
         with col1:
             ru_ver = st.text_input("Ingrese RU para buscar", placeholder="Ej: 2024001", key="buscar_ru")
         with col2:
             buscar_click = st.button("🔍 Buscar", key="buscar_btn", use_container_width=True)
-        
         if buscar_click and ru_ver:
             estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
             if len(estudiante) > 0:
-                # Generar tarjeta ejecutiva
                 tarjeta_img = crear_tarjeta_estudiante(estudiante.iloc[0])
-                
-                # Mostrar la tarjeta
                 st.markdown("### 🎓 Tarjeta Ejecutiva del Estudiante")
-                st.image(tarjeta_img, use_container_width=False, width=800)
-                
-                # Botón para descargar la tarjeta
+                st.image(tarjeta_img, use_container_width=False, width=500)
                 st.download_button(
                     label="📥 Descargar Tarjeta (PNG)",
                     data=tarjeta_img,
@@ -611,11 +421,10 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
             st.warning("⚠️ Por favor ingrese un RU para buscar")
-
         st.markdown("---")
         st.subheader("🗑️ Eliminar estudiante")
         if len(estudiantes) > 0:
-            col1, col2, col3 = st.columns([2, 1, 2])
+            col1, col2, col3 = st.columns([2,1,2])
             with col1:
                 eliminar = st.number_input("Índice del estudiante a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
             with col2:
@@ -624,7 +433,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     guardar_estudiantes(estudiantes)
                     st.success("✅ Estudiante eliminado correctamente")
                     st.rerun()
-
         st.markdown("---")
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
@@ -641,44 +449,29 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
     st.markdown('<p style="color: #b0b3b8;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
-    
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
         file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
         frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         detector = cv2.QRCodeDetector()
         data, bbox, _ = detector.detectAndDecode(frame)
-
         if data:
             ru = data
             estudiantes = leer_estudiantes()
             estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
-
             if len(estudiante) > 0:
                 nombres = estudiante.iloc[0]["Nombres"]
                 paterno = estudiante.iloc[0]["Apellido_paterno"]
                 materno = estudiante.iloc[0]["Apellido_materno"]
-
                 fecha, hora = obtener_fecha_hora_exacta()
-
-                # VERIFICAR SI YA TIENE REGISTRO HOY
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-
                 if not tiene_registro:
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
                     asistencia = leer_asistencia()
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     guardar_asistencia(asistencia)
-                    
-                    # Guardar en session state
-                    st.session_state.ultimo_registro = {
-                        "RU": ru,
-                        "Nombres": nombres,
-                        "Hora": hora,
-                        "Fecha": fecha
-                    }
-                    
+                    st.session_state.ultimo_registro = {"RU": ru, "Nombres": nombres, "Hora": hora, "Fecha": fecha}
                     st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                 else:
                     st.warning(f"⚠️ {nombres} {paterno} ya registró asistencia hoy a las {registro_existente['Hora']}")
@@ -693,51 +486,36 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
     estudiantes = leer_estudiantes()
-    
     if len(estudiantes) > 0:
         estudiantes["nombre_completo"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"] + " " + estudiantes["Apellido_paterno"]
-        
         col1, col2 = st.columns(2)
         with col1:
             seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
             ru = seleccionado.split(" - ")[0]
         with col2:
             estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
-
         fecha, hora = obtener_fecha_hora_exacta()
-        
-        # VERIFICAR SI YA TIENE REGISTRO HOY
         tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-        
         if tiene_registro:
             st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['Hora']} (Estado: {registro_existente['Estado']})")
-            col1, col2, col3 = st.columns([1, 2, 1])
+            col1, col2, col3 = st.columns([1,2,1])
             with col2:
                 st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
             st.caption("Botón deshabilitado - Registro duplicado")
         else:
-            col1, col2, col3 = st.columns([1, 2, 1])
+            col1, col2, col3 = st.columns([1,2,1])
             with col2:
                 if st.button("✅ Registrar asistencia", use_container_width=True):
                     estudiante = estudiantes[estudiantes["RU"].astype(str) == ru].iloc[0]
                     nombres = estudiante["Nombres"]
                     paterno = estudiante["Apellido_paterno"]
                     materno = estudiante["Apellido_materno"]
-
                     asistencia = leer_asistencia()
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
                                           columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     guardar_asistencia(asistencia)
-                    
-                    # Guardar en session state
-                    st.session_state.ultimo_registro = {
-                        "RU": ru,
-                        "Nombres": nombres,
-                        "Hora": hora,
-                        "Fecha": fecha
-                    }
-                    
+                    st.session_state.ultimo_registro = {"RU": ru, "Nombres": nombres, "Hora": hora, "Fecha": fecha}
                     st.success(f"✅ Asistencia registrada a las {hora}")
     else:
         st.warning("⚠️ No hay estudiantes registrados en el sistema")
@@ -748,16 +526,12 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
-    
     if len(asistencia) > 0:
         st.dataframe(asistencia, use_container_width=True)
-        
-        # Verificación de integridad
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
         duplicados = asistencia.groupby(['RU', 'Fecha']).size().reset_index(name='count')
         duplicados = duplicados[duplicados['count'] > 1]
-        
         if len(duplicados) > 0:
             st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
@@ -767,11 +541,10 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                 st.rerun()
         else:
             st.success("✅ No hay registros duplicados en el sistema")
-
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
         if len(asistencia) > 0:
-            col1, col2, col3 = st.columns([2, 2, 1])
+            col1, col2, col3 = st.columns([2,2,1])
             with col1:
                 indice = st.number_input("Índice del registro", min_value=0, max_value=len(asistencia)-1)
             with col2:
@@ -782,11 +555,10 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                     guardar_asistencia(asistencia)
                     st.success("✅ Estado actualizado correctamente")
                     st.rerun()
-
         st.markdown("---")
         st.subheader("🗑️ Eliminar registro")
         if len(asistencia) > 0:
-            col1, col2, col3 = st.columns([2, 1, 2])
+            col1, col2, col3 = st.columns([2,1,2])
             with col1:
                 eliminar = st.number_input("Índice del registro a eliminar", min_value=0, max_value=len(asistencia)-1, key="elim")
             with col2:
@@ -795,7 +567,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                     guardar_asistencia(asistencia)
                     st.success("✅ Registro eliminado correctamente")
                     st.rerun()
-
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
         hoy = str(datetime.now(ZONA_HORARIA).date())
@@ -807,5 +578,5 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                 st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga, use_container_width=True)
         else:
             st.info("📭 No hay registros para el día de hoy")
-    else: 
+    else:
         st.info("📭 No hay registros de asistencia en el sistema")
