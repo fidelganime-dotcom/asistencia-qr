@@ -552,26 +552,7 @@ st.markdown("""
 # ------------------------------------------------------------
 # SIDEBAR CON SWITCH DE TEMA
 # ------------------------------------------------------------
-with st.sidebar:
-    st.markdown("## 🌓 Tema")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🌙 Oscuro", use_container_width=True, key="dark_btn"):
-            st.session_state.theme = "dark"
-            st.markdown("""
-                <script>
-                    window.parent.postMessage({type: 'set_theme', theme: 'dark'}, '*');
-                </script>
-            """, unsafe_allow_html=True)
-    with col2:
-        if st.button("☀️ Claro", use_container_width=True, key="light_btn"):
-            st.session_state.theme = "light"
-            st.markdown("""
-                <script>
-                    window.parent.postMessage({type: 'set_theme', theme: 'light'}, '*');
-                </script>
-            """, unsafe_allow_html=True)
-    
+
     st.markdown("---")
     st.markdown("## 📂 Desarrollado por Josué")
     st.markdown('<p style="color: var(--text-secondary);">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
