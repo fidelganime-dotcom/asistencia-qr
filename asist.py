@@ -154,6 +154,17 @@ st.markdown(f"""
         transform: scaleX(1);
     }}
 
+    /* Subtítulo con fuente manuscrita */
+    .subtitle-script {{
+        color: var(--text-secondary);
+        margin-top: -10px;
+        font-family: 'Pacifico', 'Dancing Script', 'Brush Script MT', cursive;
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
+        font-weight: normal;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }}
+
     /* Tarjetas estilo glass */
     .info-card, .student-info, .stDataFrame {{
         background: var(--glass-bg);
@@ -608,7 +619,7 @@ with header_cols[0]:
         st.write("")  # vacío si no existe
 with header_cols[1]:
     st.title("Sistema de Asistencia")
-    st.markdown('<p style="color: var(--text-secondary); margin-top: -10px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡somos excelencia!</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
