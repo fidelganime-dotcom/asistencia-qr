@@ -38,12 +38,39 @@ def verificar_registro_duplicado(ru, fecha):
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# ESTILOS CSS (ESTILO GLASSMORPHISM MODERNO - BASADO EN EL HTML)
+# INICIALIZAR SESSION STATE
 # ------------------------------------------------------------
-st.markdown("""
+if "ruta_estudiantes" not in st.session_state:
+    st.session_state.ruta_estudiantes = "estudiantes.xlsx"
+if "ruta_asistencia" not in st.session_state:
+    st.session_state.ruta_asistencia = "asistencia.xlsx"
+if "archivo_estudiantes_subido" not in st.session_state:
+    st.session_state.archivo_estudiantes_subido = None
+if "archivo_asistencia_subido" not in st.session_state:
+    st.session_state.archivo_asistencia_subido = None
+if "menu_actual" not in st.session_state:
+    st.session_state.menu_actual = "📝 Registrar estudiante"
+if "ultimo_registro" not in st.session_state:
+    st.session_state.ultimo_registro = None
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"  # dark o light
+
+# ------------------------------------------------------------
+# FUNCIÓN PARA ALTERNAR TEMA (se llama desde JavaScript)
+# ------------------------------------------------------------
+def set_theme():
+    # Este callback se ejecutará cuando se reciba un parámetro de consulta
+    # Lo manejaremos con st.query_params
+    pass
+
+# ------------------------------------------------------------
+# ESTILOS CSS CON VARIABLES PARA AMBOS TEMAS
+# ------------------------------------------------------------
+st.markdown(f"""
 <style>
-    :root {
-        --primary-color: #0066ff; /* Azul eléctrico */
+    /* Variables para tema oscuro (por defecto) */
+    :root {{
+        --primary-color: #0066ff;
         --primary-hover: #0052cc;
         --secondary-color: #2d3748;
         --accent-color: #00ffcc;
@@ -58,40 +85,66 @@ st.markdown("""
         --success-gradient: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
         --danger-gradient: linear-gradient(135deg, #ff3366 0%, #ff0066 100%);
         --warning-gradient: linear-gradient(135deg, #ffcc00 0%, #ff9900 100%);
-    }
+        --input-bg: rgba(15, 23, 42, 0.5);
+        --input-bg-focus: rgba(15, 23, 42, 0.8);
+        --table-header-bg: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%);
+        --table-row-hover: rgba(0, 102, 255, 0.1);
+        --badge-bg: var(--success-gradient);
+        --badge-color: #020617;
+    }}
 
-    /* Fondo general */
-    .stApp {
+    /* Variables para tema claro */
+    [data-theme="light"] {{
+        --primary-color: #0066ff;
+        --primary-hover: #0052cc;
+        --secondary-color: #e2e8f0;
+        --accent-color: #00cc99;
+        --text-primary: #1e293b;
+        --text-secondary: #475569;
+        --bg-dark: #f1f5f9;
+        --bg-darker: #e2e8f0;
+        --glass-bg: rgba(255, 255, 255, 0.8);
+        --glass-border: rgba(0, 0, 0, 0.1);
+        --shadow-3d: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
+        --shadow-hover: 0 20px 50px -10px rgba(0, 102, 255, 0.2);
+        --success-gradient: linear-gradient(135deg, #00cc99 0%, #0066ff 100%);
+        --danger-gradient: linear-gradient(135deg, #ff3366 0%, #ff0066 100%);
+        --warning-gradient: linear-gradient(135deg, #ffcc00 0%, #ff9900 100%);
+        --input-bg: rgba(255, 255, 255, 0.8);
+        --input-bg-focus: rgba(255, 255, 255, 1);
+        --table-header-bg: linear-gradient(135deg, #0066ff 0%, #0052cc 100%);
+        --table-row-hover: rgba(0, 102, 255, 0.05);
+        --badge-bg: var(--success-gradient);
+        --badge-color: white;
+    }}
+
+    /* Aplicar variables globales */
+    .stApp {{
         background-color: var(--bg-dark);
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
+        transition: background-color 0.3s ease;
+    }}
 
     /* Sidebar estilo glass */
-    .css-1d391kg, .css-1lcbmhc {
+    .css-1d391kg, .css-1lcbmhc {{
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
         border-right: 1px solid var(--glass-border) !important;
         box-shadow: var(--shadow-3d) !important;
-    }
-
-    /* Contenido principal */
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1400px;
-    }
+        transition: all 0.3s ease;
+    }}
 
     /* Títulos */
-    h1, h2, h3 {
+    h1, h2, h3 {{
         color: var(--text-primary);
         font-weight: 700;
         letter-spacing: -0.02em;
         text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
         position: relative;
         display: inline-block;
-    }
+    }}
 
-    h1::after, h2::after {
+    h1::after, h2::after {{
         content: '';
         position: absolute;
         bottom: -10px;
@@ -103,14 +156,14 @@ st.markdown("""
         transform: scaleX(0);
         transform-origin: left;
         transition: transform 0.3s ease;
-    }
+    }}
 
-    h1:hover::after, h2:hover::after {
+    h1:hover::after, h2:hover::after {{
         transform: scaleX(1);
-    }
+    }}
 
     /* Tarjetas estilo glass */
-    .info-card, .student-info, .stDataFrame {
+    .info-card, .student-info, .stDataFrame {{
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
         border-radius: 16px;
@@ -121,9 +174,9 @@ st.markdown("""
         transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         position: relative;
         overflow: hidden;
-    }
+    }}
 
-    .info-card::before, .student-info::before, .stDataFrame::before {
+    .info-card::before, .student-info::before, .stDataFrame::before {{
         content: '';
         position: absolute;
         top: -50%;
@@ -135,26 +188,26 @@ st.markdown("""
         transition: all 0.5s ease;
         opacity: 0;
         pointer-events: none;
-    }
+    }}
 
-    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
+    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {{
         opacity: 1;
         animation: shine 3s infinite;
-    }
+    }}
 
-    @keyframes shine {
-        0% { transform: rotate(30deg) translate(-10%, -10%); }
-        100% { transform: rotate(30deg) translate(10%, 10%); }
-    }
+    @keyframes shine {{
+        0% {{ transform: rotate(30deg) translate(-10%, -10%); }}
+        100% {{ transform: rotate(30deg) translate(10%, 10%); }}
+    }}
 
-    .info-card:hover, .student-info:hover, .stDataFrame:hover {
+    .info-card:hover, .student-info:hover, .stDataFrame:hover {{
         transform: translateY(-5px);
         box-shadow: var(--shadow-hover);
         border-color: rgba(0, 102, 255, 0.3);
-    }
+    }}
 
     /* Menú horizontal (radio) estilo moderno */
-    div.row-widget.stRadio > div {
+    div.row-widget.stRadio > div {{
         display: flex;
         flex-direction: row;
         justify-content: center;
@@ -166,9 +219,9 @@ st.markdown("""
         box-shadow: var(--shadow-3d);
         margin-bottom: 2rem;
         border: 1px solid var(--glass-border);
-    }
+    }}
 
-    div.row-widget.stRadio > div label {
+    div.row-widget.stRadio > div label {{
         background: transparent;
         color: var(--text-secondary);
         font-weight: 500;
@@ -179,24 +232,24 @@ st.markdown("""
         font-size: 0.9rem;
         position: relative;
         overflow: hidden;
-    }
+    }}
 
-    div.row-widget.stRadio > div label:hover {
+    div.row-widget.stRadio > div label:hover {{
         background: rgba(0, 102, 255, 0.2);
         color: var(--accent-color);
         transform: translateY(-2px);
-    }
+    }}
 
     /* Estilo para el botón seleccionado */
-    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
+    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {{
         background: var(--success-gradient);
-        color: var(--bg-darker);
+        color: var(--badge-color);
         box-shadow: var(--shadow-3d);
         font-weight: 600;
-    }
+    }}
 
     /* Botones modernos 3D */
-    .stButton button {
+    .stButton button {{
         background: var(--primary-color);
         color: white;
         border: none;
@@ -211,9 +264,9 @@ st.markdown("""
         border-bottom: 3px solid rgba(0, 0, 0, 0.2);
         transform-style: preserve-3d;
         perspective: 1000px;
-    }
+    }}
 
-    .stButton button::before {
+    .stButton button::before {{
         content: '';
         position: absolute;
         top: 0;
@@ -222,68 +275,68 @@ st.markdown("""
         height: 100%;
         background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         transition: left 0.7s;
-    }
+    }}
 
-    .stButton button:hover::before {
+    .stButton button:hover::before {{
         left: 100%;
-    }
+    }}
 
-    .stButton button:hover {
+    .stButton button:hover {{
         background: var(--primary-hover);
         transform: translateY(-3px) scale(1.02);
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    }
+    }}
 
-    .stButton button:active {
+    .stButton button:active {{
         transform: translateY(1px);
-    }
+    }}
 
-    /* Botones secundarios (descarga, etc) */
-    .stButton button[data-testid="baseButton-secondary"] {
+    /* Botones secundarios */
+    .stButton button[data-testid="baseButton-secondary"] {{
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(10px);
-    }
+    }}
 
-    .stButton button[data-testid="baseButton-secondary"]:hover {
+    .stButton button[data-testid="baseButton-secondary"]:hover {{
         background: rgba(255, 255, 255, 0.2);
-    }
+    }}
 
     /* Inputs estilo glass */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: rgba(15, 23, 42, 0.5) !important;
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {{
+        background: var(--input-bg) !important;
         border: 1px solid var(--glass-border) !important;
         border-radius: 12px !important;
         color: var(--text-primary) !important;
         padding: 0.75rem 1rem !important;
         transition: all 0.3s ease !important;
         backdrop-filter: blur(5px) !important;
-    }
+    }}
 
-    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
-        background: rgba(15, 23, 42, 0.8) !important;
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {{
+        background: var(--input-bg-focus) !important;
         border-color: var(--primary-color) !important;
         box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2) !important;
         transform: scale(1.01);
-    }
+    }}
 
-    .stTextInput input::placeholder {
+    .stTextInput input::placeholder {{
         color: rgba(200, 200, 200, 0.6);
-    }
+    }}
 
     /* Tablas estilo moderno */
-    .stDataFrame {
+    .stDataFrame {{
         padding: 0;
         overflow: hidden;
-    }
+    }}
 
-    .stDataFrame table {
+    .stDataFrame table {{
         width: 100%;
         border-collapse: collapse;
         color: var(--text-primary);
-    }
+    }}
 
-    .stDataFrame thead tr th {
-        background: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%) !important;
+    .stDataFrame thead tr th {{
+        background: var(--table-header-bg) !important;
         color: white !important;
         font-weight: 600;
         padding: 1rem 1rem !important;
@@ -292,9 +345,9 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 0.5px;
         position: relative;
-    }
+    }}
 
-    .stDataFrame thead tr th::after {
+    .stDataFrame thead tr th::after {{
         content: '';
         position: absolute;
         bottom: 0;
@@ -304,30 +357,30 @@ st.markdown("""
         background: var(--accent-color);
         transform: scaleX(0);
         transition: transform 0.3s ease;
-    }
+    }}
 
-    .stDataFrame thead tr th:hover::after {
+    .stDataFrame thead tr th:hover::after {{
         transform: scaleX(1);
-    }
+    }}
 
-    .stDataFrame tbody tr {
+    .stDataFrame tbody tr {{
         transition: all 0.3s ease;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
+    }}
 
-    .stDataFrame tbody tr:hover {
-        background: rgba(0, 102, 255, 0.1);
+    .stDataFrame tbody tr:hover {{
+        background: var(--table-row-hover);
         transform: translateX(5px);
-    }
+    }}
 
-    .stDataFrame tbody td {
+    .stDataFrame tbody td {{
         padding: 0.75rem 1rem !important;
         border: none !important;
         vertical-align: middle;
         position: relative;
-    }
+    }}
 
-    .stDataFrame tbody td::before {
+    .stDataFrame tbody td::before {{
         content: '';
         position: absolute;
         left: 0;
@@ -337,27 +390,27 @@ st.markdown("""
         height: 0;
         background: var(--primary-color);
         transition: all 0.3s ease;
-    }
+    }}
 
-    .stDataFrame tbody tr:hover td::before {
+    .stDataFrame tbody tr:hover td::before {{
         height: 60%;
-    }
+    }}
 
     /* Badges */
-    .badge {
+    .badge {{
         padding: 0.3rem 0.8rem;
         border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        background: var(--success-gradient);
-        color: var(--bg-darker);
+        background: var(--badge-bg);
+        color: var(--badge-color);
         display: inline-block;
-    }
+    }}
 
     /* Alertas estilo glass */
-    .stAlert {
+    .stAlert {{
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
         border: 1px solid var(--glass-border) !important;
@@ -365,49 +418,50 @@ st.markdown("""
         color: var(--text-primary) !important;
         padding: 1rem !important;
         box-shadow: var(--shadow-3d) !important;
-    }
+    }}
 
     /* Cámara */
-    div[data-testid="stCameraInput"] video {
+    div[data-testid="stCameraInput"] video {{
         width: 100% !important;
         height: 70vh !important;
         object-fit: cover;
         border-radius: 16px;
         border: 2px solid var(--primary-color);
         box-shadow: var(--shadow-3d);
-    }
+    }}
 
     /* Scrollbar personalizada */
-    ::-webkit-scrollbar {
+    ::-webkit-scrollbar {{
         width: 8px;
-    }
-    ::-webkit-scrollbar-track {
+    }}
+    ::-webkit-scrollbar-track {{
         background: rgba(255, 255, 255, 0.1);
-    }
-    ::-webkit-scrollbar-thumb {
+    }}
+    ::-webkit-scrollbar-thumb {{
         background: var(--primary-color);
         border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
+    }}
+    ::-webkit-scrollbar-thumb:hover {{
         background: var(--primary-hover);
-    }
+    }}
 
     /* Animaciones */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
+    @keyframes fadeInUp {{
+        from {{ opacity: 0; transform: translateY(20px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
+    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {{
         animation: fadeInUp 0.5s ease-out;
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS (JavaScript)
+# PARTÍCULAS ANIMADAS Y SWITCH DE TEMA (JavaScript)
 # ------------------------------------------------------------
 st.markdown("""
 <script>
+    // Crear partículas flotantes
     function createParticles() {
         const container = document.createElement('div');
         container.style.position = 'fixed';
@@ -419,7 +473,7 @@ st.markdown("""
         container.style.zIndex = '-1';
         document.body.appendChild(container);
         
-        const particleCount = 100;
+        const particleCount = 80;
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
             particle.style.position = 'absolute';
@@ -435,6 +489,7 @@ st.markdown("""
             container.appendChild(particle);
         }
     }
+    
     // Insertar keyframes para la animación float
     const style = document.createElement('style');
     style.textContent = `
@@ -447,47 +502,62 @@ st.markdown("""
     `;
     document.head.appendChild(style);
     window.addEventListener('load', createParticles);
+    
+    // Función para cambiar el tema
+    function setTheme(theme) {
+        if (theme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+        // Guardar preferencia en localStorage
+        localStorage.setItem('theme', theme);
+    }
+    
+    // Cargar tema guardado
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        setTheme('light');
+    }
+    
+    // Escuchar mensajes desde Streamlit para cambiar tema
+    window.addEventListener('message', function(event) {
+        if (event.data.type === 'set_theme') {
+            setTheme(event.data.theme);
+        }
+    });
 </script>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# INICIALIZAR SESSION STATE
-# ------------------------------------------------------------
-if "ruta_estudiantes" not in st.session_state:
-    st.session_state.ruta_estudiantes = "estudiantes.xlsx"
-if "ruta_asistencia" not in st.session_state:
-    st.session_state.ruta_asistencia = "asistencia.xlsx"
-if "archivo_estudiantes_subido" not in st.session_state:
-    st.session_state.archivo_estudiantes_subido = None
-if "archivo_asistencia_subido" not in st.session_state:
-    st.session_state.archivo_asistencia_subido = None
-if "menu_actual" not in st.session_state:
-    st.session_state.menu_actual = "📝 Registrar estudiante"
-if "ultimo_registro" not in st.session_state:
-    st.session_state.ultimo_registro = None
-
-# ------------------------------------------------------------
-# TÍTULO Y MENÚ HORIZONTAL
-# ------------------------------------------------------------
-st.title("🟨🟩 Sistema de Asistencia")
-st.markdown('<p style="color: #cbd5e1; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
-
-opciones_menu = [
-    "📝 Registrar estudiante",
-    "📋 Lista estudiantes",
-    "📸 Escanear QR",
-    "✍️ Registrar asistencia manual",
-    "📊 Ver asistencia"
-]
-menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio")
-st.session_state.menu_actual = menu
-
-# ------------------------------------------------------------
-# SIDEBAR
+# SIDEBAR CON SWITCH DE TEMA
 # ------------------------------------------------------------
 with st.sidebar:
+    st.markdown("## 🌓 Tema")
+    # Usar un botón para alternar en lugar de checkbox para más control
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🌙 Oscuro", use_container_width=True, key="dark_btn"):
+            st.session_state.theme = "dark"
+            # Enviar mensaje al frontend
+            st.markdown(f"""
+                <script>
+                    window.parent.postMessage({{type: 'set_theme', theme: 'dark'}}, '*');
+                </script>
+            """, unsafe_allow_html=True)
+    with col2:
+        if st.button("☀️ Claro", use_container_width=True, key="light_btn"):
+            st.session_state.theme = "light"
+            st.markdown("""
+                <script>
+                    window.parent.postMessage({type: 'set_theme', theme: 'light'}, '*');
+                </script>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
     st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: #cbd5e1;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--text-secondary);">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
+    
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
@@ -520,7 +590,23 @@ with st.sidebar:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
 
 # ------------------------------------------------------------
-# FUNCIONES AUXILIARES
+# TÍTULO Y MENÚ HORIZONTAL
+# ------------------------------------------------------------
+st.title("🟨🟩 Sistema de Asistencia")
+st.markdown('<p style="color: var(--text-secondary); margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
+
+opciones_menu = [
+    "📝 Registrar estudiante",
+    "📋 Lista estudiantes",
+    "📸 Escanear QR",
+    "✍️ Registrar asistencia manual",
+    "📊 Ver asistencia"
+]
+menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio")
+st.session_state.menu_actual = menu
+
+# ------------------------------------------------------------
+# FUNCIONES AUXILIARES (sin cambios)
 # ------------------------------------------------------------
 def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
@@ -547,7 +633,7 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA (sin cambios)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["RU"])
@@ -748,7 +834,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: #cbd5e1;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
         file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
