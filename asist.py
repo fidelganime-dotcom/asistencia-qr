@@ -38,101 +38,416 @@ def verificar_registro_duplicado(ru, fecha):
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# ESTILOS CSS (se mantienen igual)
+# ESTILOS CSS (ESTILO GLASSMORPHISM MODERNO - BASADO EN EL HTML)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
     :root {
-        --bg-dark: #0e1117;
-        --bg-card: #1e2128;
-        --bg-sidebar: #1a1d24;
-        --text-primary: #fafafa;
-        --text-secondary: #b0b3b8;
-        --accent: #7c3aed;
-        --accent-light: #9f7aea;
-        --border: #2d3138;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --error: #ef4444;
-        --duplicate: #f97316;
-        --info: #3b82f6;
+        --primary-color: #0066ff; /* Azul eléctrico */
+        --primary-hover: #0052cc;
+        --secondary-color: #2d3748;
+        --accent-color: #00ffcc;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --bg-dark: #0f172a;
+        --bg-darker: #020617;
+        --glass-bg: rgba(15, 23, 42, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --shadow-3d: 0 10px 25px -5px rgba(0, 102, 255, 0.2), 0 10px 10px -5px rgba(0, 102, 255, 0.1);
+        --shadow-hover: 0 20px 50px -10px rgba(0, 102, 255, 0.4);
+        --success-gradient: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
+        --danger-gradient: linear-gradient(135deg, #ff3366 0%, #ff0066 100%);
+        --warning-gradient: linear-gradient(135deg, #ffcc00 0%, #ff9900 100%);
     }
-    .stApp { background-color: var(--bg-dark); color: var(--text-primary); }
+
+    /* Fondo general */
+    .stApp {
+        background-color: var(--bg-dark);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Sidebar estilo glass */
+    .css-1d391kg, .css-1lcbmhc {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(20px) !important;
+        border-right: 1px solid var(--glass-border) !important;
+        box-shadow: var(--shadow-3d) !important;
+    }
+
+    /* Contenido principal */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1400px;
+    }
+
+    /* Títulos */
+    h1, h2, h3 {
+        color: var(--text-primary);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
+        position: relative;
+        display: inline-block;
+    }
+
+    h1::after, h2::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: var(--success-gradient);
+        border-radius: 3px;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    h1:hover::after, h2:hover::after {
+        transform: scaleX(1);
+    }
+
+    /* Tarjetas estilo glass */
+    .info-card, .student-info, .stDataFrame {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .info-card::before, .student-info::before, .stDataFrame::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(0,102,255,0.1) 0%, rgba(0,102,255,0) 70%);
+        transform: rotate(30deg);
+        transition: all 0.5s ease;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
+        opacity: 1;
+        animation: shine 3s infinite;
+    }
+
+    @keyframes shine {
+        0% { transform: rotate(30deg) translate(-10%, -10%); }
+        100% { transform: rotate(30deg) translate(10%, 10%); }
+    }
+
+    .info-card:hover, .student-info:hover, .stDataFrame:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(0, 102, 255, 0.3);
+    }
+
+    /* Menú horizontal (radio) estilo moderno */
     div.row-widget.stRadio > div {
-        flex-direction: row; justify-content: center; gap: 15px;
-        background: linear-gradient(145deg, #1a1d24, #15181f);
-        padding: 20px 25px; border-radius: 60px;
-        border: 1px solid rgba(124, 58, 237, 0.3);
-        margin-bottom: 30px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 0.75rem;
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        padding: 0.5rem;
+        border-radius: 60px;
+        box-shadow: var(--shadow-3d);
+        margin-bottom: 2rem;
+        border: 1px solid var(--glass-border);
+    }
+
+    div.row-widget.stRadio > div label {
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 500;
+        padding: 0.6rem 1.2rem;
+        border-radius: 40px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        font-size: 0.9rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    div.row-widget.stRadio > div label:hover {
+        background: rgba(0, 102, 255, 0.2);
+        color: var(--accent-color);
+        transform: translateY(-2px);
+    }
+
+    /* Estilo para el botón seleccionado */
+    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
+        background: var(--success-gradient);
+        color: var(--bg-darker);
+        box-shadow: var(--shadow-3d);
+        font-weight: 600;
+    }
+
+    /* Botones modernos 3D */
+    .stButton button {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
+        transform-style: preserve-3d;
+        perspective: 1000px;
+    }
+
+    .stButton button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.7s;
+    }
+
+    .stButton button:hover::before {
+        left: 100%;
+    }
+
+    .stButton button:hover {
+        background: var(--primary-hover);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .stButton button:active {
+        transform: translateY(1px);
+    }
+
+    /* Botones secundarios (descarga, etc) */
+    .stButton button[data-testid="baseButton-secondary"] {
+        background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(10px);
     }
-    div.row-widget.stRadio > div label {
-        color: var(--text-secondary) !important; font-size: 1rem; font-weight: 500;
-        padding: 12px 24px; border-radius: 40px; transition: all 0.3s;
-        border: 1px solid transparent; background: rgba(255,255,255,0.03);
-        letter-spacing: 0.5px; position: relative; overflow: hidden;
+
+    .stButton button[data-testid="baseButton-secondary"]:hover {
+        background: rgba(255, 255, 255, 0.2);
     }
-    div.row-widget.stRadio > div label::before {
-        content: ''; position: absolute; top: 50%; left: 50%;
-        width: 0; height: 0; border-radius: 50%;
-        background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
-        transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s;
-        z-index: 0; pointer-events: none;
-    }
-    div.row-widget.stRadio > div label:hover::before { width: 300px; height: 300px; }
-    div.row-widget.stRadio > div label:hover {
-        filter: brightness(1.2); transform: translateY(-2px);
-        border-color: currentColor; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    }
-    div.row-widget.stRadio > div label:nth-child(1) { background: linear-gradient(145deg, rgba(59,130,246,0.15), rgba(37,99,235,0.05)); border-color: #3b82f6; }
-    div.row-widget.stRadio > div label:nth-child(2) { background: linear-gradient(145deg, rgba(16,185,129,0.15), rgba(5,150,105,0.05)); border-color: #10b981; }
-    div.row-widget.stRadio > div label:nth-child(3) { background: linear-gradient(145deg, rgba(245,158,11,0.15), rgba(217,119,6,0.05)); border-color: #f59e0b; }
-    div.row-widget.stRadio > div label:nth-child(4) { background: linear-gradient(145deg, rgba(239,68,68,0.15), rgba(220,38,38,0.05)); border-color: #ef4444; }
-    div.row-widget.stRadio > div label:nth-child(5) { background: linear-gradient(145deg, rgba(139,92,246,0.15), rgba(124,58,237,0.05)); border-color: #8b5cf6; }
-    div.row-widget.stRadio > div label:nth-child(1) input:checked + div { background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8) !important; color: white !important; box-shadow: 0 10px 20px -5px #3b82f6 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(2) input:checked + div { background: linear-gradient(135deg, #10b981, #059669, #047857) !important; color: white !important; box-shadow: 0 10px 20px -5px #10b981 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(3) input:checked + div { background: linear-gradient(135deg, #f59e0b, #d97706, #b45309) !important; color: white !important; box-shadow: 0 10px 20px -5px #f59e0b !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(4) input:checked + div { background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c) !important; color: white !important; box-shadow: 0 10px 20px -5px #ef4444 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(5) input:checked + div { background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9) !important; color: white !important; box-shadow: 0 10px 20px -5px #8b5cf6 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    .stButton button {
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-        color: white; border: none; border-radius: 12px; padding: 0.6rem 1.8rem;
-        font-weight: 600; font-size: 1rem; transition: all 0.3s;
-        box-shadow: 0 8px 15px -3px rgba(124,58,237,0.3);
-        border: 1px solid rgba(255,255,255,0.1); letter-spacing: 0.5px;
-        position: relative; overflow: hidden;
-    }
-    .stButton button::before {
-        content: ''; position: absolute; top: 0; left: -100%;
-        width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
-    }
-    .stButton button:hover::before { left: 100%; }
-    .stButton button:hover { transform: translateY(-3px); box-shadow: 0 15px 25px -5px rgba(124,58,237,0.5); filter: brightness(1.1); }
-    .stButton button[data-testid="baseButton-secondary"] { background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 0.5rem 1.5rem; font-size: 0.95rem; }
-    .stButton button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; background: linear-gradient(135deg, #4b5563, #374151); }
+
+    /* Inputs estilo glass */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
-        border: 2px solid var(--border) !important; color: var(--text-primary) !important;
-        border-radius: 12px !important; padding: 12px 16px !important;
-        font-size: 1rem !important; transition: all 0.3s ease !important;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.3) !important;
+        background: rgba(15, 23, 42, 0.5) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 12px !important;
+        color: var(--text-primary) !important;
+        padding: 0.75rem 1rem !important;
+        transition: all 0.3s ease !important;
+        backdrop-filter: blur(5px) !important;
     }
+
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
-        border-color: var(--accent) !important;
-        box-shadow: 0 0 0 3px rgba(124,58,237,0.2), inset 0 2px 4px rgba(0,0,0,0.3) !important;
+        background: rgba(15, 23, 42, 0.8) !important;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2) !important;
         transform: scale(1.01);
     }
-    .info-card { background: linear-gradient(145deg, #1e2128, #1a1d24); border-radius: 20px; padding: 1.5rem; border: 1px solid rgba(124,58,237,0.2); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); margin-bottom: 1.5rem; }
-    .student-info { background: linear-gradient(145deg, rgba(124,58,237,0.1), rgba(124,58,237,0.05)); border-radius: 16px; padding: 1.2rem; border-left: 4px solid var(--accent); margin: 1rem 0; }
-    .stDataFrame { background: linear-gradient(145deg, #1e2128, #1a1d24); border-radius: 20px; padding: 1.2rem; border: 1px solid rgba(124,58,237,0.2); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); overflow: hidden; }
-    .stDataFrame table { color: var(--text-primary) !important; border-collapse: separate; border-spacing: 0 8px; }
-    .stDataFrame th { background: linear-gradient(145deg, #2d3138, #262a32) !important; color: var(--text-primary) !important; font-weight: 600; padding: 12px !important; border-bottom: 2px solid var(--accent) !important; }
-    .stDataFrame td { background: linear-gradient(145deg, #1e2128, #1a1d24) !important; color: var(--text-secondary) !important; padding: 10px !important; border-bottom: 1px solid var(--border) !important; }
-    div[data-testid="stCameraInput"] video { width: 100% !important; height: 70vh !important; object-fit: cover; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 15px 30px -5px rgba(124,58,237,0.4); }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .stAlert { animation: fadeIn 0.4s ease-out; border-radius: 16px; border-left: 4px solid; background: linear-gradient(145deg, #1e2128, #1a1d24); }
+
+    .stTextInput input::placeholder {
+        color: rgba(200, 200, 200, 0.6);
+    }
+
+    /* Tablas estilo moderno */
+    .stDataFrame {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .stDataFrame table {
+        width: 100%;
+        border-collapse: collapse;
+        color: var(--text-primary);
+    }
+
+    .stDataFrame thead tr th {
+        background: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%) !important;
+        color: white !important;
+        font-weight: 600;
+        padding: 1rem 1rem !important;
+        border: none !important;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: relative;
+    }
+
+    .stDataFrame thead tr th::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: var(--accent-color);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .stDataFrame thead tr th:hover::after {
+        transform: scaleX(1);
+    }
+
+    .stDataFrame tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stDataFrame tbody tr:hover {
+        background: rgba(0, 102, 255, 0.1);
+        transform: translateX(5px);
+    }
+
+    .stDataFrame tbody td {
+        padding: 0.75rem 1rem !important;
+        border: none !important;
+        vertical-align: middle;
+        position: relative;
+    }
+
+    .stDataFrame tbody td::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 0;
+        background: var(--primary-color);
+        transition: all 0.3s ease;
+    }
+
+    .stDataFrame tbody tr:hover td::before {
+        height: 60%;
+    }
+
+    /* Badges */
+    .badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: var(--success-gradient);
+        color: var(--bg-darker);
+        display: inline-block;
+    }
+
+    /* Alertas estilo glass */
+    .stAlert {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 16px !important;
+        color: var(--text-primary) !important;
+        padding: 1rem !important;
+        box-shadow: var(--shadow-3d) !important;
+    }
+
+    /* Cámara */
+    div[data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: 70vh !important;
+        object-fit: cover;
+        border-radius: 16px;
+        border: 2px solid var(--primary-color);
+        box-shadow: var(--shadow-3d);
+    }
+
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-hover);
+    }
+
+    /* Animaciones */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
+        animation: fadeInUp 0.5s ease-out;
+    }
 </style>
+""", unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# PARTÍCULAS ANIMADAS (JavaScript)
+# ------------------------------------------------------------
+st.markdown("""
+<script>
+    function createParticles() {
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.pointerEvents = 'none';
+        container.style.zIndex = '-1';
+        document.body.appendChild(container);
+        
+        const particleCount = 100;
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.style.position = 'absolute';
+            particle.style.width = (Math.random() * 3 + 2) + 'px';
+            particle.style.height = particle.style.width;
+            particle.style.background = Math.random() > 0.66 ? '#00ffcc' : '#0066ff';
+            particle.style.borderRadius = '50%';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animation = `float ${Math.random() * 5 + 5}s infinite ease-in-out`;
+            particle.style.animationDelay = Math.random() * 8 + 's';
+            particle.style.opacity = '0.6';
+            container.appendChild(particle);
+        }
+    }
+    // Insertar keyframes para la animación float
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
+            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
+            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
+            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
+        }
+    `;
+    document.head.appendChild(style);
+    window.addEventListener('load', createParticles);
+</script>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
@@ -155,7 +470,7 @@ if "ultimo_registro" not in st.session_state:
 # TÍTULO Y MENÚ HORIZONTAL
 # ------------------------------------------------------------
 st.title("🟨🟩 Sistema de Asistencia")
-st.markdown('<p style="color: #b0b3b8; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
+st.markdown('<p style="color: #cbd5e1; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
 
 opciones_menu = [
     "📝 Registrar estudiante",
@@ -172,7 +487,7 @@ st.session_state.menu_actual = menu
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: #b0b3b8;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #cbd5e1;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
@@ -235,31 +550,20 @@ def guardar_asistencia(df):
 # FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
-    """
-    Crea una tarjeta cuadrada de 550x550 con:
-    - Fondo oscuro, borde azul oscuro
-    - Título "TARJETA DE IDENTIFICACIÓN" en negrita mayúsculas
-    - QR grande (350x350)
-    - RU y nombre completo con fuentes grandes
-    - Texto inferior: "INGENIERÍA DE SISTEMAS - UAP"
-    """
     ru = str(estudiante["RU"])
     nombres = estudiante["Nombres"]
     paterno = estudiante["Apellido_paterno"]
     materno = estudiante["Apellido_materno"]
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
-    # Generar QR
     qr = qrcode.make(ru)
     qr_size = 350
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
-    # Tamaño de la tarjeta
     card_size = 550
     card = Image.new('RGB', (card_size, card_size), color=(10, 20, 30))
     draw = ImageDraw.Draw(card)
 
-    # Intentar cargar fuente
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/Library/Fonts/Arial.ttf",
@@ -271,33 +575,28 @@ def crear_tarjeta_estudiante(estudiante):
             font_path = path
             break
 
-    # Definir fuentes
     if font_path:
-        title_font = ImageFont.truetype(font_path, 32)          # Título
-        ru_font = ImageFont.truetype(font_path, 28)            # RU
-        name_font = ImageFont.truetype(font_path, 26)          # Nombre
-        footer_font = ImageFont.truetype(font_path, 20)        # Pie
+        title_font = ImageFont.truetype(font_path, 32)
+        ru_font = ImageFont.truetype(font_path, 28)
+        name_font = ImageFont.truetype(font_path, 26)
+        footer_font = ImageFont.truetype(font_path, 20)
     else:
         title_font = ImageFont.load_default()
         ru_font = ImageFont.load_default()
         name_font = ImageFont.load_default()
         footer_font = ImageFont.load_default()
 
-    # Borde azul oscuro
     border_color = (25, 80, 150)
     border_width = 5
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
-    # --- Título ---
     title_text = "TARJETA DE IDENTIFICACIÓN"
-    # Calcular ancho para centrar
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
     title_y = 25
     draw.text((title_x, title_y), title_text, fill=(255, 255, 255), font=title_font)
 
-    # --- RU ---
     ru_text = f"RU: {ru}"
     bbox = draw.textbbox((0,0), ru_text, font=ru_font)
     ru_width = bbox[2] - bbox[0]
@@ -305,7 +604,6 @@ def crear_tarjeta_estudiante(estudiante):
     ru_y = title_y + 50
     draw.text((ru_x, ru_y), ru_text, fill=(255, 255, 255), font=ru_font)
 
-    # --- Nombre completo (con ajuste de líneas) ---
     max_width = card_size - 40
     words = nombre_completo.split()
     lines = []
@@ -335,12 +633,10 @@ def crear_tarjeta_estudiante(estudiante):
         y = start_y + i * line_spacing
         draw.text((x, y), line, fill=(255, 255, 255), font=name_font)
 
-    # --- QR ---
     qr_x = (card_size - qr_size) // 2
     qr_y = start_y + total_height + 20
     card.paste(qr, (qr_x, qr_y))
 
-    # --- Texto inferior ---
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
     lines_footer = footer_text.split("\n")
     footer_y = qr_y + qr_size + 20
@@ -351,7 +647,6 @@ def crear_tarjeta_estudiante(estudiante):
         y = footer_y + i * 28
         draw.text((x, y), line, fill=(220, 220, 220), font=footer_font)
 
-    # Guardar en buffer
     img_bytes = io.BytesIO()
     card.save(img_bytes, format='PNG')
     img_bytes.seek(0)
@@ -453,7 +748,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: #b0b3b8;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #cbd5e1;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
         file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
