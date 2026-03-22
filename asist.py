@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import pytz
 import shutil
+import io  # Para manejar archivos en memoria
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
@@ -419,11 +420,19 @@ with st.sidebar:
 # ------------------------------------------------------------
 def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
-        return pd.read_excel(st.session_state.ruta_estudiantes)
+        df = pd.read_excel(st.session_state.ruta_estudiantes)
+        # Nos aseguramos de tener solo las columnas necesarias (eliminamos QR si existe)
+        columnas_necesarias = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
+        columnas_existentes = [col for col in columnas_necesarias if col in df.columns]
+        df = df[columnas_existentes]
+        return df
     else:
-        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
+        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
 
 def guardar_estudiantes(df):
+    # Asegurar que solo guardamos las columnas correctas
+    columnas_guardar = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
+    df = df[columnas_guardar]
     df.to_excel(st.session_state.ruta_estudiantes, index=False)
 
 def leer_asistencia():
@@ -457,23 +466,25 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                 if ru in df["RU"].astype(str).values:
                     st.error("❌ Este RU ya existe")
                 else:
-                    if not os.path.exists("qr"):
-                        os.mkdir("qr")
-                    ruta_qr = f"qr/{ru}.png"
-                    qr = qrcode.make(ru)
-                    qr.save(ruta_qr)
+                    # Generar QR en memoria (no se guarda en disco)
+                    qr_img = qrcode.make(ru)  # Imagen PIL
 
-                    nuevo = pd.DataFrame([[ru, nombres, paterno, materno, ruta_qr]],
-                                          columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "QR"])
+                    # Crear nuevo registro (sin columna QR)
+                    nuevo = pd.DataFrame([[ru, nombres, paterno, materno]],
+                                          columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
                     df = pd.concat([df, nuevo], ignore_index=True)
                     guardar_estudiantes(df)
                     st.success("✅ Estudiante registrado exitosamente")
                     
+                    # Mostrar QR generado
                     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
                     with col_img2:
-                        st.image(ruta_qr, width=350, caption=f"QR de {nombres} {paterno}")
-                        with open(ruta_qr, "rb") as file:
-                            st.download_button("⬇️ Descargar QR", data=file, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
+                        st.image(qr_img, width=350, caption=f"QR de {nombres} {paterno}")
+                        # Preparar descarga desde memoria
+                        buf = io.BytesIO()
+                        qr_img.save(buf, format="PNG")
+                        buf.seek(0)
+                        st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
 
 # ------------------------------------------------------------
 # LISTA ESTUDIANTES - CON BOTÓN DE BÚSQUEDA MEJORADO
@@ -510,9 +521,11 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                         st.markdown(f"**Ap. Materno:** {estudiante.iloc[0]['Apellido_materno']}")
                     st.markdown('</div>', unsafe_allow_html=True)
                     
+                    # Generar QR dinámicamente a partir del RU
+                    qr_img = qrcode.make(estudiante.iloc[0]["RU"])
                     col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
                     with col_img2:
-                        st.image(estudiante.iloc[0]["QR"], width=350, caption=f"QR de {estudiante.iloc[0]['Nombres']}")
+                        st.image(qr_img, width=350, caption=f"QR de {estudiante.iloc[0]['Nombres']}")
             else:
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
