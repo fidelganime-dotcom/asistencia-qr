@@ -612,7 +612,7 @@ if os.path.exists(logo_path):
     # Usar HTML para mostrar logo y título en línea
     st.markdown(f"""
         <div class="header-logo-title">
-            <img src="data:image/png;base64,{st.image(logo_path, output_format='png', use_container_width=False, width=60)}" alt="Logo">
+            <img src="data:image/png;base64,{st.image(logo_path, output_format='png', use_container_width=False, width=60)}" alt="">
             <h1>Sistema de Asistencia</h1>
         </div>
     """, unsafe_allow_html=True)
