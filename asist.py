@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import pytz
 import io
-from PIL import Image, ImageDraw, ImageFont  # Pillow para la tarjeta
+from PIL import Image, ImageDraw, ImageFont
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
@@ -38,7 +38,7 @@ def verificar_registro_duplicado(ru, fecha):
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# ESTILOS CSS MEJORADOS (MISMO QUE ANTES, SE MANTIENE)
+# ESTILOS CSS (se mantienen igual)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -168,7 +168,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# SIDEBAR (MANTENIDA IGUAL)
+# SIDEBAR
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
@@ -232,17 +232,16 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA ESTILO CREDENCIAL
+# FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     """
-    Crea una imagen de tarjeta cuadrada (500x500) con:
-    - Fondo oscuro (negro/gris)
-    - Borde azul oscuro
-    - Texto blanco
-    - QR grande centrado
-    - Arriba: RU y nombre completo
-    - Abajo: "INGENIERÍA DE SISTEMAS - UAP"
+    Crea una tarjeta cuadrada de 550x550 con:
+    - Fondo oscuro, borde azul oscuro
+    - Título "TARJETA DE IDENTIFICACIÓN" en negrita mayúsculas
+    - QR grande (350x350)
+    - RU y nombre completo con fuentes grandes
+    - Texto inferior: "INGENIERÍA DE SISTEMAS - UAP"
     """
     ru = str(estudiante["RU"])
     nombres = estudiante["Nombres"]
@@ -250,17 +249,17 @@ def crear_tarjeta_estudiante(estudiante):
     materno = estudiante["Apellido_materno"]
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
-    # Generar QR (tamaño grande)
+    # Generar QR
     qr = qrcode.make(ru)
-    qr_size = 280  # Tamaño del QR en la tarjeta
+    qr_size = 350
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
-    # Dimensiones de la tarjeta (cuadrada)
-    card_size = 500
-    card = Image.new('RGB', (card_size, card_size), color=(10, 20, 30))  # fondo oscuro
+    # Tamaño de la tarjeta
+    card_size = 550
+    card = Image.new('RGB', (card_size, card_size), color=(10, 20, 30))
     draw = ImageDraw.Draw(card)
 
-    # Intentar cargar fuente del sistema
+    # Intentar cargar fuente
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/Library/Fonts/Arial.ttf",
@@ -272,40 +271,48 @@ def crear_tarjeta_estudiante(estudiante):
             font_path = path
             break
 
+    # Definir fuentes
     if font_path:
-        font_large = ImageFont.truetype(font_path, 28)
-        font_medium = ImageFont.truetype(font_path, 24)
-        font_small = ImageFont.truetype(font_path, 18)
+        title_font = ImageFont.truetype(font_path, 32)          # Título
+        ru_font = ImageFont.truetype(font_path, 28)            # RU
+        name_font = ImageFont.truetype(font_path, 26)          # Nombre
+        footer_font = ImageFont.truetype(font_path, 20)        # Pie
     else:
-        font_large = ImageFont.load_default()
-        font_medium = ImageFont.load_default()
-        font_small = ImageFont.load_default()
+        title_font = ImageFont.load_default()
+        ru_font = ImageFont.load_default()
+        name_font = ImageFont.load_default()
+        footer_font = ImageFont.load_default()
 
-    # Borde azul oscuro alrededor de la tarjeta
-    border_color = (25, 80, 150)   # Azul oscuro
+    # Borde azul oscuro
+    border_color = (25, 80, 150)
     border_width = 5
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
-    # --- Área superior: datos ---
-    # Texto "RU: XXXX"
-    ru_text = f"RU: {ru}"
-    # Calcular ancho del texto para centrarlo
-    bbox = draw.textbbox((0,0), ru_text, font=font_large)
-    text_width = bbox[2] - bbox[0]
-    ru_x = (card_size - text_width) // 2
-    ru_y = 40
-    draw.text((ru_x, ru_y), ru_text, fill=(255, 255, 255), font=font_large)
+    # --- Título ---
+    title_text = "TARJETA DE IDENTIFICACIÓN"
+    # Calcular ancho para centrar
+    bbox = draw.textbbox((0,0), title_text, font=title_font)
+    title_width = bbox[2] - bbox[0]
+    title_x = (card_size - title_width) // 2
+    title_y = 25
+    draw.text((title_x, title_y), title_text, fill=(255, 255, 255), font=title_font)
 
-    # Nombre completo (puede ser largo, ajustamos)
-    name_y = ru_y + 40
-    # Si el nombre es muy largo, partirlo en dos líneas
+    # --- RU ---
+    ru_text = f"RU: {ru}"
+    bbox = draw.textbbox((0,0), ru_text, font=ru_font)
+    ru_width = bbox[2] - bbox[0]
+    ru_x = (card_size - ru_width) // 2
+    ru_y = title_y + 50
+    draw.text((ru_x, ru_y), ru_text, fill=(255, 255, 255), font=ru_font)
+
+    # --- Nombre completo (con ajuste de líneas) ---
     max_width = card_size - 40
     words = nombre_completo.split()
     lines = []
     current_line = ""
     for w in words:
         test_line = current_line + (" " + w if current_line else w)
-        bbox = draw.textbbox((0,0), test_line, font=font_medium)
+        bbox = draw.textbbox((0,0), test_line, font=name_font)
         if bbox[2] - bbox[0] <= max_width:
             current_line = test_line
         else:
@@ -315,36 +322,34 @@ def crear_tarjeta_estudiante(estudiante):
     if current_line:
         lines.append(current_line)
 
-    # Si no hubo partición, usamos una línea
     if not lines:
         lines = [nombre_completo]
 
-    # Dibujar cada línea centrada
-    line_spacing = 30
+    line_spacing = 35
     total_height = len(lines) * line_spacing
-    start_y = name_y
+    start_y = ru_y + 55
     for i, line in enumerate(lines):
-        bbox = draw.textbbox((0,0), line, font=font_medium)
+        bbox = draw.textbbox((0,0), line, font=name_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
         y = start_y + i * line_spacing
-        draw.text((x, y), line, fill=(255, 255, 255), font=font_medium)
+        draw.text((x, y), line, fill=(255, 255, 255), font=name_font)
 
-    # --- Posición del QR ---
+    # --- QR ---
     qr_x = (card_size - qr_size) // 2
-    qr_y = name_y + 80  # separación después del nombre
+    qr_y = start_y + total_height + 20
     card.paste(qr, (qr_x, qr_y))
 
-    # --- Texto inferior: "INGENIERÍA DE SISTEMAS - UAP" ---
+    # --- Texto inferior ---
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
     lines_footer = footer_text.split("\n")
-    footer_y = qr_y + qr_size + 25
+    footer_y = qr_y + qr_size + 20
     for i, line in enumerate(lines_footer):
-        bbox = draw.textbbox((0,0), line, font=font_small)
+        bbox = draw.textbbox((0,0), line, font=footer_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
-        y = footer_y + i * 25
-        draw.text((x, y), line, fill=(200, 200, 200), font=font_small)
+        y = footer_y + i * 28
+        draw.text((x, y), line, fill=(220, 220, 220), font=footer_font)
 
     # Guardar en buffer
     img_bytes = io.BytesIO()
@@ -409,7 +414,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             if len(estudiante) > 0:
                 tarjeta_img = crear_tarjeta_estudiante(estudiante.iloc[0])
                 st.markdown("### 🎓 Tarjeta Ejecutiva del Estudiante")
-                st.image(tarjeta_img, use_container_width=False, width=500)
+                st.image(tarjeta_img, use_container_width=False, width=550)
                 st.download_button(
                     label="📥 Descargar Tarjeta (PNG)",
                     data=tarjeta_img,
