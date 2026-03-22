@@ -446,29 +446,21 @@ st.markdown(f"""
         animation: fadeInUp 0.5s ease-out;
     }}
     
-    /* Estilo para el logo y título combinado */
-    .header-logo-title {{
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+    /* Estilo para la información del QR (más grande) */
+    .qr-info {{
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--accent-color);
+        text-align: center;
         margin-bottom: 0.5rem;
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 8px rgba(0,255,204,0.3);
     }}
-    .header-logo-title img {{
-        height: 60px;
-        width: auto;
-        object-fit: contain;
-    }}
-    .header-logo-title h1 {{
-        margin: 0;
-        line-height: 1.2;
-    }}
-    @media (max-width: 768px) {{
-        .header-logo-title img {{
-            height: 45px;
-        }}
-        .header-logo-title h1 {{
-            font-size: 1.8rem;
-        }}
+    .qr-ru {{
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        text-align: center;
+        margin-bottom: 1rem;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -605,23 +597,19 @@ with st.sidebar:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
 
 # ------------------------------------------------------------
-# TÍTULO CON LOGO (reemplazo de emojis)
+# TÍTULO CON LOGO (usando columnas)
 # ------------------------------------------------------------
-logo_path = "assets/logo.png"  # Ruta relativa al archivo logo
-if os.path.exists(logo_path):
-    # Usar HTML para mostrar logo y título en línea
-    st.markdown(f"""
-        <div class="header-logo-title">
-            <img src="data:image/png;base64,{st.image(logo_path, output_format='png', use_container_width=False, width=60)}" alt="">
-            <h1>Sistema de Asistencia</h1>
-        </div>
-    """, unsafe_allow_html=True)
-else:
-    # Si el logo no existe, mostrar solo texto sin emojis
+logo_path = "assets/logo.png"
+header_cols = st.columns([1, 10])  # 1 parte para logo, 10 para título
+with header_cols[0]:
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=60)
+    else:
+        # Si no existe, dejar vacío
+        st.write("")
+with header_cols[1]:
     st.title("Sistema de Asistencia")
-    st.markdown('<p style="color: var(--text-secondary); margin-top: -10px; margin-bottom: 20px;">⚠️ Logo no encontrado en assets/logo.png</p>', unsafe_allow_html=True)
-
-st.markdown('<p style="color: var(--text-secondary); margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--text-secondary); margin-top: -10px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
@@ -798,9 +786,14 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                     df = pd.concat([df, nuevo], ignore_index=True)
                     guardar_estudiantes(df)
                     st.success("✅ Estudiante registrado exitosamente")
+                    # Mostrar QR más grande y datos más notorios
                     col_img1, col_img2, col_img3 = st.columns([1,2,1])
                     with col_img2:
-                        st.image(img_bytes, width=350, caption=f"QR de {nombres} {paterno}")
+                        # Mostrar nombre y RU con estilos mejorados
+                        st.markdown(f'<div class="qr-info">{nombres} {paterno}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
+                        # Mostrar QR con tamaño 500px
+                        st.image(img_bytes, width=500, caption="Código QR del estudiante")
                         buf = io.BytesIO()
                         qr_img.save(buf, format="PNG")
                         buf.seek(0)
