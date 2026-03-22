@@ -6,7 +6,8 @@ import os
 import cv2
 import numpy as np
 import pytz
-import io  # Para manejar archivos en memoria
+import io
+from PIL import Image, ImageDraw, ImageFont  # Importamos Pillow para la tarjeta
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
@@ -444,6 +445,85 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
+# FUNCIÓN PARA CREAR TARJETA EJECUTIVA
+# ------------------------------------------------------------
+def crear_tarjeta_estudiante(estudiante):
+    """
+    Crea una imagen de tarjeta ejecutiva con los datos del estudiante y su QR.
+    Retorna un objeto BytesIO con la imagen PNG.
+    """
+    ru = str(estudiante["RU"])
+    nombres = estudiante["Nombres"]
+    paterno = estudiante["Apellido_paterno"]
+    materno = estudiante["Apellido_materno"]
+    nombre_completo = f"{nombres} {paterno} {materno}".strip()
+    
+    # Generar QR
+    qr = qrcode.make(ru)
+    qr = qr.resize((250, 250))
+    
+    # Tamaño de la tarjeta
+    card_width, card_height = 800, 400
+    card = Image.new('RGB', (card_width, card_height), color=(255, 255, 255))
+    draw = ImageDraw.Draw(card)
+    
+    # Intentar cargar una fuente elegante (si existe)
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",   # Linux común
+        "/Library/Fonts/Arial.ttf",                         # macOS
+        "C:\\Windows\\Fonts\\arial.ttf"                     # Windows
+    ]
+    font_path = None
+    for path in font_paths:
+        if os.path.exists(path):
+            font_path = path
+            break
+    
+    if font_path:
+        title_font = ImageFont.truetype(font_path, 20)
+        normal_font = ImageFont.truetype(font_path, 16)
+        bold_font = ImageFont.truetype(font_path, 18)
+    else:
+        title_font = ImageFont.load_default()
+        normal_font = ImageFont.load_default()
+        bold_font = ImageFont.load_default()
+    
+    # Borde decorativo
+    draw.rectangle([0, 0, card_width-1, card_height-1], outline=(124, 58, 237), width=4)
+    
+    # Fondo sutil (opcional)
+    draw.rectangle([10, 10, card_width-10, card_height-10], outline=(230, 230, 230), width=1)
+    
+    # Título
+    draw.text((30, 30), "TARJETA DE IDENTIFICACIÓN", fill=(124, 58, 237), font=title_font)
+    
+    # Datos
+    draw.text((30, 90), f"RU:", fill=(100, 100, 100), font=normal_font)
+    draw.text((100, 90), ru, fill=(0, 0, 0), font=bold_font)
+    
+    draw.text((30, 130), "Nombre Completo:", fill=(100, 100, 100), font=normal_font)
+    draw.text((30, 155), nombre_completo, fill=(50, 50, 150), font=bold_font)
+    
+    draw.text((30, 200), f"Apellido Paterno:", fill=(100, 100, 100), font=normal_font)
+    draw.text((200, 200), paterno, fill=(0, 0, 0), font=normal_font)
+    
+    draw.text((30, 240), f"Apellido Materno:", fill=(100, 100, 100), font=normal_font)
+    draw.text((200, 240), materno, fill=(0, 0, 0), font=normal_font)
+    
+    # Pegar QR
+    card.paste(qr, (card_width - qr.width - 30, int((card_height - qr.height)/2)))
+    
+    # Línea inferior con sistema
+    draw.line([30, 350, card_width-30, 350], fill=(200, 200, 200), width=2)
+    draw.text((30, 360), "Sistema de Asistencia QR", fill=(150, 150, 150), font=normal_font)
+    
+    # Guardar en memoria
+    img_bytes = io.BytesIO()
+    card.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    return img_bytes
+
+# ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
@@ -512,28 +592,21 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         if buscar_click and ru_ver:
             estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
             if len(estudiante) > 0:
-                with st.container():
-                    st.markdown('<div class="student-info">', unsafe_allow_html=True)
-                    col_info1, col_info2, col_info3, col_info4 = st.columns(4)
-                    with col_info1:
-                        st.markdown(f"**RU:** {estudiante.iloc[0]['RU']}")
-                    with col_info2:
-                        st.markdown(f"**Nombres:** {estudiante.iloc[0]['Nombres']}")
-                    with col_info3:
-                        st.markdown(f"**Ap. Paterno:** {estudiante.iloc[0]['Apellido_paterno']}")
-                    with col_info4:
-                        st.markdown(f"**Ap. Materno:** {estudiante.iloc[0]['Apellido_materno']}")
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    # Generar QR dinámicamente a partir del RU y convertirlo a bytes
-                    qr_img = qrcode.make(estudiante.iloc[0]["RU"])
-                    img_bytes = io.BytesIO()
-                    qr_img.save(img_bytes, format='PNG')
-                    img_bytes.seek(0)
-                    
-                    col_img1, col_img2, col_img3 = st.columns([1, 2, 1])
-                    with col_img2:
-                        st.image(img_bytes, width=350, caption=f"QR de {estudiante.iloc[0]['Nombres']}")
+                # Generar tarjeta ejecutiva
+                tarjeta_img = crear_tarjeta_estudiante(estudiante.iloc[0])
+                
+                # Mostrar la tarjeta
+                st.markdown("### 🎓 Tarjeta Ejecutiva del Estudiante")
+                st.image(tarjeta_img, use_container_width=False, width=800)
+                
+                # Botón para descargar la tarjeta
+                st.download_button(
+                    label="📥 Descargar Tarjeta (PNG)",
+                    data=tarjeta_img,
+                    file_name=f"tarjeta_{estudiante.iloc[0]['RU']}.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
             else:
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
