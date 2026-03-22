@@ -605,8 +605,7 @@ with header_cols[0]:
     if os.path.exists(logo_path):
         st.image(logo_path, width=60)
     else:
-        # Si no existe, dejar vacío
-        st.write("")
+        st.write("")  # vacío si no existe
 with header_cols[1]:
     st.title("Sistema de Asistencia")
     st.markdown('<p style="color: var(--text-secondary); margin-top: -10px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
@@ -625,7 +624,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIONES AUXILIARES (sin cambios)
+# FUNCIONES AUXILIARES
 # ------------------------------------------------------------
 def leer_estudiantes():
     if os.path.exists(st.session_state.ruta_estudiantes):
@@ -652,7 +651,7 @@ def guardar_asistencia(df):
     df.to_excel(st.session_state.ruta_asistencia, index=False)
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA (sin cambios)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA MEJORADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["RU"])
@@ -789,10 +788,8 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                     # Mostrar QR más grande y datos más notorios
                     col_img1, col_img2, col_img3 = st.columns([1,2,1])
                     with col_img2:
-                        # Mostrar nombre y RU con estilos mejorados
                         st.markdown(f'<div class="qr-info">{nombres} {paterno}</div>', unsafe_allow_html=True)
                         st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
-                        # Mostrar QR con tamaño 500px
                         st.image(img_bytes, width=500, caption="Código QR del estudiante")
                         buf = io.BytesIO()
                         qr_img.save(buf, format="PNG")
@@ -937,7 +934,24 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
     if len(asistencia) > 0:
-        st.dataframe(asistencia, use_container_width=True)
+        # Formatear fecha y hora para mostrar sin microsegundos y solo fecha
+        asistencia_mostrar = asistencia.copy()
+        # Convertir columna Fecha a solo fecha (si es datetime)
+        if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['Fecha']):
+            asistencia_mostrar['Fecha'] = asistencia_mostrar['Fecha'].dt.date
+        else:
+            # Intentar convertir a datetime y luego extraer fecha
+            asistencia_mostrar['Fecha'] = pd.to_datetime(asistencia_mostrar['Fecha'], errors='coerce').dt.date
+        
+        # Formatear Hora: eliminar microsegundos
+        if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['Hora']):
+            asistencia_mostrar['Hora'] = asistencia_mostrar['Hora'].dt.strftime('%H:%M:%S')
+        else:
+            # Si es string, tomar solo los primeros 8 caracteres (HH:MM:SS)
+            asistencia_mostrar['Hora'] = asistencia_mostrar['Hora'].astype(str).str[:8]
+        
+        st.dataframe(asistencia_mostrar, use_container_width=True)
+        
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
         duplicados = asistencia.groupby(['RU', 'Fecha']).size().reset_index(name='count')
