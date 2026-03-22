@@ -618,7 +618,7 @@ with header_cols[0]:
     else:
         st.write("")  # vacío si no existe
 with header_cols[1]:
-    st.title("Sistema de Asistencia")
+    st.title("INGENIERIA DE SISTEMAS")
     st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
