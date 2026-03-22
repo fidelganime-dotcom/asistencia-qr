@@ -619,7 +619,7 @@ with header_cols[0]:
         st.write("")  # vacío si no existe
 with header_cols[1]:
     st.title("Sistema de Asistencia")
-    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡somos excelencia!</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
