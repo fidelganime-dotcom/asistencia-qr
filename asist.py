@@ -55,7 +55,7 @@ if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (solo tema oscuro, con mejoras)
+# ESTILOS CSS (con mayúsculas forzadas en QR y nombres)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -128,7 +128,7 @@ st.markdown("""
         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    /* Estilo para la tarjeta de búsqueda */
+    /* Tarjeta de búsqueda */
     .student-search-card {
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
@@ -151,12 +151,14 @@ st.markdown("""
         color: var(--accent-color);
         margin-bottom: 0.5rem;
         text-shadow: 0 0 10px rgba(0,255,204,0.3);
+        text-transform: uppercase;
     }
     .student-ru {
         font-size: 1.3rem;
         color: var(--text-secondary);
         margin-bottom: 1.5rem;
         letter-spacing: 1px;
+        text-transform: uppercase;
     }
     .qr-container {
         display: flex;
@@ -395,12 +397,14 @@ st.markdown("""
         margin-bottom: 0.5rem;
         letter-spacing: 0.5px;
         text-shadow: 0 0 8px rgba(0,255,204,0.3);
+        text-transform: uppercase;
     }
     .qr-ru {
         font-size: 1.1rem;
         color: var(--text-secondary);
         text-align: center;
         margin-bottom: 1rem;
+        text-transform: uppercase;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -500,8 +504,8 @@ with header_cols[0]:
     else:
         st.write("")
 with header_cols[1]:
-    st.title("INGENIERIA DE SISTEMAS")
-    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>', unsafe_allow_html=True)
+    st.title("Sistema de Asistencia")
+    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡somos excelencia!</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
@@ -657,7 +661,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
     with st.container():
         col1, col2 = st.columns(2)
         with col1:
-            ru = st.text_input("🔢 RU", placeholder="Ingrese el RU del estudiante")
+            ru = st.text_input("🔢 RU", placeholder="Ingrese el RU del estudiante (solo números)")
             nombres = st.text_input("👤 Nombres", placeholder="Ingrese los nombres")
         with col2:
             paterno = st.text_input("👨 Apellido paterno", placeholder="Ingrese el apellido paterno")
@@ -665,28 +669,36 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
         col1, col2, col3 = st.columns([1,1,1])
         with col2:
             if st.button("💾 Guardar estudiante", use_container_width=True):
-                df = leer_estudiantes()
-                if ru in df["RU"].astype(str).values:
-                    st.error("❌ Este RU ya existe")
+                # Validar que RU sea numérico
+                if not ru or not ru.strip():
+                    st.error("❌ El RU no puede estar vacío")
+                elif not ru.isdigit():
+                    st.error("❌ El RU debe contener solo números")
                 else:
-                    qr_img = qrcode.make(ru)
-                    img_bytes = io.BytesIO()
-                    qr_img.save(img_bytes, format='PNG')
-                    img_bytes.seek(0)
-                    nuevo = pd.DataFrame([[ru, nombres, paterno, materno]],
-                                          columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
-                    df = pd.concat([df, nuevo], ignore_index=True)
-                    guardar_estudiantes(df)
-                    st.success("✅ Estudiante registrado exitosamente")
-                    col_img1, col_img2, col_img3 = st.columns([1,2,1])
-                    with col_img2:
-                        st.markdown(f'<div class="qr-info">{nombres} {paterno}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
-                        st.image(img_bytes, width=500, caption="Código QR del estudiante")
-                        buf = io.BytesIO()
-                        qr_img.save(buf, format="PNG")
-                        buf.seek(0)
-                        st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
+                    df = leer_estudiantes()
+                    if ru in df["RU"].astype(str).values:
+                        st.error("❌ Este RU ya existe")
+                    else:
+                        qr_img = qrcode.make(ru)
+                        img_bytes = io.BytesIO()
+                        qr_img.save(img_bytes, format='PNG')
+                        img_bytes.seek(0)
+                        nuevo = pd.DataFrame([[ru, nombres, paterno, materno]],
+                                              columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
+                        df = pd.concat([df, nuevo], ignore_index=True)
+                        guardar_estudiantes(df)
+                        st.success("✅ Estudiante registrado exitosamente")
+                        col_img1, col_img2, col_img3 = st.columns([1,2,1])
+                        with col_img2:
+                            # Mostrar en mayúsculas
+                            nombre_upper = f"{nombres} {paterno}".upper()
+                            st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
+                            st.image(img_bytes, width=500, caption="Código QR del estudiante")
+                            buf = io.BytesIO()
+                            qr_img.save(buf, format="PNG")
+                            buf.seek(0)
+                            st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
 
 # ------------------------------------------------------------
 # LISTA ESTUDIANTES
@@ -710,11 +722,10 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 nombres = estudiante_data["Nombres"]
                 paterno = estudiante_data["Apellido_paterno"]
                 ru = estudiante_data["RU"]
-                nombre_completo = f"{nombres} {paterno}".strip()
+                nombre_completo = f"{nombres} {paterno}".strip().upper()
                 
                 # Generar QR
                 qr_img = qrcode.make(ru)
-                # Convertir QR a base64 para incrustar en HTML
                 qr_buffer = io.BytesIO()
                 qr_img.save(qr_buffer, format='PNG')
                 qr_buffer.seek(0)
@@ -735,8 +746,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Botones de descarga reales usando st.download_button (se colocan fuera del HTML pero visualmente dentro)
-                # Usamos columnas para alinear los botones bajo la tarjeta
+                # Botones de descarga reales
                 col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
                 with col_btn1:
                     st.download_button(
@@ -758,7 +768,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                         use_container_width=True
                     )
                 with col_btn3:
-                    st.write("")  # espacio
+                    st.write("")
                 
             else:
                 st.warning("⚠️ RU no encontrado en la base de datos")
