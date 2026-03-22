@@ -479,7 +479,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                     st.session_state.ultimo_registro = {"RU": ru, "Nombres": nombres, "Hora": hora, "Fecha": fecha}
                     st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                 else:
-                    st.warning(f"⚠️ {nombres} {paterno} ya registró asistencia hoy a las {registro_existente['Hora']}")
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['Hora']}")
             else:
                 st.error("❌ Estudiante no encontrado en la base de datos")
         else:
