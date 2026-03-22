@@ -17,7 +17,7 @@ ZONA_HORARIA = pytz.timezone('America/La_Paz')
 def obtener_fecha_hora_exacta():
     ahora = datetime.now(ZONA_HORARIA)
     fecha = ahora.date()
-    hora = ahora.strftime("%H:%M:%S.%f")[:-1]
+    hora = ahora.strftime("%H:%M:%S.%f")[:-3]
     return fecha, hora
 
 # ------------------------------------------------------------
