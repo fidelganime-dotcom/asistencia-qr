@@ -38,100 +38,202 @@ def verificar_registro_duplicado(ru, fecha):
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# ESTILOS CSS (se mantienen igual)
+# ESTILOS CSS (NUEVO ESTILO NEOMÓRFICO ELEGANTE)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
     :root {
-        --bg-dark: #0e1117;
-        --bg-card: #1e2128;
-        --bg-sidebar: #1a1d24;
-        --text-primary: #fafafa;
-        --text-secondary: #b0b3b8;
-        --accent: #7c3aed;
-        --accent-light: #9f7aea;
-        --border: #2d3138;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --error: #ef4444;
-        --duplicate: #f97316;
-        --info: #3b82f6;
+        --bg-main: #eef2f3;
+        --bg-card: #ffffff;
+        --bg-sidebar: #f8fafc;
+        --text-primary: #1e2a3e;
+        --text-secondary: #5b6e8c;
+        --accent: #6fbf4c;
+        --accent-light: #b8e0a8;
+        --accent-dark: #4c8b2e;
+        --shadow-sm: 0 2px 4px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.05);
+        --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.03), 0 4px 6px -2px rgba(0,0,0,0.02);
+        --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);
+        --neomorph-white: inset 2px 2px 5px rgba(255,255,255,0.8), inset -2px -2px 5px rgba(0,0,0,0.05), 4px 4px 10px rgba(0,0,0,0.05), -2px -2px 5px rgba(255,255,255,0.8);
+        --neomorph-inset: inset 2px 2px 5px rgba(0,0,0,0.05), inset -2px -2px 5px rgba(255,255,255,0.6);
+        --border-radius: 1rem;
     }
-    .stApp { background-color: var(--bg-dark); color: var(--text-primary); }
+
+    .stApp {
+        background: var(--bg-main);
+        color: var(--text-primary);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Título principal */
+    h1, h2, h3 {
+        color: var(--text-primary);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+    }
+
+    /* Menú horizontal (radio) */
     div.row-widget.stRadio > div {
-        flex-direction: row; justify-content: center; gap: 15px;
-        background: linear-gradient(145deg, #1a1d24, #15181f);
-        padding: 20px 25px; border-radius: 60px;
-        border: 1px solid rgba(124, 58, 237, 0.3);
-        margin-bottom: 30px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 0.75rem;
+        background: var(--bg-card);
+        padding: 0.5rem;
+        border-radius: 3rem;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        backdrop-filter: blur(2px);
+        border: 1px solid rgba(255,255,255,0.4);
     }
+
     div.row-widget.stRadio > div label {
-        color: var(--text-secondary) !important; font-size: 1rem; font-weight: 500;
-        padding: 12px 24px; border-radius: 40px; transition: all 0.3s;
-        border: 1px solid transparent; background: rgba(255,255,255,0.03);
-        letter-spacing: 0.5px; position: relative; overflow: hidden;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 500;
+        padding: 0.6rem 1.2rem;
+        border-radius: 2rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        font-size: 0.9rem;
     }
-    div.row-widget.stRadio > div label::before {
-        content: ''; position: absolute; top: 50%; left: 50%;
-        width: 0; height: 0; border-radius: 50%;
-        background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
-        transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s;
-        z-index: 0; pointer-events: none;
-    }
-    div.row-widget.stRadio > div label:hover::before { width: 300px; height: 300px; }
+
     div.row-widget.stRadio > div label:hover {
-        filter: brightness(1.2); transform: translateY(-2px);
-        border-color: currentColor; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        background: rgba(111, 191, 76, 0.1);
+        color: var(--accent-dark);
+        transform: translateY(-1px);
     }
-    div.row-widget.stRadio > div label:nth-child(1) { background: linear-gradient(145deg, rgba(59,130,246,0.15), rgba(37,99,235,0.05)); border-color: #3b82f6; }
-    div.row-widget.stRadio > div label:nth-child(2) { background: linear-gradient(145deg, rgba(16,185,129,0.15), rgba(5,150,105,0.05)); border-color: #10b981; }
-    div.row-widget.stRadio > div label:nth-child(3) { background: linear-gradient(145deg, rgba(245,158,11,0.15), rgba(217,119,6,0.05)); border-color: #f59e0b; }
-    div.row-widget.stRadio > div label:nth-child(4) { background: linear-gradient(145deg, rgba(239,68,68,0.15), rgba(220,38,38,0.05)); border-color: #ef4444; }
-    div.row-widget.stRadio > div label:nth-child(5) { background: linear-gradient(145deg, rgba(139,92,246,0.15), rgba(124,58,237,0.05)); border-color: #8b5cf6; }
-    div.row-widget.stRadio > div label:nth-child(1) input:checked + div { background: linear-gradient(135deg, #3b82f6, #2563eb, #1d4ed8) !important; color: white !important; box-shadow: 0 10px 20px -5px #3b82f6 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(2) input:checked + div { background: linear-gradient(135deg, #10b981, #059669, #047857) !important; color: white !important; box-shadow: 0 10px 20px -5px #10b981 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(3) input:checked + div { background: linear-gradient(135deg, #f59e0b, #d97706, #b45309) !important; color: white !important; box-shadow: 0 10px 20px -5px #f59e0b !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(4) input:checked + div { background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c) !important; color: white !important; box-shadow: 0 10px 20px -5px #ef4444 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-    div.row-widget.stRadio > div label:nth-child(5) input:checked + div { background: linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9) !important; color: white !important; box-shadow: 0 10px 20px -5px #8b5cf6 !important; border: 1px solid rgba(255,255,255,0.2) !important; }
+
+    /* Estilo para el botón seleccionado */
+    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
+        background: var(--accent);
+        color: white;
+        box-shadow: var(--shadow-sm);
+        border: none;
+    }
+
+    /* Botones generales */
     .stButton button {
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
-        color: white; border: none; border-radius: 12px; padding: 0.6rem 1.8rem;
-        font-weight: 600; font-size: 1rem; transition: all 0.3s;
-        box-shadow: 0 8px 15px -3px rgba(124,58,237,0.3);
-        border: 1px solid rgba(255,255,255,0.1); letter-spacing: 0.5px;
-        position: relative; overflow: hidden;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 2rem;
+        padding: 0.6rem 1.5rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.2);
     }
-    .stButton button::before {
-        content: ''; position: absolute; top: 0; left: -100%;
-        width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        transition: left 0.5s;
+
+    .stButton button:hover {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
     }
-    .stButton button:hover::before { left: 100%; }
-    .stButton button:hover { transform: translateY(-3px); box-shadow: 0 15px 25px -5px rgba(124,58,237,0.5); filter: brightness(1.1); }
-    .stButton button[data-testid="baseButton-secondary"] { background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 0.5rem 1.5rem; font-size: 0.95rem; }
-    .stButton button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; background: linear-gradient(135deg, #4b5563, #374151); }
+
+    .stButton button:active {
+        transform: translateY(1px);
+    }
+
+    /* Inputs y selects */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: linear-gradient(145deg, #1e2128, #1a1d24) !important;
-        border: 2px solid var(--border) !important; color: var(--text-primary) !important;
-        border-radius: 12px !important; padding: 12px 16px !important;
-        font-size: 1rem !important; transition: all 0.3s ease !important;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.3) !important;
+        background: var(--bg-card);
+        border: 1px solid #e2e8f0;
+        border-radius: var(--border-radius);
+        padding: 0.75rem 1rem;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        box-shadow: var(--neomorph-inset);
+        transition: all 0.2s;
     }
+
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
-        border-color: var(--accent) !important;
-        box-shadow: 0 0 0 3px rgba(124,58,237,0.2), inset 0 2px 4px rgba(0,0,0,0.3) !important;
-        transform: scale(1.01);
+        border-color: var(--accent);
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(111,191,76,0.3), var(--neomorph-inset);
     }
-    .info-card { background: linear-gradient(145deg, #1e2128, #1a1d24); border-radius: 20px; padding: 1.5rem; border: 1px solid rgba(124,58,237,0.2); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); margin-bottom: 1.5rem; }
-    .student-info { background: linear-gradient(145deg, rgba(124,58,237,0.1), rgba(124,58,237,0.05)); border-radius: 16px; padding: 1.2rem; border-left: 4px solid var(--accent); margin: 1rem 0; }
-    .stDataFrame { background: linear-gradient(145deg, #1e2128, #1a1d24); border-radius: 20px; padding: 1.2rem; border: 1px solid rgba(124,58,237,0.2); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); overflow: hidden; }
-    .stDataFrame table { color: var(--text-primary) !important; border-collapse: separate; border-spacing: 0 8px; }
-    .stDataFrame th { background: linear-gradient(145deg, #2d3138, #262a32) !important; color: var(--text-primary) !important; font-weight: 600; padding: 12px !important; border-bottom: 2px solid var(--accent) !important; }
-    .stDataFrame td { background: linear-gradient(145deg, #1e2128, #1a1d24) !important; color: var(--text-secondary) !important; padding: 10px !important; border-bottom: 1px solid var(--border) !important; }
-    div[data-testid="stCameraInput"] video { width: 100% !important; height: 70vh !important; object-fit: cover; border-radius: 20px; border: 2px solid var(--accent); box-shadow: 0 15px 30px -5px rgba(124,58,237,0.4); }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .stAlert { animation: fadeIn 0.4s ease-out; border-radius: 16px; border-left: 4px solid; background: linear-gradient(145deg, #1e2128, #1a1d24); }
+
+    /* Tarjetas neomórficas */
+    .info-card, .student-info, .stDataFrame {
+        background: var(--bg-card);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid rgba(255,255,255,0.6);
+        backdrop-filter: blur(2px);
+        margin-bottom: 1.5rem;
+        transition: transform 0.2s;
+    }
+
+    .student-info {
+        border-left: 4px solid var(--accent);
+        background: rgba(111,191,76,0.03);
+    }
+
+    /* Tablas */
+    .stDataFrame {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .stDataFrame table {
+        width: 100%;
+        border-collapse: collapse;
+        color: var(--text-primary);
+    }
+
+    .stDataFrame th {
+        background: #f9fafb;
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .stDataFrame td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        color: var(--text-primary);
+    }
+
+    /* Cámara */
+    div[data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: 70vh !important;
+        object-fit: cover;
+        border-radius: var(--border-radius);
+        border: 2px solid var(--accent);
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* Alertas neomórficas */
+    .stAlert {
+        background: var(--bg-card);
+        border-left: 4px solid var(--accent);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        box-shadow: var(--shadow-sm);
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    /* Sidebar */
+    .css-1d391kg, .css-1lcbmhc {
+        background: var(--bg-sidebar);
+        border-right: 1px solid #e2e8f0;
+    }
+
+    /* Animaciones suaves */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .stAlert, .stButton, .stDataFrame {
+        animation: fadeIn 0.3s ease-out;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -154,8 +256,8 @@ if "ultimo_registro" not in st.session_state:
 # ------------------------------------------------------------
 # TÍTULO Y MENÚ HORIZONTAL
 # ------------------------------------------------------------
-st.title("🟨🟩 Sistema de Asistencia")
-st.markdown('<p style="color: #b0b3b8; margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR</p>', unsafe_allow_html=True)
+st.title("🌿 Sistema de Asistencia")
+st.markdown('<p style="color: #5b6e8c; margin-top: -10px; margin-bottom: 20px;">Gestión elegante con códigos QR · Estilo neomórfico</p>', unsafe_allow_html=True)
 
 opciones_menu = [
     "📝 Registrar estudiante",
@@ -172,7 +274,7 @@ st.session_state.menu_actual = menu
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: #b0b3b8;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #5b6e8c;">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
     archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
@@ -453,7 +555,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: #b0b3b8;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #5b6e8c;">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
         file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
