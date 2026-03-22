@@ -56,14 +56,6 @@ if "theme" not in st.session_state:
     st.session_state.theme = "dark"  # dark o light
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA ALTERNAR TEMA (se llama desde JavaScript)
-# ------------------------------------------------------------
-def set_theme():
-    # Este callback se ejecutará cuando se reciba un parámetro de consulta
-    # Lo manejaremos con st.query_params
-    pass
-
-# ------------------------------------------------------------
 # ESTILOS CSS CON VARIABLES PARA AMBOS TEMAS
 # ------------------------------------------------------------
 st.markdown(f"""
@@ -453,6 +445,31 @@ st.markdown(f"""
     .stAlert, .stButton, .stDataFrame, .info-card, .student-info {{
         animation: fadeInUp 0.5s ease-out;
     }}
+    
+    /* Estilo para el logo y título combinado */
+    .header-logo-title {{
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }}
+    .header-logo-title img {{
+        height: 60px;
+        width: auto;
+        object-fit: contain;
+    }}
+    .header-logo-title h1 {{
+        margin: 0;
+        line-height: 1.2;
+    }}
+    @media (max-width: 768px) {{
+        .header-logo-title img {{
+            height: 45px;
+        }}
+        .header-logo-title h1 {{
+            font-size: 1.8rem;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -534,15 +551,13 @@ st.markdown("""
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 🌓 Tema")
-    # Usar un botón para alternar en lugar de checkbox para más control
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🌙 Oscuro", use_container_width=True, key="dark_btn"):
             st.session_state.theme = "dark"
-            # Enviar mensaje al frontend
-            st.markdown(f"""
+            st.markdown("""
                 <script>
-                    window.parent.postMessage({{type: 'set_theme', theme: 'dark'}}, '*');
+                    window.parent.postMessage({type: 'set_theme', theme: 'dark'}, '*');
                 </script>
             """, unsafe_allow_html=True)
     with col2:
@@ -590,11 +605,27 @@ with st.sidebar:
             st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
 
 # ------------------------------------------------------------
-# TÍTULO Y MENÚ HORIZONTAL
+# TÍTULO CON LOGO (reemplazo de emojis)
 # ------------------------------------------------------------
-st.title("🟨🟩 Sistema de Asistencia")
+logo_path = "assets/logo.png"  # Ruta relativa al archivo logo
+if os.path.exists(logo_path):
+    # Usar HTML para mostrar logo y título en línea
+    st.markdown(f"""
+        <div class="header-logo-title">
+            <img src="data:image/png;base64,{st.image(logo_path, output_format='png', use_container_width=False, width=60)}" alt="Logo">
+            <h1>Sistema de Asistencia</h1>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    # Si el logo no existe, mostrar solo texto sin emojis
+    st.title("Sistema de Asistencia")
+    st.markdown('<p style="color: var(--text-secondary); margin-top: -10px; margin-bottom: 20px;">⚠️ Logo no encontrado en assets/logo.png</p>', unsafe_allow_html=True)
+
 st.markdown('<p style="color: var(--text-secondary); margin-top: -10px; margin-bottom: 20px;">Gestión inteligente de asistencia mediante códigos QR · Estilo Glassmorphism</p>', unsafe_allow_html=True)
 
+# ------------------------------------------------------------
+# MENÚ HORIZONTAL
+# ------------------------------------------------------------
 opciones_menu = [
     "📝 Registrar estudiante",
     "📋 Lista estudiantes",
