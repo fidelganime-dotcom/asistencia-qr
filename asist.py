@@ -9,6 +9,19 @@ import pytz
 import io
 import base64
 from PIL import Image, ImageDraw, ImageFont
+from supabase import create_client, Client
+
+# ------------------------------------------------------------
+# CONFIGURACIÓN DE SUPABASE
+# ------------------------------------------------------------
+SUPABASE_URL = "https://rwmxhbojhbscrktswmhg.supabase.co"
+SUPABASE_KEY = "sb_publishable_Ukse6FwyRq-Qg1FW8zDbLA_QqLmtUTm"
+
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    st.error(f"Error al conectar con Supabase: {e}")
+    st.stop()
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE ZONA HORARIA
@@ -18,20 +31,83 @@ ZONA_HORARIA = pytz.timezone('America/La_Paz')
 def obtener_fecha_hora_exacta():
     ahora = datetime.now(ZONA_HORARIA)
     fecha = ahora.date()
-    hora = ahora.strftime("%H:%M:%S.%f")[:-3]
+    hora = ahora.strftime("%H:%M:%S")
     return fecha, hora
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA VERIFICAR REGISTRO DUPLICADO
+# FUNCIONES DE ACCESO A SUPABASE
 # ------------------------------------------------------------
+def leer_estudiantes():
+    try:
+        response = supabase.table("estudiantes").select("*").execute()
+        if response.data:
+            df = pd.DataFrame(response.data)
+            # Asegurar columnas en el orden esperado
+            columnas = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
+            df = df[columnas]
+            return df
+        else:
+            return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
+    except Exception as e:
+        st.error(f"Error al leer estudiantes: {e}")
+        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
+
+def guardar_estudiantes(df):
+    """Reemplaza toda la tabla de estudiantes con los datos del DataFrame."""
+    try:
+        # Eliminar todos los registros actuales
+        supabase.table("estudiantes").delete().neq("RU", "")  # eliminar todos
+        # Insertar los nuevos
+        registros = df.to_dict(orient="records")
+        if registros:
+            supabase.table("estudiantes").insert(registros).execute()
+    except Exception as e:
+        st.error(f"Error al guardar estudiantes: {e}")
+
+def leer_asistencia():
+    try:
+        response = supabase.table("asistencia").select("*").execute()
+        if response.data:
+            df = pd.DataFrame(response.data)
+            # Convertir Fecha y Hora a tipos que maneje pandas
+            df["Fecha"] = pd.to_datetime(df["Fecha"]).dt.date
+            df["Hora"] = pd.to_datetime(df["Hora"]).dt.time.astype(str)
+            # Asegurar orden de columnas
+            columnas = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"]
+            df = df[columnas]
+            return df
+        else:
+            return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+    except Exception as e:
+        st.error(f"Error al leer asistencia: {e}")
+        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+
+def guardar_asistencia(df):
+    """Reemplaza toda la tabla de asistencia con los datos del DataFrame."""
+    try:
+        # Eliminar todos los registros actuales
+        supabase.table("asistencia").delete().neq("id", 0)  # eliminar todos
+        # Insertar los nuevos
+        registros = df.to_dict(orient="records")
+        # Convertir fecha y hora a string para Supabase
+        for r in registros:
+            r["Fecha"] = r["Fecha"].isoformat() if hasattr(r["Fecha"], "isoformat") else str(r["Fecha"])
+            r["Hora"] = str(r["Hora"])
+        if registros:
+            supabase.table("asistencia").insert(registros).execute()
+    except Exception as e:
+        st.error(f"Error al guardar asistencia: {e}")
+
 def verificar_registro_duplicado(ru, fecha):
-    asistencia = leer_asistencia()
-    if len(asistencia) > 0:
-        registro_existente = asistencia[(asistencia["RU"].astype(str) == str(ru)) &
-                                       (asistencia["Fecha"].astype(str) == str(fecha))]
-        if len(registro_existente) > 0:
-            return True, registro_existente.iloc[0]
-    return False, None
+    """Verifica si ya existe un registro de asistencia para el RU en la fecha dada."""
+    try:
+        response = supabase.table("asistencia").select("*").eq("RU", ru).eq("Fecha", fecha.isoformat()).execute()
+        if response.data:
+            return True, response.data[0]
+        return False, None
+    except Exception as e:
+        st.error(f"Error al verificar duplicado: {e}")
+        return False, None
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
@@ -39,23 +115,15 @@ def verificar_registro_duplicado(ru, fecha):
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# INICIALIZAR SESSION STATE
+# INICIALIZAR SESSION STATE (ya no se usan rutas de archivos)
 # ------------------------------------------------------------
-if "ruta_estudiantes" not in st.session_state:
-    st.session_state.ruta_estudiantes = "estudiantes.xlsx"
-if "ruta_asistencia" not in st.session_state:
-    st.session_state.ruta_asistencia = "asistencia.xlsx"
-if "archivo_estudiantes_subido" not in st.session_state:
-    st.session_state.archivo_estudiantes_subido = None
-if "archivo_asistencia_subido" not in st.session_state:
-    st.session_state.archivo_asistencia_subido = None
 if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
 if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (con mayúsculas forzadas en QR y nombres)
+# ESTILOS CSS (sin cambios)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -410,7 +478,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS (JavaScript)
+# PARTÍCULAS ANIMADAS (sin cambios)
 # ------------------------------------------------------------
 st.markdown("""
 <script>
@@ -456,42 +524,80 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# SIDEBAR
+# SIDEBAR (sin uploaders, ahora con exportación e importación)
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: var(--text-secondary);">Sube tus propios archivos para trabajar con ellos</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con Supabase</p>', unsafe_allow_html=True)
     
-    if not os.path.exists("uploads"):
-        os.makedirs("uploads")
-    archivo_est = st.file_uploader("📘 Estudiantes", type=["xlsx"], key="upload_est")
-    if archivo_est is not None:
-        ruta_destino = os.path.join("uploads", archivo_est.name)
-        with open(ruta_destino, "wb") as f:
-            f.write(archivo_est.getbuffer())
-        st.session_state.ruta_estudiantes = ruta_destino
-        st.session_state.archivo_estudiantes_subido = archivo_est.name
-        st.success(f"✅ Archivo de estudiantes cargado: {archivo_est.name}")
-    archivo_asis = st.file_uploader("📗 Asistencia", type=["xlsx"], key="upload_asis")
-    if archivo_asis is not None:
-        ruta_destino = os.path.join("uploads", archivo_asis.name)
-        with open(ruta_destino, "wb") as f:
-            f.write(archivo_asis.getbuffer())
-        st.session_state.ruta_asistencia = ruta_destino
-        st.session_state.archivo_asistencia_subido = archivo_asis.name
-        st.success(f"✅ Archivo de asistencia cargado: {archivo_asis.name}")
     st.markdown("---")
-    st.markdown("### 📁 Archivos en uso:")
-    st.info(f"**Estudiantes:** `{st.session_state.ruta_estudiantes}`")
-    st.info(f"**Asistencia:** `{st.session_state.ruta_asistencia}`")
+    st.markdown("### 📥 Exportar datos")
+    
+    # Botón para exportar estudiantes
+    estudiantes_df = leer_estudiantes()
+    if not estudiantes_df.empty:
+        with io.BytesIO() as buffer:
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                estudiantes_df.to_excel(writer, index=False, sheet_name="Estudiantes")
+            buffer.seek(0)
+            st.download_button(
+                label="📘 Exportar estudiantes a Excel",
+                data=buffer,
+                file_name="estudiantes_supabase.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+    else:
+        st.info("No hay estudiantes para exportar")
+    
+    # Botón para exportar asistencia
+    asistencia_df = leer_asistencia()
+    if not asistencia_df.empty:
+        with io.BytesIO() as buffer:
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                asistencia_df.to_excel(writer, index=False, sheet_name="Asistencia")
+            buffer.seek(0)
+            st.download_button(
+                label="📗 Exportar asistencia a Excel",
+                data=buffer,
+                file_name="asistencia_supabase.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+    else:
+        st.info("No hay registros de asistencia para exportar")
+    
     st.markdown("---")
-    st.markdown("### ⬇️ Descargar archivos actualizados")
-    if os.path.exists(st.session_state.ruta_estudiantes):
-        with open(st.session_state.ruta_estudiantes, "rb") as f:
-            st.download_button("📥 Descargar estudiantes", data=f, file_name=os.path.basename(st.session_state.ruta_estudiantes))
-    if os.path.exists(st.session_state.ruta_asistencia):
-        with open(st.session_state.ruta_asistencia, "rb") as f:
-            st.download_button("📥 Descargar asistencia", data=f, file_name=os.path.basename(st.session_state.ruta_asistencia))
+    st.markdown("### 📤 Importar datos desde Excel")
+    st.markdown("Puedes importar estudiantes o asistencia desde un archivo Excel.")
+    archivo_import = st.file_uploader("Selecciona un archivo Excel", type=["xlsx"], key="import_excel")
+    if archivo_import is not None:
+        try:
+            df_import = pd.read_excel(archivo_import)
+            # Verificar qué tabla podría ser
+            if all(col in df_import.columns for col in ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]):
+                st.success("✅ Se detectó una tabla de estudiantes. ¿Deseas importarla?")
+                if st.button("Importar estudiantes", use_container_width=True):
+                    # Reemplazar toda la tabla de estudiantes
+                    guardar_estudiantes(df_import)
+                    st.success("✅ Estudiantes importados correctamente")
+                    st.rerun()
+            elif all(col in df_import.columns for col in ["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"]):
+                st.success("✅ Se detectó una tabla de asistencia. ¿Deseas importarla?")
+                if st.button("Importar asistencia", use_container_width=True):
+                    # Asegurar que Fecha y Hora tengan el formato adecuado
+                    df_import["Fecha"] = pd.to_datetime(df_import["Fecha"]).dt.date
+                    df_import["Hora"] = pd.to_datetime(df_import["Hora"]).dt.time
+                    guardar_asistencia(df_import)
+                    st.success("✅ Asistencia importada correctamente")
+                    st.rerun()
+            else:
+                st.warning("El archivo no coincide con el formato de estudiantes o asistencia.")
+        except Exception as e:
+            st.error(f"Error al leer el archivo: {e}")
+    
+    st.markdown("---")
+    st.info("Los datos se almacenan de forma persistente en Supabase.")
 
 # ------------------------------------------------------------
 # TÍTULO CON LOGO
@@ -521,34 +627,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIONES AUXILIARES
-# ------------------------------------------------------------
-def leer_estudiantes():
-    if os.path.exists(st.session_state.ruta_estudiantes):
-        df = pd.read_excel(st.session_state.ruta_estudiantes)
-        columnas_necesarias = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
-        columnas_existentes = [col for col in columnas_necesarias if col in df.columns]
-        df = df[columnas_existentes]
-        return df
-    else:
-        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
-
-def guardar_estudiantes(df):
-    columnas_guardar = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
-    df = df[columnas_guardar]
-    df.to_excel(st.session_state.ruta_estudiantes, index=False)
-
-def leer_asistencia():
-    if os.path.exists(st.session_state.ruta_asistencia):
-        return pd.read_excel(st.session_state.ruta_asistencia)
-    else:
-        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
-
-def guardar_asistencia(df):
-    df.to_excel(st.session_state.ruta_asistencia, index=False)
-
-# ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (sin cambios)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["RU"])
@@ -669,7 +748,6 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
         col1, col2, col3 = st.columns([1,1,1])
         with col2:
             if st.button("💾 Guardar estudiante", use_container_width=True):
-                # Validar que RU sea numérico
                 if not ru or not ru.strip():
                     st.error("❌ El RU no puede estar vacío")
                 elif not ru.isdigit():
@@ -690,7 +768,6 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         st.success("✅ Estudiante registrado exitosamente")
                         col_img1, col_img2, col_img3 = st.columns([1,2,1])
                         with col_img2:
-                            # Mostrar en mayúsculas
                             nombre_upper = f"{nombres} {paterno}".upper()
                             st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
                             st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
@@ -724,14 +801,12 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 ru = estudiante_data["RU"]
                 nombre_completo = f"{nombres} {paterno}".strip().upper()
                 
-                # Generar QR
                 qr_img = qrcode.make(ru)
                 qr_buffer = io.BytesIO()
                 qr_img.save(qr_buffer, format='PNG')
                 qr_buffer.seek(0)
                 qr_base64 = base64.b64encode(qr_buffer.read()).decode()
                 
-                # Mostrar tarjeta con QR incrustado
                 st.markdown(f"""
                 <div class="student-search-card">
                     <div class="student-name">{nombre_completo}</div>
@@ -746,7 +821,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Botones de descarga reales
                 col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
                 with col_btn1:
                     st.download_button(
