@@ -554,19 +554,26 @@ with st.sidebar:
     st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# TÍTULO CON LOGO
+# TÍTULO CON LOGO (ícono grande alineado)
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
-header_cols = st.columns([1, 5])
-with header_cols[0]:
-    if os.path.exists(logo_path):
-        st.image(logo_path, width=60)
-    else:
-        st.write("")
-with header_cols[1]:
-    st.title("INGENIERÍA DE SISTEMAS")
-    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>', unsafe_allow_html=True)
 
+with st.container():
+    col_logo, col_texto = st.columns([1, 8])
+    with col_logo:
+        if os.path.exists(logo_path):
+            # Tamaño aumentado: 100px de ancho
+            st.image(logo_path, width=100)
+        else:
+            st.write("")  # Placeholder
+    with col_texto:
+        # Contenedor flex para centrar verticalmente el texto con el logo
+        st.markdown("""
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+            <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
+            <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
+        </div>
+        """, unsafe_allow_html=True)
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
 # ------------------------------------------------------------
