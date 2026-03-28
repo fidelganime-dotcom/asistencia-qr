@@ -654,7 +654,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Posicionar QR
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height + 30
+    qr_y = start_y + total_height + 50
     background.paste(qr, (qr_x, qr_y))
 
     # Pie de página
