@@ -589,12 +589,11 @@ def crear_tarjeta_estudiante(estudiante):
         if os.path.exists(path):
             footer_font = ImageFont.truetype(path, 32)
             break
-    if not title_font:
-        title_font = ImageFont.load_default()
-        ru_font = ImageFont.load_default()
-        name_font = ImageFont.load_default()
-        footer_font = ImageFont.load_default()
-
+   if not title_font:
+    title_font = ImageFont.truetype("arial.ttf", 100)   # título muy grande
+    ru_font = ImageFont.truetype("arial.ttf", 70)       # RU más grande
+    name_font = ImageFont.truetype("arial.ttf", 60)     # nombre completo más grande
+    footer_font = ImageFont.truetype("arial.ttf", 40)   # pie de página
     # Borde decorativo
     border_color = (0, 102, 255)
     border_width = 8
