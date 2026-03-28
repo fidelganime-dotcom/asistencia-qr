@@ -95,6 +95,9 @@ if "confirmar_eliminar_asistencia" not in st.session_state:
     st.session_state.confirmar_eliminar_asistencia = None
 if "confirmar_eliminar_todo_asistencia" not in st.session_state:
     st.session_state.confirmar_eliminar_todo_asistencia = False
+# Estado de autenticación para registro manual
+if "manual_auth" not in st.session_state:
+    st.session_state.manual_auth = False
 
 # ------------------------------------------------------------
 # ESTILOS CSS (igual que antes)
@@ -447,6 +450,52 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1rem;
         text-transform: uppercase;
+    }
+    
+    /* Estilos para la pantalla flotante de contraseña */
+    .password-modal {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 2rem;
+        margin: 2rem auto;
+        max-width: 500px;
+        text-align: center;
+        animation: fadeInUp 0.4s ease-out;
+    }
+    .password-modal h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+    .password-modal input {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 0.75rem;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+    .password-modal button {
+        background: var(--primary-color);
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+    }
+    .password-modal button:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+    }
+    .password-error {
+        color: #ff6b6b;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -937,51 +986,77 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
-    st.subheader("✍️ Registrar asistencia manual")
-    estudiantes = leer_estudiantes()
-    if len(estudiantes) > 0:
-        estudiantes["nombre_completo"] = estudiantes["ru"].astype(str) + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
-        col1, col2 = st.columns(2)
-        with col1:
-            seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
-            ru = seleccionado.split(" - ")[0]
-        with col2:
-            estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
-        fecha, hora = obtener_fecha_hora_exacta()
-        tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-        if tiene_registro:
-            st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
-            col1, col2, col3 = st.columns([1,2,1])
-            with col2:
-                st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
-            st.caption("Botón deshabilitado - Registro duplicado")
-        else:
-            col1, col2, col3 = st.columns([1,2,1])
-            with col2:
-                if st.button("✅ Registrar asistencia", use_container_width=True):
-                    estudiante = estudiantes[estudiantes["ru"].astype(str) == ru].iloc[0]
-                    nombres = estudiante["nombres"]
-                    paterno = estudiante["apellido_paterno"]
-                    materno = estudiante["apellido_materno"]
-                    try:
-                        supabase.table("asistencia").insert({
-                            "ru": ru,
-                            "nombres": nombres,
-                            "apellido_paterno": paterno,
-                            "apellido_materno": materno,
-                            "fecha": fecha.isoformat(),
-                            "hora": hora,
-                            "estado": estado
-                        }).execute()
-                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                        st.success(f"✅ Asistencia registrada a las {hora}")
-                    except Exception as e:
-                        st.error(f"❌ Error al guardar asistencia: {e}")
+    # Verificar si ya está autenticado
+    if not st.session_state.manual_auth:
+        # Mostrar ventana elegante de contraseña
+        with st.container():
+            st.markdown("""
+            <div class="password-modal">
+                <h3>🔒 Acceso restringido</h3>
+                <p style="color: var(--text-secondary);">Ingrese la contraseña para registrar asistencia manual</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Formulario con HTML personalizado para un diseño más elegante
+            with st.form(key="password_form"):
+                password = st.text_input("Contraseña", type="password", placeholder="********")
+                col1, col2, col3 = st.columns([1,2,1])
+                with col2:
+                    submit_password = st.form_submit_button("🔓 Ingresar", use_container_width=True)
+            
+            if submit_password:
+                if password == "pocoyo123":
+                    st.session_state.manual_auth = True
+                    st.rerun()
+                else:
+                    st.error("❌ Contraseña incorrecta")
     else:
-        st.warning("⚠️ No hay estudiantes registrados en el sistema")
+        # Usuario autenticado, mostrar el contenido normal del registro manual
+        st.subheader("✍️ Registrar asistencia manual")
+        estudiantes = leer_estudiantes()
+        if len(estudiantes) > 0:
+            estudiantes["nombre_completo"] = estudiantes["ru"].astype(str) + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
+            col1, col2 = st.columns(2)
+            with col1:
+                seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
+                ru = seleccionado.split(" - ")[0]
+            with col2:
+                estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
+            fecha, hora = obtener_fecha_hora_exacta()
+            tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+            if tiene_registro:
+                st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
+                col1, col2, col3 = st.columns([1,2,1])
+                with col2:
+                    st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
+                st.caption("Botón deshabilitado - Registro duplicado")
+            else:
+                col1, col2, col3 = st.columns([1,2,1])
+                with col2:
+                    if st.button("✅ Registrar asistencia", use_container_width=True):
+                        estudiante = estudiantes[estudiantes["ru"].astype(str) == ru].iloc[0]
+                        nombres = estudiante["nombres"]
+                        paterno = estudiante["apellido_paterno"]
+                        materno = estudiante["apellido_materno"]
+                        try:
+                            supabase.table("asistencia").insert({
+                                "ru": ru,
+                                "nombres": nombres,
+                                "apellido_paterno": paterno,
+                                "apellido_materno": materno,
+                                "fecha": fecha.isoformat(),
+                                "hora": hora,
+                                "estado": estado
+                            }).execute()
+                            st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                            st.success(f"✅ Asistencia registrada a las {hora}")
+                        except Exception as e:
+                            st.error(f"❌ Error al guardar asistencia: {e}")
+        else:
+            st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
 # VER ASISTENCIA
