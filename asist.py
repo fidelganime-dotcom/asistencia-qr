@@ -785,21 +785,21 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                             st.error("❌ Error al guardar estudiante")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES (corregida)
+# LISTA ESTUDIANTES (con operaciones directas en Supabase)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
     
     if len(estudiantes) > 0:
-        # Mostrar tabla (sin columna extra)
+        # Mostrar tabla
         st.dataframe(estudiantes, use_container_width=True)
         st.markdown("---")
         
         # ========== GESTIÓN DE ESTUDIANTES ==========
         st.subheader("✏️ Gestionar estudiante")
         
-        # Crear opciones para el selectbox (usando una copia solo para mostrar)
+        # Crear opciones para el selectbox
         estudiantes_display = estudiantes.copy()
         estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
         opciones = estudiantes_display["nombre_completo"].tolist()
@@ -809,7 +809,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
             ru_seleccionado = seleccion.split(" - ")[0]
         
-        # Obtener datos del estudiante seleccionado (del DataFrame original)
+        # Obtener datos del estudiante seleccionado
         estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
         
         # Formulario de edición
@@ -835,34 +835,29 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             elif nuevo_ru != ru_seleccionado and nuevo_ru in estudiantes["ru"].astype(str).values:
                 st.error("❌ El nuevo RU ya existe en la base de datos")
             else:
-                # Obtener índice del estudiante
-                idx = estudiantes[estudiantes["ru"] == ru_seleccionado].index[0]
-                # Actualizar datos en el DataFrame
-                estudiantes.at[idx, "ru"] = nuevo_ru
-                estudiantes.at[idx, "nombres"] = nuevos_nombres
-                estudiantes.at[idx, "apellido_paterno"] = nuevo_paterno
-                estudiantes.at[idx, "apellido_materno"] = nuevo_materno
-                
-                # Si cambió el RU, actualizar también la asistencia
-                if nuevo_ru != ru_seleccionado:
-                    asistencia = leer_asistencia()
-                    if not asistencia.empty:
-                        # Cambiar RU en los registros de asistencia del estudiante
-                        asistencia.loc[asistencia["ru"] == ru_seleccionado, "ru"] = nuevo_ru
-                        guardar_asistencia(asistencia)
-                
-                # Guardar estudiantes
-                if guardar_estudiantes(estudiantes):
-                    st.success(f"✅ Estudiante actualizado correctamente")
+                try:
+                    # Actualizar estudiante en Supabase
+                    supabase.table("estudiantes").update({
+                        "ru": nuevo_ru,
+                        "nombres": nuevos_nombres,
+                        "apellido_paterno": nuevo_paterno,
+                        "apellido_materno": nuevo_materno
+                    }).eq("ru", ru_seleccionado).execute()
+                    
+                    # Si cambió el RU, actualizar también en asistencia
+                    if nuevo_ru != ru_seleccionado:
+                        supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
+                    
+                    st.success("✅ Estudiante actualizado correctamente")
                     st.rerun()
-                else:
-                    st.error("❌ Error al guardar los cambios")
+                except Exception as e:
+                    st.error(f"❌ Error al actualizar: {e}")
         
-        # Procesar eliminación con confirmación usando checkbox
+        # Procesar eliminación con confirmación
         if submit_eliminar:
             st.session_state.confirmar_eliminar = ru_seleccionado
         
-        if st.session_state.confirmar_eliminar:
+        if st.session_state.get("confirmar_eliminar"):
             ru_eliminar = st.session_state.confirmar_eliminar
             estudiante_eliminar = estudiantes[estudiantes["ru"] == ru_eliminar].iloc[0]
             nombre_eliminar = f"{estudiante_eliminar['nombres']} {estudiante_eliminar['apellido_paterno']}"
@@ -870,19 +865,16 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             col_confirm1, col_confirm2, _ = st.columns([1,1,3])
             with col_confirm1:
                 if st.button("✅ Sí, eliminar", key="confirm_eliminar", use_container_width=True):
-                    # Eliminar estudiante del DataFrame
-                    estudiantes = estudiantes[estudiantes["ru"] != ru_eliminar].reset_index(drop=True)
-                    if guardar_estudiantes(estudiantes):
-                        # Eliminar registros de asistencia asociados
-                        try:
-                            supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
-                        except Exception as e:
-                            st.error(f"Error al eliminar asistencias: {e}")
+                    try:
+                        # Eliminar registros de asistencia primero (por FK)
+                        supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
+                        # Luego eliminar estudiante
+                        supabase.table("estudiantes").delete().eq("ru", ru_eliminar).execute()
                         st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
                         st.session_state.confirmar_eliminar = None
                         st.rerun()
-                    else:
-                        st.error("❌ Error al eliminar estudiante")
+                    except Exception as e:
+                        st.error(f"❌ Error al eliminar: {e}")
             with col_confirm2:
                 if st.button("❌ No, cancelar", key="cancel_eliminar", use_container_width=True):
                     st.session_state.confirmar_eliminar = None
@@ -890,7 +882,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         
         st.markdown("---")
         
-        # ========== BÚSQUEDA Y DESCARGA ==========
+        # ========== BÚSQUEDA Y DESCARGA (sin cambios) ==========
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
@@ -963,7 +955,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 st.download_button("📥 Descargar Excel completo", data=file, file_name="estudiantes_exportados.xlsx", use_container_width=True)
     else:
         st.info("📭 No hay estudiantes registrados")
-
 # ------------------------------------------------------------
 # ESCANEAR QR
 # ------------------------------------------------------------
