@@ -726,6 +726,9 @@ def crear_tarjeta_estudiante(estudiante):
 # REGISTRAR ESTUDIANTE
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
+    # Al salir de registro manual, asegurar que la autenticación se reinicia
+    st.session_state.manual_auth = False
+    
     st.subheader("📝 Registrar nuevo estudiante")
     with st.container():
         col1, col2 = st.columns(2)
@@ -777,6 +780,9 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
 # LISTA ESTUDIANTES (con nuevo orden: búsqueda arriba, gestión abajo)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
+    # Al salir de registro manual, asegurar que la autenticación se reinicia
+    st.session_state.manual_auth = False
+    
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
     
@@ -945,6 +951,9 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 # ESCANEAR QR
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
+    # Al salir de registro manual, asegurar que la autenticación se reinicia
+    st.session_state.manual_auth = False
+    
     st.subheader("📸 Escanear QR")
     st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
@@ -989,6 +998,8 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
+    # Aquí NO reseteamos manual_auth porque estamos dentro de la sección
+    
     # Verificar si ya está autenticado
     if not st.session_state.manual_auth:
         # Mostrar ventana elegante de contraseña
@@ -1062,6 +1073,9 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
 # VER ASISTENCIA
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
+    # Al salir de registro manual, asegurar que la autenticación se reinicia
+    st.session_state.manual_auth = False
+    
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
     if len(asistencia) > 0:
