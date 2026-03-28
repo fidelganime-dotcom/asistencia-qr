@@ -42,7 +42,6 @@ def leer_estudiantes():
         response = supabase.table("estudiantes").select("*").execute()
         if response.data:
             df = pd.DataFrame(response.data)
-            # Asegurar columnas
             columnas = ["ru", "nombres", "apellido_paterno", "apellido_materno"]
             df = df[columnas]
             return df
@@ -57,10 +56,8 @@ def leer_asistencia():
         response = supabase.table("asistencia").select("*").execute()
         if response.data:
             df = pd.DataFrame(response.data)
-            # Convertir fecha y hora
             df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
-            # Incluir id para operaciones directas
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
             return df
@@ -71,7 +68,6 @@ def leer_asistencia():
         return pd.DataFrame(columns=["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
 
 def verificar_registro_duplicado(ru, fecha):
-    """Verifica si ya existe un registro de asistencia para el RU en la fecha dada."""
     try:
         response = supabase.table("asistencia").select("*").eq("ru", ru).eq("fecha", fecha.isoformat()).execute()
         if response.data:
@@ -97,9 +93,11 @@ if "confirmar_eliminar" not in st.session_state:
     st.session_state.confirmar_eliminar = None
 if "confirmar_eliminar_asistencia" not in st.session_state:
     st.session_state.confirmar_eliminar_asistencia = None
+if "confirmar_eliminar_todo_asistencia" not in st.session_state:
+    st.session_state.confirmar_eliminar_todo_asistencia = False
 
 # ------------------------------------------------------------
-# ESTILOS CSS (igual que antes, no se modifica)
+# ESTILOS CSS (igual que antes)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -499,7 +497,12 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-
+# ------------------------------------------------------------
+# SIDEBAR (solo información del desarrollador)
+# ------------------------------------------------------------
+with st.sidebar:
+    st.markdown("## 📂 Desarrollado por Josué")
+    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con Supabase</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # TÍTULO CON LOGO
@@ -655,13 +658,11 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                 elif not ru.isdigit():
                     st.error("❌ El RU debe contener solo números")
                 else:
-                    # Verificar si ya existe
                     try:
                         existe = supabase.table("estudiantes").select("ru").eq("ru", ru).execute()
                         if existe.data:
                             st.error("❌ Este RU ya existe")
                         else:
-                            # Insertar nuevo estudiante
                             supabase.table("estudiantes").insert({
                                 "ru": ru,
                                 "nombres": nombres,
@@ -670,7 +671,6 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                             }).execute()
                             st.success("✅ Estudiante registrado exitosamente")
                             
-                            # Mostrar QR
                             qr_img = qrcode.make(ru)
                             img_bytes = io.BytesIO()
                             qr_img.save(img_bytes, format='PNG')
@@ -689,21 +689,18 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         st.error(f"❌ Error al guardar estudiante: {e}")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES (con operaciones directas)
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
     
     if len(estudiantes) > 0:
-        # Mostrar tabla
         st.dataframe(estudiantes, use_container_width=True)
         st.markdown("---")
         
-        # ========== GESTIÓN DE ESTUDIANTES ==========
         st.subheader("✏️ Gestionar estudiante")
         
-        # Crear opciones para el selectbox
         estudiantes_display = estudiantes.copy()
         estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
         opciones = estudiantes_display["nombre_completo"].tolist()
@@ -713,10 +710,8 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
             ru_seleccionado = seleccion.split(" - ")[0]
         
-        # Obtener datos del estudiante seleccionado
         estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
         
-        # Formulario de edición
         with st.form(key="form_editar_estudiante"):
             nuevo_ru = st.text_input("RU", value=estudiante_data["ru"])
             nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"])
@@ -729,7 +724,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             with col_btn2:
                 submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
         
-        # Procesar actualización
         if submit_actualizar:
             if not nuevo_ru or not nuevo_ru.strip():
                 st.error("❌ El RU no puede estar vacío")
@@ -737,13 +731,11 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 st.error("❌ El RU debe contener solo números")
             else:
                 try:
-                    # Verificar si el nuevo RU ya existe (si cambia)
                     if nuevo_ru != ru_seleccionado:
                         existe = supabase.table("estudiantes").select("ru").eq("ru", nuevo_ru).execute()
                         if existe.data:
                             st.error("❌ El nuevo RU ya existe en la base de datos")
                             st.stop()
-                    # Actualizar estudiante
                     supabase.table("estudiantes").update({
                         "ru": nuevo_ru,
                         "nombres": nuevos_nombres,
@@ -751,7 +743,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                         "apellido_materno": nuevo_materno
                     }).eq("ru", ru_seleccionado).execute()
                     
-                    # Si cambió el RU, actualizar también en asistencia
                     if nuevo_ru != ru_seleccionado:
                         supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
                     
@@ -760,7 +751,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 except Exception as e:
                     st.error(f"❌ Error al actualizar: {e}")
         
-        # Procesar eliminación con confirmación
         if submit_eliminar:
             st.session_state.confirmar_eliminar = ru_seleccionado
         
@@ -773,9 +763,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             with col_confirm1:
                 if st.button("✅ Sí, eliminar", key="confirm_eliminar", use_container_width=True):
                     try:
-                        # Eliminar registros de asistencia primero (por FK)
                         supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
-                        # Luego eliminar estudiante
                         supabase.table("estudiantes").delete().eq("ru", ru_eliminar).execute()
                         st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
                         st.session_state.confirmar_eliminar = None
@@ -788,8 +776,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     st.rerun()
         
         st.markdown("---")
-        
-        # ========== BÚSQUEDA Y DESCARGA ==========
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
@@ -885,7 +871,6 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                 fecha, hora = obtener_fecha_hora_exacta()
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
                 if not tiene_registro:
-                    # Insertar asistencia directamente
                     try:
                         supabase.table("asistencia").insert({
                             "ru": ru,
@@ -955,13 +940,13 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (con operaciones directas)
+# VER ASISTENCIA
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
     if len(asistencia) > 0:
-        # Mostrar tabla (sin el id para mejor visualización)
+        # Mostrar tabla sin la columna id
         asistencia_mostrar = asistencia.copy()
         asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
         asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
@@ -975,9 +960,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
                 try:
-                    # Obtener ids de los registros a conservar (primer id por grupo)
                     ids_a_conservar = asistencia.groupby(['ru', 'fecha'])['id'].first().tolist()
-                    # Eliminar todos los registros cuyo id no esté en la lista
                     supabase.table("asistencia").delete().not_.in_("id", ids_a_conservar).execute()
                     st.success("✅ Duplicados eliminados correctamente")
                     st.rerun()
@@ -989,7 +972,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
         if len(asistencia) > 0:
-            # Crear opción legible
+            # Crear una descripción legible para el selector (no se muestra en tabla)
             asistencia["descripcion"] = (asistencia["ru"] + " - " + 
                                          asistencia["nombres"] + " " + 
                                          asistencia["apellido_paterno"] + " (" + 
@@ -1016,9 +999,31 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                     st.error(f"❌ Error al actualizar: {e}")
         
         st.markdown("---")
-        st.subheader("🗑️ Eliminar registro")
+        st.subheader("🗑️ Eliminar todo el registro de asistencia")
+        if st.button("⚠️ Eliminar TODOS los registros de asistencia", use_container_width=True):
+            st.session_state.confirmar_eliminar_todo_asistencia = True
+        
+        if st.session_state.confirmar_eliminar_todo_asistencia:
+            st.warning("⚠️ ¡Esta acción borrará TODOS los registros de asistencia! No se puede deshacer.")
+            col_confirm1, col_confirm2, _ = st.columns([1,1,3])
+            with col_confirm1:
+                if st.button("✅ Sí, eliminar todos", key="confirm_eliminar_todo", use_container_width=True):
+                    try:
+                        supabase.table("asistencia").delete().neq("id", 0).execute()
+                        st.success("✅ Todos los registros de asistencia han sido eliminados")
+                        st.session_state.confirmar_eliminar_todo_asistencia = False
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al eliminar: {e}")
+            with col_confirm2:
+                if st.button("❌ No, cancelar", key="cancel_eliminar_todo", use_container_width=True):
+                    st.session_state.confirmar_eliminar_todo_asistencia = False
+                    st.rerun()
+        
+        st.markdown("---")
+        st.subheader("🗑️ Eliminar registro individual")
         if len(asistencia) > 0:
-            # Usar el mismo selectbox para elegir el registro a eliminar
+            # Usar la misma descripción para seleccionar individual
             seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
             idx_elim = asistencia[asistencia["descripcion"] == seleccion_eliminar].index[0]
             id_eliminar = asistencia.loc[idx_elim, "id"]
