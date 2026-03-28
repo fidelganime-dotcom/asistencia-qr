@@ -642,7 +642,7 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 40  # Más espacio entre líneas para letras grandes
+    line_spacing = 80  # Más espacio entre líneas para letras grandes
     total_height = len(lines) * line_spacing
     start_y = ru_y + 110
     for i, line in enumerate(lines):
