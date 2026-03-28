@@ -103,7 +103,7 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (igual que antes + chips)
+# ESTILOS CSS (con chips verticales y fuente Johnston Airline)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -127,9 +127,14 @@ st.markdown("""
         --badge-color: #020617;
     }
 
+    /* Fuente principal elegante */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
+    /* Si se desea una fuente similar a Johnston, usamos Inter (moderna) o se puede cargar una específica */
+    /* Para mantener la elegancia, usamos una fuente sans-serif moderna */
+
     .stApp {
         background-color: var(--bg-dark);
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-family: 'Inter', 'Johnston Airline', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
     .css-1d391kg, .css-1lcbmhc {
@@ -146,6 +151,7 @@ st.markdown("""
         text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
         position: relative;
         display: inline-block;
+        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
     }
 
     h1::after, h2::after {
@@ -295,6 +301,7 @@ st.markdown("""
         transition: all 0.3s ease;
         cursor: pointer;
         font-size: 0.9rem;
+        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
     }
 
     div.row-widget.stRadio > div label:hover {
@@ -323,6 +330,7 @@ st.markdown("""
         overflow: hidden;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         border-bottom: 3px solid rgba(0, 0, 0, 0.2);
+        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
     }
 
     .stButton button::before {
@@ -353,6 +361,7 @@ st.markdown("""
         color: var(--text-primary) !important;
         padding: 0.75rem 1rem !important;
         backdrop-filter: blur(5px) !important;
+        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
     }
 
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
@@ -371,6 +380,7 @@ st.markdown("""
         width: 100%;
         border-collapse: collapse;
         color: var(--text-primary);
+        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
     }
 
     .stDataFrame thead tr th {
@@ -407,6 +417,7 @@ st.markdown("""
         color: var(--text-primary) !important;
         padding: 1rem !important;
         box-shadow: var(--shadow-3d) !important;
+        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
     }
 
     div[data-testid="stCameraInput"] video {
@@ -501,30 +512,28 @@ st.markdown("""
         font-size: 0.9rem;
     }
 
-    /* Estilo para chips (botones tipo chip) */
-    .chips-container {
+    /* Estilo para chips verticales */
+    .chips-container-vertical {
         display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
+        flex-direction: column;
         gap: 0.75rem;
-        padding: 0.5rem 0;
         margin-bottom: 1rem;
-        scrollbar-width: thin;
-        -webkit-overflow-scrolling: touch;
+        width: 100%;
     }
     .chip {
         background: var(--input-bg);
         backdrop-filter: blur(5px);
         border: 1px solid var(--glass-border);
         border-radius: 40px;
-        padding: 0.6rem 1.2rem;
-        font-size: 0.9rem;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
         font-weight: 500;
         color: var(--text-secondary);
-        white-space: nowrap;
+        text-align: center;
         cursor: pointer;
         transition: all 0.2s ease;
-        text-align: center;
+        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
+        width: 100%;
     }
     .chip:hover {
         background: rgba(0, 102, 255, 0.2);
@@ -827,11 +836,11 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         st.error(f"❌ Error al guardar estudiante: {e}")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES (con nuevo orden: búsqueda arriba, gestión abajo)
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None  # limpiar selección previa
+    st.session_state.selected_student_manual = None
     
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
@@ -1039,10 +1048,9 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y CHIPS)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y CHIPS VERTICALES)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
-    # No reseteamos manual_auth porque estamos dentro de la sección
     if not st.session_state.manual_auth:
         with st.container():
             st.markdown("""
@@ -1066,27 +1074,20 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         st.subheader("✍️ Registrar asistencia manual")
         estudiantes = leer_estudiantes()
         if len(estudiantes) > 0:
-            # Crear lista de estudiantes para chips
-            estudiantes_list = estudiantes.to_dict('records')
-            
-            # Contenedor para chips horizontales (scrollable)
-            st.markdown('<div class="chips-container">', unsafe_allow_html=True)
-            cols = st.columns(len(estudiantes_list))  # Una columna por chip
-            for idx, est in enumerate(estudiantes_list):
+            # Mostrar chips verticales
+            st.markdown('<div class="chips-container-vertical">', unsafe_allow_html=True)
+            for _, est in estudiantes.iterrows():
                 ru = str(est["ru"])
                 nombre_corto = f"{est['nombres']} {est['apellido_paterno']}".strip()
-                # Determinar si este chip está seleccionado
                 is_selected = (st.session_state.selected_student_manual == ru)
                 chip_class = "chip chip-selected" if is_selected else "chip"
-                with cols[idx]:
-                    # Botón que actualiza la selección
-                    if st.button(f"👤 {nombre_corto}", key=f"chip_{ru}", use_container_width=True):
-                        if st.session_state.selected_student_manual == ru:
-                            # Si ya estaba seleccionado, lo deseleccionamos
-                            st.session_state.selected_student_manual = None
-                        else:
-                            st.session_state.selected_student_manual = ru
-                        st.rerun()
+                # Usamos un botón simple que ocupa todo el ancho
+                if st.button(f"👤 {nombre_corto}", key=f"chip_vertical_{ru}", use_container_width=True):
+                    if st.session_state.selected_student_manual == ru:
+                        st.session_state.selected_student_manual = None
+                    else:
+                        st.session_state.selected_student_manual = ru
+                    st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
             # Mostrar estudiante seleccionado actual
@@ -1095,7 +1096,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                 nombre_completo = f"{estudiante_data['nombres']} {estudiante_data['apellido_paterno']}"
                 st.info(f"👤 **Estudiante seleccionado:** {nombre_completo} (RU: {st.session_state.selected_student_manual})")
             else:
-                st.info("👆 Selecciona un estudiante tocando su chip")
+                st.info("👆 Selecciona un estudiante de la lista")
             
             # Estado y botón de registro
             estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
@@ -1130,7 +1131,6 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                                 }).execute()
                                 st.session_state.ultimo_registro = {"ru": ru_seleccionado, "nombres": nombres, "hora": hora, "fecha": fecha}
                                 st.success(f"✅ Asistencia registrada a las {hora}")
-                                # Limpiar selección después de registrar
                                 st.session_state.selected_student_manual = None
                                 st.rerun()
                             except Exception as e:
