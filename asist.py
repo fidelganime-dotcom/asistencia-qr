@@ -580,9 +580,9 @@ def crear_tarjeta_estudiante(estudiante):
     for path in font_paths:
         if os.path.exists(path):
             # Fuentes más grandes para alta resolución
-            title_font = ImageFont.truetype(path, 12)
-            ru_font = ImageFont.truetype(path, 10)
-            name_font = ImageFont.truetype(path, 10)
+            title_font = ImageFont.truetype(path, 1200)
+            ru_font = ImageFont.truetype(path, 1000)
+            name_font = ImageFont.truetype(path, 1000)
             break
     for path in font_regular_paths:
         if os.path.exists(path):
