@@ -1053,7 +1053,10 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
         hoy = str(datetime.now(ZONA_HORARIA).date())
-        asistencia_hoy = asistencia[asistencia["fecha"].astype(str) == hoy]
+        asistencia_hoy = asistencia[asistencia["fecha"].astype(str) == hoy].copy()
+        # Eliminar la columna "descripcion" si existe (solo para la exportación)
+        if "descripcion" in asistencia_hoy.columns:
+            asistencia_hoy = asistencia_hoy.drop(columns=["descripcion"])
         if len(asistencia_hoy) > 0:
             archivo_descarga = f"asistencia_{hoy}.xlsx"
             asistencia_hoy.to_excel(archivo_descarga, index=False)
