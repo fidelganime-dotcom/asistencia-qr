@@ -502,7 +502,7 @@ st.markdown("""
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con Supabase</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # TÍTULO CON LOGO
@@ -543,7 +543,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Generar QR más grande
     qr = qrcode.make(ru, box_size=10, border=2)
-    qr_size = 500  # QR más grande
+    qr_size = 700  # QR más grande
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     # Tarjeta más grande
