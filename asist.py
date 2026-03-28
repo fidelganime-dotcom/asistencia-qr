@@ -543,11 +543,11 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Generar QR más grande
     qr = qrcode.make(ru, box_size=10, border=2)
-    qr_size = 700  # QR más grande
+    qr_size = 500  # QR más grande
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     # Tarjeta más grande
-    card_size = 800
+    card_size = 900
     # Fondo con gradiente (oscuro a azul)
     background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
     # Crear un gradiente vertical
