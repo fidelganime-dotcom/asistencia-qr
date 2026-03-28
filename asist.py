@@ -532,170 +532,114 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (MEJORADA - QR CENTRADO)
+# GENERACIÓN DE TARJETA EN SVG (VECTORIAL)
 # ------------------------------------------------------------
-def crear_tarjeta_estudiante(estudiante):
+def crear_tarjeta_svg(estudiante):
+    """
+    Genera una tarjeta en formato SVG con texto vectorial y QR embebido.
+    Retorna la cadena SVG.
+    """
     ru = str(estudiante["ru"])
     nombres = estudiante["nombres"]
     paterno = estudiante["apellido_paterno"]
     materno = estudiante["apellido_materno"]
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
-    # Generar QR con alta calidad
-    qr = qrcode.make(ru, box_size=12, border=2)
-    qr_size = 700
-    qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
+    # 1. Generar QR como PNG en base64
+    qr_img = qrcode.make(ru, box_size=12, border=2)
+    qr_bytes = io.BytesIO()
+    qr_img.save(qr_bytes, format='PNG')
+    qr_base64 = base64.b64encode(qr_bytes.getvalue()).decode('utf-8')
+    qr_data_url = f"data:image/png;base64,{qr_base64}"
 
-    # Tarjeta de alta resolución
-    card_size = 1000
-    # Fondo con gradiente
-    background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
-    gradient = Image.new('RGBA', (card_size, card_size), (0, 0, 0, 0))
-    draw_grad = ImageDraw.Draw(gradient)
-    for y in range(card_size):
-        blue_intensity = int(60 * (1 - y / card_size))
-        draw_grad.rectangle([0, y, card_size, y+1], fill=(0, 0, blue_intensity, 180))
-    background = Image.alpha_composite(background.convert('RGBA'), gradient).convert('RGB')
-    
-    draw = ImageDraw.Draw(background)
+    # 2. Configuración del SVG
+    width = 1000
+    height = 1000
+    # Filtro de sombra para textos
+    shadow_filter = """<filter id="shadow" x="-0.5" y="-0.5" width="2" height="2">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+        <feOffset dx="2" dy="2" result="offsetblur"/>
+        <feComponentTransfer>
+            <feFuncA type="linear" slope="0.5"/>
+        </feComponentTransfer>
+        <feMerge>
+            <feMergeNode/>
+            <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+    </filter>"""
 
-    # Rutas de fuentes
-    font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/Library/Fonts/Arial Bold.ttf",
-        "C:\\Windows\\Fonts\\arialbd.ttf",
-        "/System/Library/Fonts/Helvetica.ttc"
+    # Gradiente de fondo (oscuro a azul)
+    gradient = """<linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#0a1428"/>
+        <stop offset="100%" stop-color="#1a2a4a"/>
+    </linearGradient>"""
+
+    # Construir el SVG
+    svg_parts = [
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">',
+        '<defs>', gradient, shadow_filter, '</defs>',
+        '<rect width="100%" height="100%" fill="url(#grad)"/>',
+        # Borde
+        '<rect x="5" y="5" width="990" height="990" fill="none" stroke="#0066ff" stroke-width="8" rx="12" ry="12"/>',
     ]
-    font_regular_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/Library/Fonts/Arial.ttf",
-        "C:\\Windows\\Fonts\\arial.ttf"
-    ]
-    
-    title_font = None
-    ru_font = None
-    name_font = None
-    footer_font = None
-
-    for path in font_paths:
-        if os.path.exists(path):
-            try:
-                title_font = ImageFont.truetype(path, 90)
-                ru_font = ImageFont.truetype(path, 80)
-                name_font = ImageFont.truetype(path, 72)
-                break
-            except:
-                continue
-    
-    if title_font is None:
-        for path in font_regular_paths:
-            if os.path.exists(path):
-                try:
-                    title_font = ImageFont.truetype(path, 90)
-                    ru_font = ImageFont.truetype(path, 80)
-                    name_font = ImageFont.truetype(path, 72)
-                    break
-                except:
-                    continue
-
-    for path in font_regular_paths:
-        if os.path.exists(path):
-            try:
-                footer_font = ImageFont.truetype(path, 48)
-                break
-            except:
-                continue
-
-    if title_font is None:
-        title_font = ImageFont.load_default()
-        ru_font = ImageFont.load_default()
-        name_font = ImageFont.load_default()
-        footer_font = ImageFont.load_default()
-
-    # Borde
-    border_color = (0, 102, 255)
-    border_width = 10
-    draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
     # Título
     title_text = "TARJETA DE IDENTIFICACIÓN"
-    bbox = draw.textbbox((0,0), title_text, font=title_font)
-    title_width = bbox[2] - bbox[0]
-    title_x = (card_size - title_width) // 2
-    title_y = 50
-    for offset in [(4,4), (-4,4), (4,-4), (-4,-4)]:
-        draw.text((title_x+offset[0], title_y+offset[1]), title_text, fill=(0,0,0), font=title_font)
-    draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
+    svg_parts.append(f'<text x="50%" y="80" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white" filter="url(#shadow)" text-anchor="middle">{title_text}</text>')
 
     # RU
     ru_text = f"RU: {ru}"
-    bbox = draw.textbbox((0,0), ru_text, font=ru_font)
-    ru_width = bbox[2] - bbox[0]
-    ru_x = (card_size - ru_width) // 2
-    ru_y = title_y + 120
-    for offset in [(3,3), (-3,3), (3,-3), (-3,-3)]:
-        draw.text((ru_x+offset[0], ru_y+offset[1]), ru_text, fill=(0,0,0), font=ru_font)
-    draw.text((ru_x, ru_y), ru_text, fill=(255,255,200), font=ru_font)
+    svg_parts.append(f'<text x="50%" y="200" font-family="Arial, sans-serif" font-size="50" font-weight="bold" fill="#ffffcc" filter="url(#shadow)" text-anchor="middle">{ru_text}</text>')
 
-    # Nombre multilínea
-    max_width = card_size - 120
+    # Nombre completo (ajuste automático de líneas)
+    max_chars_per_line = 28
     words = nombre_completo.split()
     lines = []
     current_line = ""
     for w in words:
-        test_line = current_line + (" " + w if current_line else w)
-        bbox = draw.textbbox((0,0), test_line, font=name_font)
-        if bbox[2] - bbox[0] <= max_width:
-            current_line = test_line
+        if len(current_line + " " + w) <= max_chars_per_line:
+            current_line = current_line + (" " + w if current_line else w)
         else:
-            if current_line:
-                lines.append(current_line)
+            lines.append(current_line)
             current_line = w
     if current_line:
         lines.append(current_line)
-
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 100
-    total_height = len(lines) * line_spacing
-    start_y = ru_y + 160
+    line_spacing = 60
+    start_y = 300
     for i, line in enumerate(lines):
-        bbox = draw.textbbox((0,0), line, font=name_font)
-        line_width = bbox[2] - bbox[0]
-        x = (card_size - line_width) // 2
         y = start_y + i * line_spacing
-        for offset in [(3,3), (-3,3), (3,-3), (-3,-3)]:
-            draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=name_font)
-        draw.text((x, y), line, fill=(255,255,255), font=name_font)
+        svg_parts.append(f'<text x="50%" y="{y}" font-family="Arial, sans-serif" font-size="44" font-weight="bold" fill="white" filter="url(#shadow)" text-anchor="middle">{line}</text>')
 
-    # Posición del QR (centrado verticalmente en la zona azul)
-    # Calculamos espacio restante después del nombre hasta el borde inferior
-    espacio_restante = card_size - (start_y + total_height) - 120  # 120 para pie
-    # Queremos que el QR quede aproximadamente en la mitad de ese espacio
-    qr_y = start_y + total_height + (espacio_restante - qr_size) // 2 - 40  # subirlo un poco
-    qr_x = (card_size - qr_size) // 2
-    background.paste(qr, (qr_x, qr_y))
+    # Posición del QR (centrado verticalmente)
+    total_name_height = len(lines) * line_spacing
+    qr_y = start_y + total_name_height + 40
+    # Ajuste para que quede en el área inferior pero no pegado al borde
+    qr_y = qr_y + (height - qr_y - 180) // 2
+    qr_width = 500
+    qr_x = (width - qr_width) // 2
+    svg_parts.append(f'<image x="{qr_x}" y="{qr_y}" width="{qr_width}" height="{qr_width}" xlink:href="{qr_data_url}"/>')
 
     # Pie de página
-    footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
-    lines_footer = footer_text.split("\n")
-    footer_y = qr_y + qr_size + 40
-    for i, line in enumerate(lines_footer):
-        bbox = draw.textbbox((0,0), line, font=footer_font)
-        line_width = bbox[2] - bbox[0]
-        x = (card_size - line_width) // 2
-        y = footer_y + i * 60
-        for offset in [(2,2), (-2,2), (2,-2), (-2,-2)]:
-            draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=footer_font)
-        draw.text((x, y), line, fill=(220, 220, 255), font=footer_font)
+    footer_y = qr_y + qr_width + 60
+    svg_parts.append(f'<text x="50%" y="{footer_y}" font-family="Arial, sans-serif" font-size="32" fill="#ddddff" filter="url(#shadow)" text-anchor="middle">INGENIERÍA DE SISTEMAS</text>')
+    svg_parts.append(f'<text x="50%" y="{footer_y + 50}" font-family="Arial, sans-serif" font-size="32" fill="#ddddff" filter="url(#shadow)" text-anchor="middle">UAP</text>')
 
-    img_bytes = io.BytesIO()
-    background.save(img_bytes, format='PNG', quality=100, dpi=(300,300))
-    img_bytes.seek(0)
-    return img_bytes
+    svg_parts.append('</svg>')
+    return '\n'.join(svg_parts)
+
+def svg_to_png(svg_string):
+    """Convierte SVG a PNG usando cairosvg (si está instalado). Retorna bytes PNG o None."""
+    try:
+        import cairosvg
+        png_bytes = cairosvg.svg2png(bytestring=svg_string.encode('utf-8'))
+        return png_bytes
+    except ImportError:
+        return None
+    except Exception:
+        return None
 
 # ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE
@@ -796,6 +740,13 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # Generar la tarjeta SVG
+                tarjeta_svg = crear_tarjeta_svg(estudiante_data)
+                
+                # Vista previa de la tarjeta (SVG embebido)
+                st.markdown("### Vista previa de la tarjeta ejecutiva")
+                st.markdown(tarjeta_svg, unsafe_allow_html=True)
+                
                 col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
                 with col_btn1:
                     st.download_button(
@@ -806,16 +757,30 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                         key="download_qr_search",
                         use_container_width=True
                     )
+                
                 with col_btn2:
-                    tarjeta_img = crear_tarjeta_estudiante(estudiante_data)
+                    # Descarga en SVG
                     st.download_button(
-                        label="📇 Descargar Tarjeta Ejecutiva",
-                        data=tarjeta_img,
-                        file_name=f"tarjeta_{ru}.png",
-                        mime="image/png",
-                        key="download_tarjeta_search",
+                        label="📇 Descargar Tarjeta (SVG)",
+                        data=tarjeta_svg.encode('utf-8'),
+                        file_name=f"tarjeta_{ru}.svg",
+                        mime="image/svg+xml",
+                        key="download_tarjeta_svg",
                         use_container_width=True
                     )
+                    
+                    # Si cairosvg está instalado, ofrecer también PNG
+                    png_bytes = svg_to_png(tarjeta_svg)
+                    if png_bytes:
+                        st.download_button(
+                            label="📸 Descargar Tarjeta (PNG)",
+                            data=png_bytes,
+                            file_name=f"tarjeta_{ru}.png",
+                            mime="image/png",
+                            key="download_tarjeta_png",
+                            use_container_width=True
+                        )
+                
                 with col_btn3:
                     st.write("")
             else:
