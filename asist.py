@@ -860,7 +860,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         
         st.markdown("---")
         
-        # ========== BÚSQUEDA Y DESCARGA (sin cambios) ==========
+        # ========== BÚSQUEDA Y DESCARGA ==========
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
