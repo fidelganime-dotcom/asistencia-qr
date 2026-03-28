@@ -600,11 +600,11 @@ def crear_tarjeta_estudiante(estudiante):
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
     # Título con sombra
-    title_text = "TARJETA DE IDENTIFICACIÓN"
+    title_text = "TARJETA DE IDENTIFICACION"
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
-    title_y = 40
+    title_y = 80
     # Sombra
     draw.text((title_x+3, title_y+3), title_text, fill=(0,0,0,128), font=title_font)
     draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
@@ -740,7 +740,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
-            ru_ver = st.text_input("Ingrese RU para buscar", placeholder="Ej: 2024001", key="buscar_ru")
+            ru_ver = st.text_input("Ingrese RU para buscar", placeholder="Código Único", key="buscar_ru")
         with col2:
             buscar_click = st.button("🔍 Buscar", key="buscar_btn", use_container_width=True)
         if buscar_click and ru_ver:
