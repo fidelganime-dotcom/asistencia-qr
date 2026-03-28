@@ -554,25 +554,18 @@ with st.sidebar:
     st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# TÍTULO CON LOGO (alineado con flexbox)
+# TÍTULO CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
-
-# Contenedor principal con flexbox para alinear logo y texto
-with st.container():
-    col1, col2 = st.columns([1, 10])
-    with col1:
-        if os.path.exists(logo_path):
-            st.image(logo_path, width=60)
-        else:
-            st.write("")  # Placeholder si no existe el logo
-    with col2:
-        st.markdown("""
-        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-            <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
-            <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
-        </div>
-        """, unsafe_allow_html=True)
+header_cols = st.columns([1, 10])
+with header_cols[0]:
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=60)
+    else:
+        st.write("")
+with header_cols[1]:
+    st.title("INGENIERÍA DE SISTEMAS")
+    st.markdown('<p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
