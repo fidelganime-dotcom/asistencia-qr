@@ -1037,12 +1037,13 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA
+# VER ASISTENCIA (con operaciones directas en Supabase)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.subheader("📊 Registros de asistencia")
-    asistencia = leer_asistencia()
+    asistencia = leer_asistencia()  # Ahora incluye id
     if len(asistencia) > 0:
+        # Crear copia para mostrar (sin id o con id según prefieras)
         asistencia_mostrar = asistencia.copy()
         if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['fecha']):
             asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].dt.date
@@ -1054,53 +1055,74 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         else:
             asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str).str[:8]
         
+        # Mostrar DataFrame con id (opcional)
         st.dataframe(asistencia_mostrar, use_container_width=True)
         
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
+        
+        # Identificar duplicados
         duplicados = asistencia.groupby(['ru', 'fecha']).size().reset_index(name='count')
         duplicados = duplicados[duplicados['count'] > 1]
         if len(duplicados) > 0:
             st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
-                asistencia_limpia = asistencia.drop_duplicates(subset=['ru', 'fecha'], keep='first')
-                if guardar_asistencia(asistencia_limpia):
-                    st.success("✅ Duplicados eliminados correctamente")
-                    st.rerun()
-                else:
-                    st.error("❌ Error al eliminar duplicados")
+                try:
+                    # Obtener lista de ids a eliminar: para cada grupo (ru, fecha), mantener el primer registro (por id)
+                    # Ordenamos por id ascendente para que el primer registro sea el más antiguo
+                    ids_eliminar = []
+                    for (ru, fecha), grupo in asistencia.groupby(['ru', 'fecha']):
+                        grupo_ordenado = grupo.sort_values('id')
+                        # Mantener el primero, eliminar los demás
+                        ids_eliminar.extend(grupo_ordenado.iloc[1:]['id'].tolist())
+                    
+                    if ids_eliminar:
+                        # Eliminar registros duplicados usando in_
+                        supabase.table("asistencia").delete().in_("id", ids_eliminar).execute()
+                        st.success(f"✅ Se eliminaron {len(ids_eliminar)} registros duplicados")
+                        st.rerun()
+                    else:
+                        st.info("No se encontraron duplicados para eliminar")
+                except Exception as e:
+                    st.error(f"❌ Error al eliminar duplicados: {e}")
         else:
             st.success("✅ No hay registros duplicados en el sistema")
+        
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
         if len(asistencia) > 0:
             col1, col2, col3 = st.columns([2,2,1])
             with col1:
-                indice = st.number_input("Índice del registro", min_value=0, max_value=len(asistencia)-1)
+                # Usamos el índice del DataFrame, pero obtenemos el id real
+                indice = st.number_input("Índice del registro", min_value=0, max_value=len(asistencia)-1, step=1)
+                id_registro = asistencia.iloc[indice]['id']
             with col2:
                 nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"])
             with col3:
                 if st.button("🔄 Actualizar", use_container_width=True):
-                    asistencia.loc[indice, "estado"] = nuevo_estado
-                    if guardar_asistencia(asistencia):
+                    try:
+                        supabase.table("asistencia").update({"estado": nuevo_estado}).eq("id", id_registro).execute()
                         st.success("✅ Estado actualizado correctamente")
                         st.rerun()
-                    else:
-                        st.error("❌ Error al actualizar estado")
+                    except Exception as e:
+                        st.error(f"❌ Error al actualizar: {e}")
+        
         st.markdown("---")
         st.subheader("🗑️ Eliminar registro")
         if len(asistencia) > 0:
             col1, col2, col3 = st.columns([2,1,2])
             with col1:
-                eliminar = st.number_input("Índice del registro a eliminar", min_value=0, max_value=len(asistencia)-1, key="elim")
+                indice_eliminar = st.number_input("Índice del registro a eliminar", min_value=0, max_value=len(asistencia)-1, key="elim_asis")
+                id_eliminar = asistencia.iloc[indice_eliminar]['id']
             with col2:
                 if st.button("🗑️ Eliminar", use_container_width=True):
-                    asistencia = asistencia.drop(eliminar).reset_index(drop=True)
-                    if guardar_asistencia(asistencia):
+                    try:
+                        supabase.table("asistencia").delete().eq("id", id_eliminar).execute()
                         st.success("✅ Registro eliminado correctamente")
                         st.rerun()
-                    else:
-                        st.error("❌ Error al eliminar registro")
+                    except Exception as e:
+                        st.error(f"❌ Error al eliminar: {e}")
+        
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
         hoy = str(datetime.now(ZONA_HORARIA).date())
