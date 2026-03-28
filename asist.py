@@ -557,7 +557,7 @@ with st.sidebar:
 # TÍTULO CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
-header_cols = st.columns([1, 50])
+header_cols = st.columns([1, 30])
 with header_cols[0]:
     if os.path.exists(logo_path):
         st.image(logo_path, width=60)
