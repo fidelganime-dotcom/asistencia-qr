@@ -581,13 +581,13 @@ def crear_tarjeta_estudiante(estudiante):
     for path in font_paths:
         if os.path.exists(path):
             # Aumentamos los tamaños de fuente
-            title_font = ImageFont.truetype(path, 56)
-            ru_font = ImageFont.truetype(path, 48)
-            name_font = ImageFont.truetype(path, 44)
+            title_font = ImageFont.truetype(path, 76)
+            ru_font = ImageFont.truetype(path, 50)
+            name_font = ImageFont.truetype(path, 54)
             break
     for path in font_regular_paths:
         if os.path.exists(path):
-            footer_font = ImageFont.truetype(path, 32)
+            footer_font = ImageFont.truetype(path, 42)
             break
     if not title_font:
         title_font = ImageFont.load_default()
@@ -607,9 +607,10 @@ def crear_tarjeta_estudiante(estudiante):
     title_x = (card_size - title_width) // 2
     title_y = 40
     # Contorno negro
-    for offset in [(2,2), (-2,2), (2,-2), (-2,-2)]:
-        draw.text((title_x+offset[0], title_y+offset[1]), title_text, fill=(0,0,0), font=title_font)
-    draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
+ # Contorno más grueso para títulos importantes
+for offset in [(3,3), (-3,3), (3,-3), (-3,-3), (2,0), (-2,0), (0,2), (0,-2)]:
+    draw.text((title_x+offset[0], title_y+offset[1]), title_text, fill=(0,0,0), font=title_font)
+draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
 
     # RU con contorno y sombra
     ru_text = f"RU: {ru}"
@@ -657,7 +658,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Posicionar QR con más margen
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height + 20
+    qr_y = start_y + total_height + 50
     background.paste(qr, (qr_x, qr_y))
 
     # Pie de página
