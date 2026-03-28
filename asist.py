@@ -95,15 +95,13 @@ if "confirmar_eliminar_asistencia" not in st.session_state:
     st.session_state.confirmar_eliminar_asistencia = None
 if "confirmar_eliminar_todo_asistencia" not in st.session_state:
     st.session_state.confirmar_eliminar_todo_asistencia = False
-# Estado de autenticación para registro manual
 if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
-# Estudiante seleccionado en registro manual (chip)
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (con chips verticales y fuente Johnston Airline)
+# ESTILOS CSS (chips jaspeados y cursiva)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -129,12 +127,10 @@ st.markdown("""
 
     /* Fuente principal elegante */
     @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
-    /* Si se desea una fuente similar a Johnston, usamos Inter (moderna) o se puede cargar una específica */
-    /* Para mantener la elegancia, usamos una fuente sans-serif moderna */
 
     .stApp {
         background-color: var(--bg-dark);
-        font-family: 'Inter', 'Johnston Airline', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
     .css-1d391kg, .css-1lcbmhc {
@@ -151,7 +147,7 @@ st.markdown("""
         text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
         position: relative;
         display: inline-block;
-        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
     h1::after, h2::after {
@@ -301,7 +297,7 @@ st.markdown("""
         transition: all 0.3s ease;
         cursor: pointer;
         font-size: 0.9rem;
-        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
     div.row-widget.stRadio > div label:hover {
@@ -330,7 +326,7 @@ st.markdown("""
         overflow: hidden;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         border-bottom: 3px solid rgba(0, 0, 0, 0.2);
-        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
     .stButton button::before {
@@ -361,7 +357,7 @@ st.markdown("""
         color: var(--text-primary) !important;
         padding: 0.75rem 1rem !important;
         backdrop-filter: blur(5px) !important;
-        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
@@ -380,7 +376,7 @@ st.markdown("""
         width: 100%;
         border-collapse: collapse;
         color: var(--text-primary);
-        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
     .stDataFrame thead tr th {
@@ -417,7 +413,7 @@ st.markdown("""
         color: var(--text-primary) !important;
         padding: 1rem !important;
         box-shadow: var(--shadow-3d) !important;
-        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
     div[data-testid="stCameraInput"] video {
@@ -512,43 +508,49 @@ st.markdown("""
         font-size: 0.9rem;
     }
 
-    /* Estilo para chips verticales */
+    /* Chips verticales (jaspeados, cursiva, reducidos) */
     .chips-container-vertical {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.5rem;
         margin-bottom: 1rem;
         width: 100%;
     }
     .chip {
-        background: var(--input-bg);
-        backdrop-filter: blur(5px);
-        border: 1px solid var(--glass-border);
-        border-radius: 40px;
-        padding: 0.75rem 1rem;
-        font-size: 1rem;
+        background: radial-gradient(circle at 30% 40%, #0a1f3a, #051024);
+        background-size: 200% 200%;
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(0, 102, 255, 0.3);
+        border-radius: 32px;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
         font-weight: 500;
-        color: var(--text-secondary);
+        font-style: italic;
+        font-family: 'Segoe UI', 'Cursive', 'Comic Neue', 'Pacifico', cursive;
+        color: #b8d0ff;
         text-align: center;
         cursor: pointer;
         transition: all 0.2s ease;
-        font-family: 'Inter', 'Johnston Airline', system-ui, sans-serif;
         width: 100%;
+        box-shadow: inset 0 0 6px rgba(0,102,255,0.2), 0 2px 4px rgba(0,0,0,0.3);
+        letter-spacing: 0.3px;
     }
     .chip:hover {
-        background: rgba(0, 102, 255, 0.2);
+        background: radial-gradient(circle at 30% 40%, #123b6e, #071833);
         transform: translateY(-2px);
-        color: var(--accent-color);
+        color: #e0f0ff;
+        border-color: var(--accent-color);
+        box-shadow: inset 0 0 10px rgba(0,255,204,0.2), 0 4px 8px rgba(0,0,0,0.3);
     }
     .chip-selected {
-        background: var(--success-gradient);
-        border-color: transparent;
-        color: var(--badge-color);
-        box-shadow: var(--shadow-3d);
+        background: radial-gradient(circle at 30% 40%, #0055aa, #002f6c);
+        border-color: var(--accent-color);
+        color: white;
         font-weight: 600;
+        box-shadow: 0 0 12px rgba(0,102,255,0.5), inset 0 0 8px rgba(0,255,204,0.3);
     }
     .chip-selected:hover {
-        transform: translateY(-2px);
+        background: radial-gradient(circle at 30% 40%, #0066cc, #003a80);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -600,14 +602,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# SIDEBAR (solo información del desarrollador)
+# SIDEBAR
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
     st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# TÍTULO CON LOGO (ícono grande alineado)
+# TÍTULO CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
 
@@ -649,27 +651,21 @@ def crear_tarjeta_estudiante(estudiante):
     materno = estudiante["apellido_materno"]
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
-    # Generar QR más grande
     qr = qrcode.make(ru, box_size=10, border=2)
-    qr_size = 500  # QR más grande
+    qr_size = 500
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
-    # Tarjeta más grande
     card_size = 800
-    # Fondo con gradiente (oscuro a azul)
     background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
-    # Crear un gradiente vertical
     gradient = Image.new('RGBA', (card_size, card_size), (0, 0, 0, 0))
     draw_grad = ImageDraw.Draw(gradient)
     for y in range(card_size):
-        # Intensidad azul: más clara hacia abajo
         blue_intensity = int(60 * (1 - y / card_size))
         draw_grad.rectangle([0, y, card_size, y+1], fill=(0, 0, blue_intensity, 180))
     background = Image.alpha_composite(background.convert('RGBA'), gradient).convert('RGB')
     
     draw = ImageDraw.Draw(background)
 
-    # Fuentes - buscar rutas comunes (priorizar negritas)
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/Library/Fonts/Arial Bold.ttf",
@@ -702,22 +698,18 @@ def crear_tarjeta_estudiante(estudiante):
         name_font = ImageFont.load_default()
         footer_font = ImageFont.load_default()
 
-    # Borde decorativo
     border_color = (0, 102, 255)
     border_width = 8
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
-    # Título con sombra
     title_text = "TARJETA DE IDENTIFICACION"
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
     title_y = 20
-    # Sombra
     draw.text((title_x+3, title_y+3), title_text, fill=(0,0,0,128), font=title_font)
     draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
 
-    # RU con sombra
     ru_text = f"RU: {ru}"
     bbox = draw.textbbox((0,0), ru_text, font=ru_font)
     ru_width = bbox[2] - bbox[0]
@@ -726,7 +718,6 @@ def crear_tarjeta_estudiante(estudiante):
     draw.text((ru_x+2, ru_y+2), ru_text, fill=(0,0,0,128), font=ru_font)
     draw.text((ru_x, ru_y), ru_text, fill=(255,255,200), font=ru_font)
 
-    # Nombre completo: manejo de multilínea con mayor espacio
     max_width = card_size - 80
     words = nombre_completo.split()
     lines = []
@@ -754,16 +745,13 @@ def crear_tarjeta_estudiante(estudiante):
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
         y = start_y + i * line_spacing
-        # Sombra
         draw.text((x+2, y+2), line, fill=(0,0,0,128), font=name_font)
         draw.text((x, y), line, fill=(255,255,255), font=name_font)
 
-    # Posicionar QR con más margen
     qr_x = (card_size - qr_size) // 2
     qr_y = start_y + total_height + 20
     background.paste(qr, (qr_x, qr_y))
 
-    # Pie de página
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
     lines_footer = footer_text.split("\n")
     footer_y = qr_y + qr_size + 30
@@ -775,7 +763,6 @@ def crear_tarjeta_estudiante(estudiante):
         draw.text((x+1, y+1), line, fill=(0,0,0,128), font=footer_font)
         draw.text((x, y), line, fill=(220, 220, 255), font=footer_font)
 
-    # Guardar imagen
     img_bytes = io.BytesIO()
     background.save(img_bytes, format='PNG')
     img_bytes.seek(0)
@@ -786,7 +773,7 @@ def crear_tarjeta_estudiante(estudiante):
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None  # limpiar selección previa
+    st.session_state.selected_student_manual = None
     
     st.subheader("📝 Registrar nuevo estudiante")
     with st.container():
@@ -1074,14 +1061,13 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         st.subheader("✍️ Registrar asistencia manual")
         estudiantes = leer_estudiantes()
         if len(estudiantes) > 0:
-            # Mostrar chips verticales
+            # Mostrar chips verticales con el nuevo estilo
             st.markdown('<div class="chips-container-vertical">', unsafe_allow_html=True)
             for _, est in estudiantes.iterrows():
                 ru = str(est["ru"])
                 nombre_corto = f"{est['nombres']} {est['apellido_paterno']}".strip()
                 is_selected = (st.session_state.selected_student_manual == ru)
                 chip_class = "chip chip-selected" if is_selected else "chip"
-                # Usamos un botón simple que ocupa todo el ancho
                 if st.button(f"👤 {nombre_corto}", key=f"chip_vertical_{ru}", use_container_width=True):
                     if st.session_state.selected_student_manual == ru:
                         st.session_state.selected_student_manual = None
@@ -1090,7 +1076,6 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                     st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # Mostrar estudiante seleccionado actual
             if st.session_state.selected_student_manual:
                 estudiante_data = estudiantes[estudiantes["ru"].astype(str) == st.session_state.selected_student_manual].iloc[0]
                 nombre_completo = f"{estudiante_data['nombres']} {estudiante_data['apellido_paterno']}"
@@ -1098,7 +1083,6 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             else:
                 st.info("👆 Selecciona un estudiante de la lista")
             
-            # Estado y botón de registro
             estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
             fecha, hora = obtener_fecha_hora_exacta()
             
