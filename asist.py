@@ -774,14 +774,93 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                             st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES
+# LISTA ESTUDIANTES (mejorada con edición y eliminación)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
+    
     if len(estudiantes) > 0:
+        # Mostrar tabla
         st.dataframe(estudiantes, use_container_width=True)
         st.markdown("---")
+        
+        # ========== GESTIÓN DE ESTUDIANTES ==========
+        st.subheader("✏️ Gestionar estudiante")
+        
+        # Crear opciones para el selectbox (RU - Nombre Completo)
+        estudiantes["nombre_completo"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
+        opciones = estudiantes["nombre_completo"].tolist()
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
+            ru_seleccionado = seleccion.split(" - ")[0]
+        
+        # Obtener datos del estudiante seleccionado
+        estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
+        
+        # Formulario de edición
+        with st.form(key="form_editar_estudiante"):
+            nuevo_ru = st.text_input("RU", value=estudiante_data["ru"])
+            nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"])
+            nuevo_paterno = st.text_input("Apellido paterno", value=estudiante_data["apellido_paterno"])
+            nuevo_materno = st.text_input("Apellido materno", value=estudiante_data["apellido_materno"])
+            
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+            with col_btn1:
+                submit_actualizar = st.form_submit_button("🔄 Actualizar estudiante", use_container_width=True)
+            with col_btn2:
+                submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
+        
+        # Procesar actualización
+        if submit_actualizar:
+            # Validaciones
+            if not nuevo_ru or not nuevo_ru.strip():
+                st.error("❌ El RU no puede estar vacío")
+            elif not nuevo_ru.isdigit():
+                st.error("❌ El RU debe contener solo números")
+            elif nuevo_ru != ru_seleccionado and nuevo_ru in estudiantes["ru"].astype(str).values:
+                st.error("❌ El nuevo RU ya existe en la base de datos")
+            else:
+                # Actualizar en el DataFrame local
+                estudiantes.loc[estudiantes["ru"] == ru_seleccionado, "ru"] = nuevo_ru
+                estudiantes.loc[estudiantes["ru"] == nuevo_ru, "nombres"] = nuevos_nombres
+                estudiantes.loc[estudiantes["ru"] == nuevo_ru, "apellido_paterno"] = nuevo_paterno
+                estudiantes.loc[estudiantes["ru"] == nuevo_ru, "apellido_materno"] = nuevo_materno
+                
+                # Si cambió el RU, actualizar también la asistencia
+                if nuevo_ru != ru_seleccionado:
+                    asistencia = leer_asistencia()
+                    if not asistencia.empty:
+                        # Cambiar RU en los registros de asistencia del estudiante
+                        asistencia.loc[asistencia["ru"] == ru_seleccionado, "ru"] = nuevo_ru
+                        guardar_asistencia(asistencia)
+                
+                guardar_estudiantes(estudiantes)
+                st.success(f"✅ Estudiante actualizado correctamente")
+                st.rerun()
+        
+        # Procesar eliminación
+        if submit_eliminar:
+            # Confirmación
+            if st.warning(f"⚠️ ¿Estás seguro de eliminar a **{estudiante_data['nombres']} {estudiante_data['apellido_paterno']} (RU: {ru_seleccionado})**? Se eliminarán también todos sus registros de asistencia."):
+                # Eliminar estudiante del DataFrame
+                estudiantes = estudiantes[estudiantes["ru"] != ru_seleccionado].reset_index(drop=True)
+                guardar_estudiantes(estudiantes)
+                
+                # Eliminar registros de asistencia asociados
+                try:
+                    supabase.table("asistencia").delete().eq("ru", ru_seleccionado).execute()
+                except Exception as e:
+                    st.error(f"Error al eliminar asistencias: {e}")
+                
+                st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # ========== BÚSQUEDA Y DESCARGA (sin cambios) ==========
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
@@ -844,18 +923,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
             st.warning("⚠️ Por favor ingrese un RU para buscar")
-        st.markdown("---")
-        st.subheader("🗑️ Eliminar estudiante")
-        if len(estudiantes) > 0:
-            col1, col2, col3 = st.columns([2,1,2])
-            with col1:
-                eliminar = st.number_input("Índice del estudiante a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
-            with col2:
-                if st.button("🗑️ Eliminar", use_container_width=True):
-                    estudiantes = estudiantes.drop(eliminar).reset_index(drop=True)
-                    guardar_estudiantes(estudiantes)
-                    st.success("✅ Estudiante eliminado correctamente")
-                    st.rerun()
+        
         st.markdown("---")
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
