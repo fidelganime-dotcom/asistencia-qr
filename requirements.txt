@@ -5,3 +5,4 @@ opencv-python-headless
 openpyxl
 numpy
 pytz
+supabase
