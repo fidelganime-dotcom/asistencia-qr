@@ -580,13 +580,13 @@ def crear_tarjeta_estudiante(estudiante):
     for path in font_paths:
         if os.path.exists(path):
             # Fuentes más grandes para alta resolución
-            title_font = ImageFont.truetype(path, 120)
-            ru_font = ImageFont.truetype(path, 100)
-            name_font = ImageFont.truetype(path, 56)
+            title_font = ImageFont.truetype(path, 12)
+            ru_font = ImageFont.truetype(path, 10)
+            name_font = ImageFont.truetype(path, 10)
             break
     for path in font_regular_paths:
         if os.path.exists(path):
-            footer_font = ImageFont.truetype(path, 50)
+            footer_font = ImageFont.truetype(path, 10)
             break
     if not title_font:
         title_font = ImageFont.load_default()
@@ -640,7 +640,7 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 200
+    line_spacing = 80
     total_height = len(lines) * line_spacing
     start_y = ru_y + 130
     for i, line in enumerate(lines):
@@ -660,7 +660,7 @@ def crear_tarjeta_estudiante(estudiante):
     # Pie de página
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
     lines_footer = footer_text.split("\n")
-    footer_y = qr_y + qr_size + 50
+    footer_y = qr_y + qr_size + 30
     for i, line in enumerate(lines_footer):
         bbox = draw.textbbox((0,0), line, font=footer_font)
         line_width = bbox[2] - bbox[0]
