@@ -689,93 +689,18 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         st.error(f"❌ Error al guardar estudiante: {e}")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES
+# LISTA ESTUDIANTES (con nuevo orden: búsqueda arriba, gestión abajo)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
     
     if len(estudiantes) > 0:
+        # Mostrar tabla
         st.dataframe(estudiantes, use_container_width=True)
         st.markdown("---")
         
-        st.subheader("✏️ Gestionar estudiante")
-        
-        estudiantes_display = estudiantes.copy()
-        estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
-        opciones = estudiantes_display["nombre_completo"].tolist()
-        
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
-            ru_seleccionado = seleccion.split(" - ")[0]
-        
-        estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
-        
-        with st.form(key="form_editar_estudiante"):
-            nuevo_ru = st.text_input("RU", value=estudiante_data["ru"])
-            nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"])
-            nuevo_paterno = st.text_input("Apellido paterno", value=estudiante_data["apellido_paterno"])
-            nuevo_materno = st.text_input("Apellido materno", value=estudiante_data["apellido_materno"])
-            
-            col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
-            with col_btn1:
-                submit_actualizar = st.form_submit_button("🔄 Actualizar estudiante", use_container_width=True)
-            with col_btn2:
-                submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
-        
-        if submit_actualizar:
-            if not nuevo_ru or not nuevo_ru.strip():
-                st.error("❌ El RU no puede estar vacío")
-            elif not nuevo_ru.isdigit():
-                st.error("❌ El RU debe contener solo números")
-            else:
-                try:
-                    if nuevo_ru != ru_seleccionado:
-                        existe = supabase.table("estudiantes").select("ru").eq("ru", nuevo_ru).execute()
-                        if existe.data:
-                            st.error("❌ El nuevo RU ya existe en la base de datos")
-                            st.stop()
-                    supabase.table("estudiantes").update({
-                        "ru": nuevo_ru,
-                        "nombres": nuevos_nombres,
-                        "apellido_paterno": nuevo_paterno,
-                        "apellido_materno": nuevo_materno
-                    }).eq("ru", ru_seleccionado).execute()
-                    
-                    if nuevo_ru != ru_seleccionado:
-                        supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
-                    
-                    st.success("✅ Estudiante actualizado correctamente")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error al actualizar: {e}")
-        
-        if submit_eliminar:
-            st.session_state.confirmar_eliminar = ru_seleccionado
-        
-        if st.session_state.confirmar_eliminar:
-            ru_eliminar = st.session_state.confirmar_eliminar
-            estudiante_eliminar = estudiantes[estudiantes["ru"] == ru_eliminar].iloc[0]
-            nombre_eliminar = f"{estudiante_eliminar['nombres']} {estudiante_eliminar['apellido_paterno']}"
-            st.warning(f"⚠️ ¿Estás seguro de eliminar a **{nombre_eliminar} (RU: {ru_eliminar})**? Se eliminarán también todos sus registros de asistencia.")
-            col_confirm1, col_confirm2, _ = st.columns([1,1,3])
-            with col_confirm1:
-                if st.button("✅ Sí, eliminar", key="confirm_eliminar", use_container_width=True):
-                    try:
-                        supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
-                        supabase.table("estudiantes").delete().eq("ru", ru_eliminar).execute()
-                        st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
-                        st.session_state.confirmar_eliminar = None
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error al eliminar: {e}")
-            with col_confirm2:
-                if st.button("❌ No, cancelar", key="cancel_eliminar", use_container_width=True):
-                    st.session_state.confirmar_eliminar = None
-                    st.rerun()
-        
-        st.markdown("---")
+        # ========== BÚSQUEDA DE ESTUDIANTE (ahora arriba) ==========
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
@@ -839,6 +764,89 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             st.warning("⚠️ Por favor ingrese un RU para buscar")
         
         st.markdown("---")
+        
+        # ========== GESTIÓN DE ESTUDIANTES (editar/eliminar) ==========
+        st.subheader("✏️ Gestionar estudiante")
+        
+        estudiantes_display = estudiantes.copy()
+        estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
+        opciones = estudiantes_display["nombre_completo"].tolist()
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
+            ru_seleccionado = seleccion.split(" - ")[0]
+        
+        estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
+        
+        with st.form(key="form_editar_estudiante"):
+            nuevo_ru = st.text_input("RU", value=estudiante_data["ru"])
+            nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"])
+            nuevo_paterno = st.text_input("Apellido paterno", value=estudiante_data["apellido_paterno"])
+            nuevo_materno = st.text_input("Apellido materno", value=estudiante_data["apellido_materno"])
+            
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+            with col_btn1:
+                submit_actualizar = st.form_submit_button("🔄 Actualizar estudiante", use_container_width=True)
+            with col_btn2:
+                submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
+        
+        # Procesar actualización
+        if submit_actualizar:
+            if not nuevo_ru or not nuevo_ru.strip():
+                st.error("❌ El RU no puede estar vacío")
+            elif not nuevo_ru.isdigit():
+                st.error("❌ El RU debe contener solo números")
+            else:
+                try:
+                    if nuevo_ru != ru_seleccionado:
+                        existe = supabase.table("estudiantes").select("ru").eq("ru", nuevo_ru).execute()
+                        if existe.data:
+                            st.error("❌ El nuevo RU ya existe en la base de datos")
+                            st.stop()
+                    supabase.table("estudiantes").update({
+                        "ru": nuevo_ru,
+                        "nombres": nuevos_nombres,
+                        "apellido_paterno": nuevo_paterno,
+                        "apellido_materno": nuevo_materno
+                    }).eq("ru", ru_seleccionado).execute()
+                    
+                    if nuevo_ru != ru_seleccionado:
+                        supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
+                    
+                    st.success("✅ Estudiante actualizado correctamente")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error al actualizar: {e}")
+        
+        # Procesar eliminación con confirmación
+        if submit_eliminar:
+            st.session_state.confirmar_eliminar = ru_seleccionado
+        
+        if st.session_state.confirmar_eliminar:
+            ru_eliminar = st.session_state.confirmar_eliminar
+            estudiante_eliminar = estudiantes[estudiantes["ru"] == ru_eliminar].iloc[0]
+            nombre_eliminar = f"{estudiante_eliminar['nombres']} {estudiante_eliminar['apellido_paterno']}"
+            st.warning(f"⚠️ ¿Estás seguro de eliminar a **{nombre_eliminar} (RU: {ru_eliminar})**? Se eliminarán también todos sus registros de asistencia.")
+            col_confirm1, col_confirm2, _ = st.columns([1,1,3])
+            with col_confirm1:
+                if st.button("✅ Sí, eliminar", key="confirm_eliminar", use_container_width=True):
+                    try:
+                        supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
+                        supabase.table("estudiantes").delete().eq("ru", ru_eliminar).execute()
+                        st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
+                        st.session_state.confirmar_eliminar = None
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al eliminar: {e}")
+            with col_confirm2:
+                if st.button("❌ No, cancelar", key="cancel_eliminar", use_container_width=True):
+                    st.session_state.confirmar_eliminar = None
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        # ========== DESCARGAR EXCEL ESTUDIANTES ==========
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
             archivo_descarga = "registro_estudiantes_temp.xlsx"
