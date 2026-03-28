@@ -532,7 +532,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (MEJORADA - ALTA RESOLUCIÓN)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -541,19 +541,20 @@ def crear_tarjeta_estudiante(estudiante):
     materno = estudiante["apellido_materno"]
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
-    # Generar QR con alta calidad
-    qr = qrcode.make(ru, box_size=12, border=2)  # box_size mayor = QR más detallado
-    qr_size = 700  # QR más grande
+    # Generar QR más grande
+    qr = qrcode.make(ru, box_size=10, border=2)
+    qr_size = 500  # QR más grande
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
-    # Tarjeta más grande (mayor resolución)
-    card_size = 1000
+    # Tarjeta más grande
+    card_size = 800
     # Fondo con gradiente (oscuro a azul)
     background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
     # Crear un gradiente vertical
     gradient = Image.new('RGBA', (card_size, card_size), (0, 0, 0, 0))
     draw_grad = ImageDraw.Draw(gradient)
     for y in range(card_size):
+        # Intensidad azul: más clara hacia abajo
         blue_intensity = int(60 * (1 - y / card_size))
         draw_grad.rectangle([0, y, card_size, y+1], fill=(0, 0, blue_intensity, 180))
     background = Image.alpha_composite(background.convert('RGBA'), gradient).convert('RGB')
@@ -579,14 +580,13 @@ def crear_tarjeta_estudiante(estudiante):
 
     for path in font_paths:
         if os.path.exists(path):
-            # Fuentes más grandes para alta resolución
-            title_font = ImageFont.truetype(path, 70)
-            ru_font = ImageFont.truetype(path, 60)
-            name_font = ImageFont.truetype(path, 56)
+            title_font = ImageFont.truetype(path, 48)
+            ru_font = ImageFont.truetype(path, 40)
+            name_font = ImageFont.truetype(path, 36)
             break
     for path in font_regular_paths:
         if os.path.exists(path):
-            footer_font = ImageFont.truetype(path, 40)
+            footer_font = ImageFont.truetype(path, 28)
             break
     if not title_font:
         title_font = ImageFont.load_default()
@@ -596,32 +596,30 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Borde decorativo
     border_color = (0, 102, 255)
-    border_width = 5
+    border_width = 8
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
-    # Título con contorno negro
+    # Título con sombra
     title_text = "TARJETA DE IDENTIFICACIÓN"
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
-    title_y = 50
-    # Contorno negro (más grueso)
-    for offset in [(3,3), (-3,3), (3,-3), (-3,-3), (3,0), (-3,0), (0,3), (0,-3)]:
-        draw.text((title_x+offset[0], title_y+offset[1]), title_text, fill=(0,0,0), font=title_font)
+    title_y = 40
+    # Sombra
+    draw.text((title_x+3, title_y+3), title_text, fill=(0,0,0,128), font=title_font)
     draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
 
-    # RU con contorno
+    # RU con sombra
     ru_text = f"RU: {ru}"
     bbox = draw.textbbox((0,0), ru_text, font=ru_font)
     ru_width = bbox[2] - bbox[0]
     ru_x = (card_size - ru_width) // 2
-    ru_y = title_y + 100
-    for offset in [(3,3), (-3,3), (3,-3), (-3,-3)]:
-        draw.text((ru_x+offset[0], ru_y+offset[1]), ru_text, fill=(0,0,0), font=ru_font)
+    ru_y = title_y + 70
+    draw.text((ru_x+2, ru_y+2), ru_text, fill=(0,0,0,128), font=ru_font)
     draw.text((ru_x, ru_y), ru_text, fill=(255,255,200), font=ru_font)
 
-    # Nombre completo: manejo de multilínea con contorno
-    max_width = card_size - 100
+    # Nombre completo: manejo de multilínea con mayor espacio
+    max_width = card_size - 80
     words = nombre_completo.split()
     lines = []
     current_line = ""
@@ -640,39 +638,38 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 80
+    line_spacing = 50
     total_height = len(lines) * line_spacing
-    start_y = ru_y + 130
+    start_y = ru_y + 90
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0,0), line, font=name_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
         y = start_y + i * line_spacing
-        for offset in [(3,3), (-3,3), (3,-3), (-3,-3)]:
-            draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=name_font)
+        # Sombra
+        draw.text((x+2, y+2), line, fill=(0,0,0,128), font=name_font)
         draw.text((x, y), line, fill=(255,255,255), font=name_font)
 
-    # Posicionar QR
+    # Posicionar QR con más margen
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height + 5
+    qr_y = start_y + total_height + 20
     background.paste(qr, (qr_x, qr_y))
 
     # Pie de página
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
     lines_footer = footer_text.split("\n")
-    footer_y = qr_y + qr_size + 50
+    footer_y = qr_y + qr_size + 30
     for i, line in enumerate(lines_footer):
         bbox = draw.textbbox((0,0), line, font=footer_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
-        y = footer_y + i * 52
-        for offset in [(2,2), (-2,2), (2,-2), (-2,-2)]:
-            draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=footer_font)
+        y = footer_y + i * 36
+        draw.text((x+1, y+1), line, fill=(0,0,0,128), font=footer_font)
         draw.text((x, y), line, fill=(220, 220, 255), font=footer_font)
 
-    # Guardar imagen con alta calidad
+    # Guardar imagen
     img_bytes = io.BytesIO()
-    background.save(img_bytes, format='PNG', quality=100, dpi=(300, 300))
+    background.save(img_bytes, format='PNG')
     img_bytes.seek(0)
     return img_bytes
 
@@ -743,7 +740,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
-            ru_ver = st.text_input("Ingrese RU para buscar", placeholder="Datos únicos", key="buscar_ru")
+            ru_ver = st.text_input("Ingrese RU para buscar", placeholder="Ej: 2024001", key="buscar_ru")
         with col2:
             buscar_click = st.button("🔍 Buscar", key="buscar_btn", use_container_width=True)
         if buscar_click and ru_ver:
