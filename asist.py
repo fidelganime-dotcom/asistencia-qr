@@ -543,11 +543,11 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Generar QR con alta calidad
     qr = qrcode.make(ru, box_size=12, border=2)  # box_size mayor = QR más detallado
-    qr_size = 700  # QR más grande
+    qr_size = 900  # QR más grande
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     # Tarjeta más grande (mayor resolución)
-    card_size = 1000
+    card_size = 1500
     # Fondo con gradiente (oscuro a azul)
     background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
     # Crear un gradiente vertical
@@ -580,13 +580,13 @@ def crear_tarjeta_estudiante(estudiante):
     for path in font_paths:
         if os.path.exists(path):
             # Fuentes más grandes para alta resolución
-            title_font = ImageFont.truetype(path, 70)
-            ru_font = ImageFont.truetype(path, 60)
+            title_font = ImageFont.truetype(path, 120)
+            ru_font = ImageFont.truetype(path, 100)
             name_font = ImageFont.truetype(path, 56)
             break
     for path in font_regular_paths:
         if os.path.exists(path):
-            footer_font = ImageFont.truetype(path, 40)
+            footer_font = ImageFont.truetype(path, 50)
             break
     if not title_font:
         title_font = ImageFont.load_default()
