@@ -532,7 +532,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (MEJORADA - ALTA RESOLUCIÓN)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (MEJORADA - TEXTOS GRANDES Y LEGIBLES)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -542,15 +542,14 @@ def crear_tarjeta_estudiante(estudiante):
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
     # Generar QR con alta calidad
-    qr = qrcode.make(ru, box_size=12, border=2)  # box_size mayor = QR más detallado
-    qr_size = 700  # QR más grande
+    qr = qrcode.make(ru, box_size=12, border=2)
+    qr_size = 700
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
-    # Tarjeta más grande (mayor resolución)
+    # Tarjeta de alta resolución
     card_size = 1000
-    # Fondo con gradiente (oscuro a azul)
+    # Fondo con gradiente
     background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
-    # Crear un gradiente vertical
     gradient = Image.new('RGBA', (card_size, card_size), (0, 0, 0, 0))
     draw_grad = ImageDraw.Draw(gradient)
     for y in range(card_size):
@@ -560,35 +559,60 @@ def crear_tarjeta_estudiante(estudiante):
     
     draw = ImageDraw.Draw(background)
 
-    # Fuentes - buscar rutas comunes (priorizar negritas)
+    # Rutas comunes de fuentes (negritas y regulares)
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/Library/Fonts/Arial Bold.ttf",
         "C:\\Windows\\Fonts\\arialbd.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+        "/System/Library/Fonts/Helvetica.ttc"  # macOS
     ]
     font_regular_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/Library/Fonts/Arial.ttf",
         "C:\\Windows\\Fonts\\arial.ttf"
     ]
+    
     title_font = None
     ru_font = None
     name_font = None
     footer_font = None
 
+    # Intentar cargar fuente en negrita
     for path in font_paths:
         if os.path.exists(path):
-            # Fuentes más grandes para alta resolución
-            title_font = ImageFont.truetype(path, 70)
-            ru_font = ImageFont.truetype(path, 60)
-            name_font = ImageFont.truetype(path, 56)
-            break
+            try:
+                title_font = ImageFont.truetype(path, 90)   # Título enorme
+                ru_font = ImageFont.truetype(path, 80)      # RU grande
+                name_font = ImageFont.truetype(path, 72)    # Nombre grande
+                break
+            except:
+                continue
+    
+    # Si no se encontró negrita, usar regular con tamaño grande
+    if title_font is None:
+        for path in font_regular_paths:
+            if os.path.exists(path):
+                try:
+                    title_font = ImageFont.truetype(path, 90)
+                    ru_font = ImageFont.truetype(path, 80)
+                    name_font = ImageFont.truetype(path, 72)
+                    break
+                except:
+                    continue
+
+    # Pie de página con fuente regular
     for path in font_regular_paths:
         if os.path.exists(path):
-            footer_font = ImageFont.truetype(path, 40)
-            break
-    if not title_font:
+            try:
+                footer_font = ImageFont.truetype(path, 48)
+                break
+            except:
+                continue
+
+    # Fallback a fuente por defecto (no ideal, pero evita error)
+    if title_font is None:
         title_font = ImageFont.load_default()
         ru_font = ImageFont.load_default()
         name_font = ImageFont.load_default()
@@ -605,8 +629,7 @@ def crear_tarjeta_estudiante(estudiante):
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
     title_y = 50
-    # Contorno negro (más grueso)
-    for offset in [(3,3), (-3,3), (3,-3), (-3,-3), (3,0), (-3,0), (0,3), (0,-3)]:
+    for offset in [(4,4), (-4,4), (4,-4), (-4,-4)]:
         draw.text((title_x+offset[0], title_y+offset[1]), title_text, fill=(0,0,0), font=title_font)
     draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
 
@@ -615,13 +638,13 @@ def crear_tarjeta_estudiante(estudiante):
     bbox = draw.textbbox((0,0), ru_text, font=ru_font)
     ru_width = bbox[2] - bbox[0]
     ru_x = (card_size - ru_width) // 2
-    ru_y = title_y + 100
+    ru_y = title_y + 120
     for offset in [(3,3), (-3,3), (3,-3), (-3,-3)]:
         draw.text((ru_x+offset[0], ru_y+offset[1]), ru_text, fill=(0,0,0), font=ru_font)
     draw.text((ru_x, ru_y), ru_text, fill=(255,255,200), font=ru_font)
 
-    # Nombre completo: manejo de multilínea con contorno
-    max_width = card_size - 100
+    # Nombre completo con manejo de multilínea y contorno
+    max_width = card_size - 120
     words = nombre_completo.split()
     lines = []
     current_line = ""
@@ -640,9 +663,9 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 80
+    line_spacing = 100
     total_height = len(lines) * line_spacing
-    start_y = ru_y + 130
+    start_y = ru_y + 160
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0,0), line, font=name_font)
         line_width = bbox[2] - bbox[0]
@@ -652,27 +675,27 @@ def crear_tarjeta_estudiante(estudiante):
             draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=name_font)
         draw.text((x, y), line, fill=(255,255,255), font=name_font)
 
-    # Posicionar QR
+    # QR
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height + 50
+    qr_y = start_y + total_height + 40
     background.paste(qr, (qr_x, qr_y))
 
     # Pie de página
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
     lines_footer = footer_text.split("\n")
-    footer_y = qr_y + qr_size + 50
+    footer_y = qr_y + qr_size + 60
     for i, line in enumerate(lines_footer):
         bbox = draw.textbbox((0,0), line, font=footer_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
-        y = footer_y + i * 52
+        y = footer_y + i * 60
         for offset in [(2,2), (-2,2), (2,-2), (-2,-2)]:
             draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=footer_font)
         draw.text((x, y), line, fill=(220, 220, 255), font=footer_font)
 
-    # Guardar imagen con alta calidad
+    # Guardar con alta calidad
     img_bytes = io.BytesIO()
-    background.save(img_bytes, format='PNG', quality=100, dpi=(300, 300))
+    background.save(img_bytes, format='PNG', quality=100, dpi=(300,300))
     img_bytes.seek(0)
     return img_bytes
 
