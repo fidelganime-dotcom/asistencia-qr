@@ -532,7 +532,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA - TEXTOS MÁS GRANDES Y NÍTIDOS)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -580,13 +580,14 @@ def crear_tarjeta_estudiante(estudiante):
 
     for path in font_paths:
         if os.path.exists(path):
-            title_font = ImageFont.truetype(path, 60)
-            ru_font = ImageFont.truetype(path, 50)
-            name_font = ImageFont.truetype(path, 50)
+            # Aumentamos los tamaños de fuente
+            title_font = ImageFont.truetype(path, 56)
+            ru_font = ImageFont.truetype(path, 48)
+            name_font = ImageFont.truetype(path, 44)
             break
     for path in font_regular_paths:
         if os.path.exists(path):
-            footer_font = ImageFont.truetype(path, 50)
+            footer_font = ImageFont.truetype(path, 32)
             break
     if not title_font:
         title_font = ImageFont.load_default()
@@ -599,26 +600,29 @@ def crear_tarjeta_estudiante(estudiante):
     border_width = 8
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
-    # Título con sombra
+    # Título con contorno y sombra
     title_text = "TARJETA DE IDENTIFICACIÓN"
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
     title_y = 40
-    # Sombra
-    draw.text((title_x+3, title_y+3), title_text, fill=(0,0,0,128), font=title_font)
+    # Contorno negro
+    for offset in [(2,2), (-2,2), (2,-2), (-2,-2)]:
+        draw.text((title_x+offset[0], title_y+offset[1]), title_text, fill=(0,0,0), font=title_font)
     draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
 
-    # RU con sombra
+    # RU con contorno y sombra
     ru_text = f"RU: {ru}"
     bbox = draw.textbbox((0,0), ru_text, font=ru_font)
     ru_width = bbox[2] - bbox[0]
     ru_x = (card_size - ru_width) // 2
-    ru_y = title_y + 70
-    draw.text((ru_x+2, ru_y+2), ru_text, fill=(0,0,0,128), font=ru_font)
+    ru_y = title_y + 80
+    # Contorno negro
+    for offset in [(2,2), (-2,2), (2,-2), (-2,-2)]:
+        draw.text((ru_x+offset[0], ru_y+offset[1]), ru_text, fill=(0,0,0), font=ru_font)
     draw.text((ru_x, ru_y), ru_text, fill=(255,255,200), font=ru_font)
 
-    # Nombre completo: manejo de multilínea con mayor espacio
+    # Nombre completo: manejo de multilínea con mayor espacio y contorno
     max_width = card_size - 80
     words = nombre_completo.split()
     lines = []
@@ -638,16 +642,17 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 50
+    line_spacing = 60  # Más espacio entre líneas para letras grandes
     total_height = len(lines) * line_spacing
-    start_y = ru_y + 90
+    start_y = ru_y + 110
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0,0), line, font=name_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
         y = start_y + i * line_spacing
-        # Sombra
-        draw.text((x+2, y+2), line, fill=(0,0,0,128), font=name_font)
+        # Contorno negro
+        for offset in [(2,2), (-2,2), (2,-2), (-2,-2)]:
+            draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=name_font)
         draw.text((x, y), line, fill=(255,255,255), font=name_font)
 
     # Posicionar QR con más margen
@@ -663,8 +668,10 @@ def crear_tarjeta_estudiante(estudiante):
         bbox = draw.textbbox((0,0), line, font=footer_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
-        y = footer_y + i * 36
-        draw.text((x+1, y+1), line, fill=(0,0,0,128), font=footer_font)
+        y = footer_y + i * 42
+        # Contorno negro
+        for offset in [(1,1), (-1,1), (1,-1), (-1,-1)]:
+            draw.text((x+offset[0], y+offset[1]), line, fill=(0,0,0), font=footer_font)
         draw.text((x, y), line, fill=(220, 220, 255), font=footer_font)
 
     # Guardar imagen
