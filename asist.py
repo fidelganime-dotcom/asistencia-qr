@@ -42,21 +42,21 @@ def leer_estudiantes():
         response = supabase.table("estudiantes").select("*").execute()
         if response.data:
             df = pd.DataFrame(response.data)
-            # Asegurar columnas en el orden esperado
-            columnas = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]
+            # Asegurar columnas en el orden esperado (snake_case)
+            columnas = ["ru", "nombres", "apellido_paterno", "apellido_materno"]
             df = df[columnas]
             return df
         else:
-            return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
+            return pd.DataFrame(columns=["ru", "nombres", "apellido_paterno", "apellido_materno"])
     except Exception as e:
         st.error(f"Error al leer estudiantes: {e}")
-        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
+        return pd.DataFrame(columns=["ru", "nombres", "apellido_paterno", "apellido_materno"])
 
 def guardar_estudiantes(df):
     """Reemplaza toda la tabla de estudiantes con los datos del DataFrame."""
     try:
         # Eliminar todos los registros actuales
-        supabase.table("estudiantes").delete().neq("RU", "")  # eliminar todos
+        supabase.table("estudiantes").delete().neq("ru", "")  # eliminar todos
         # Insertar los nuevos
         registros = df.to_dict(orient="records")
         if registros:
@@ -69,18 +69,18 @@ def leer_asistencia():
         response = supabase.table("asistencia").select("*").execute()
         if response.data:
             df = pd.DataFrame(response.data)
-            # Convertir Fecha y Hora a tipos que maneje pandas
-            df["Fecha"] = pd.to_datetime(df["Fecha"]).dt.date
-            df["Hora"] = pd.to_datetime(df["Hora"]).dt.time.astype(str)
+            # Convertir fecha y hora a tipos que maneje pandas
+            df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+            df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             # Asegurar orden de columnas
-            columnas = ["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"]
+            columnas = ["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
             return df
         else:
-            return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+            return pd.DataFrame(columns=["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
     except Exception as e:
         st.error(f"Error al leer asistencia: {e}")
-        return pd.DataFrame(columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+        return pd.DataFrame(columns=["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
 
 def guardar_asistencia(df):
     """Reemplaza toda la tabla de asistencia con los datos del DataFrame."""
@@ -91,8 +91,8 @@ def guardar_asistencia(df):
         registros = df.to_dict(orient="records")
         # Convertir fecha y hora a string para Supabase
         for r in registros:
-            r["Fecha"] = r["Fecha"].isoformat() if hasattr(r["Fecha"], "isoformat") else str(r["Fecha"])
-            r["Hora"] = str(r["Hora"])
+            r["fecha"] = r["fecha"].isoformat() if hasattr(r["fecha"], "isoformat") else str(r["fecha"])
+            r["hora"] = str(r["hora"])
         if registros:
             supabase.table("asistencia").insert(registros).execute()
     except Exception as e:
@@ -101,7 +101,7 @@ def guardar_asistencia(df):
 def verificar_registro_duplicado(ru, fecha):
     """Verifica si ya existe un registro de asistencia para el RU en la fecha dada."""
     try:
-        response = supabase.table("asistencia").select("*").eq("RU", ru).eq("Fecha", fecha.isoformat()).execute()
+        response = supabase.table("asistencia").select("*").eq("ru", ru).eq("fecha", fecha.isoformat()).execute()
         if response.data:
             return True, response.data[0]
         return False, None
@@ -115,7 +115,7 @@ def verificar_registro_duplicado(ru, fecha):
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# INICIALIZAR SESSION STATE (ya no se usan rutas de archivos)
+# INICIALIZAR SESSION STATE
 # ------------------------------------------------------------
 if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
@@ -478,7 +478,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS (sin cambios)
+# PARTÍCULAS ANIMADAS
 # ------------------------------------------------------------
 st.markdown("""
 <script>
@@ -524,7 +524,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# SIDEBAR (sin uploaders, ahora con exportación e importación)
+# SIDEBAR (exportación e importación)
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
@@ -533,7 +533,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📥 Exportar datos")
     
-    # Botón para exportar estudiantes
     estudiantes_df = leer_estudiantes()
     if not estudiantes_df.empty:
         with io.BytesIO() as buffer:
@@ -550,7 +549,6 @@ with st.sidebar:
     else:
         st.info("No hay estudiantes para exportar")
     
-    # Botón para exportar asistencia
     asistencia_df = leer_asistencia()
     if not asistencia_df.empty:
         with io.BytesIO() as buffer:
@@ -574,20 +572,18 @@ with st.sidebar:
     if archivo_import is not None:
         try:
             df_import = pd.read_excel(archivo_import)
-            # Verificar qué tabla podría ser
-            if all(col in df_import.columns for col in ["RU", "Nombres", "Apellido_paterno", "Apellido_materno"]):
+            # Verificar qué tabla podría ser (ahora con snake_case)
+            if all(col in df_import.columns for col in ["ru", "nombres", "apellido_paterno", "apellido_materno"]):
                 st.success("✅ Se detectó una tabla de estudiantes. ¿Deseas importarla?")
                 if st.button("Importar estudiantes", use_container_width=True):
-                    # Reemplazar toda la tabla de estudiantes
                     guardar_estudiantes(df_import)
                     st.success("✅ Estudiantes importados correctamente")
                     st.rerun()
-            elif all(col in df_import.columns for col in ["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"]):
+            elif all(col in df_import.columns for col in ["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]):
                 st.success("✅ Se detectó una tabla de asistencia. ¿Deseas importarla?")
                 if st.button("Importar asistencia", use_container_width=True):
-                    # Asegurar que Fecha y Hora tengan el formato adecuado
-                    df_import["Fecha"] = pd.to_datetime(df_import["Fecha"]).dt.date
-                    df_import["Hora"] = pd.to_datetime(df_import["Hora"]).dt.time
+                    df_import["fecha"] = pd.to_datetime(df_import["fecha"]).dt.date
+                    df_import["hora"] = pd.to_datetime(df_import["hora"]).dt.time
                     guardar_asistencia(df_import)
                     st.success("✅ Asistencia importada correctamente")
                     st.rerun()
@@ -630,10 +626,10 @@ st.session_state.menu_actual = menu
 # FUNCIÓN PARA CREAR TARJETA CUADRADA (sin cambios)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
-    ru = str(estudiante["RU"])
-    nombres = estudiante["Nombres"]
-    paterno = estudiante["Apellido_paterno"]
-    materno = estudiante["Apellido_materno"]
+    ru = str(estudiante["ru"])
+    nombres = estudiante["nombres"]
+    paterno = estudiante["apellido_paterno"]
+    materno = estudiante["apellido_materno"]
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
     qr = qrcode.make(ru)
@@ -754,7 +750,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                     st.error("❌ El RU debe contener solo números")
                 else:
                     df = leer_estudiantes()
-                    if ru in df["RU"].astype(str).values:
+                    if ru in df["ru"].astype(str).values:
                         st.error("❌ Este RU ya existe")
                     else:
                         qr_img = qrcode.make(ru)
@@ -762,7 +758,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         qr_img.save(img_bytes, format='PNG')
                         img_bytes.seek(0)
                         nuevo = pd.DataFrame([[ru, nombres, paterno, materno]],
-                                              columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno"])
+                                              columns=["ru", "nombres", "apellido_paterno", "apellido_materno"])
                         df = pd.concat([df, nuevo], ignore_index=True)
                         guardar_estudiantes(df)
                         st.success("✅ Estudiante registrado exitosamente")
@@ -793,12 +789,12 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         with col2:
             buscar_click = st.button("🔍 Buscar", key="buscar_btn", use_container_width=True)
         if buscar_click and ru_ver:
-            estudiante = estudiantes[estudiantes["RU"].astype(str) == ru_ver]
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru_ver]
             if len(estudiante) > 0:
                 estudiante_data = estudiante.iloc[0]
-                nombres = estudiante_data["Nombres"]
-                paterno = estudiante_data["Apellido_paterno"]
-                ru = estudiante_data["RU"]
+                nombres = estudiante_data["nombres"]
+                paterno = estudiante_data["apellido_paterno"]
+                ru = estudiante_data["ru"]
                 nombre_completo = f"{nombres} {paterno}".strip().upper()
                 
                 qr_img = qrcode.make(ru)
@@ -885,23 +881,23 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
         if data:
             ru = data
             estudiantes = leer_estudiantes()
-            estudiante = estudiantes[estudiantes["RU"].astype(str) == ru]
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
             if len(estudiante) > 0:
-                nombres = estudiante.iloc[0]["Nombres"]
-                paterno = estudiante.iloc[0]["Apellido_paterno"]
-                materno = estudiante.iloc[0]["Apellido_materno"]
+                nombres = estudiante.iloc[0]["nombres"]
+                paterno = estudiante.iloc[0]["apellido_paterno"]
+                materno = estudiante.iloc[0]["apellido_materno"]
                 fecha, hora = obtener_fecha_hora_exacta()
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
                 if not tiene_registro:
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, "Presente"]],
-                                          columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+                                          columns=["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
                     asistencia = leer_asistencia()
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     guardar_asistencia(asistencia)
-                    st.session_state.ultimo_registro = {"RU": ru, "Nombres": nombres, "Hora": hora, "Fecha": fecha}
+                    st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
                     st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                 else:
-                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['Hora']}")
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
             else:
                 st.error("❌ Estudiante no encontrado en la base de datos")
         else:
@@ -914,7 +910,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     st.subheader("✍️ Registrar asistencia manual")
     estudiantes = leer_estudiantes()
     if len(estudiantes) > 0:
-        estudiantes["nombre_completo"] = estudiantes["RU"].astype(str) + " - " + estudiantes["Nombres"] + " " + estudiantes["Apellido_paterno"]
+        estudiantes["nombre_completo"] = estudiantes["ru"].astype(str) + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
         col1, col2 = st.columns(2)
         with col1:
             seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
@@ -924,7 +920,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         fecha, hora = obtener_fecha_hora_exacta()
         tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
         if tiene_registro:
-            st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['Hora']} (Estado: {registro_existente['Estado']})")
+            st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
             col1, col2, col3 = st.columns([1,2,1])
             with col2:
                 st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
@@ -933,16 +929,16 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             col1, col2, col3 = st.columns([1,2,1])
             with col2:
                 if st.button("✅ Registrar asistencia", use_container_width=True):
-                    estudiante = estudiantes[estudiantes["RU"].astype(str) == ru].iloc[0]
-                    nombres = estudiante["Nombres"]
-                    paterno = estudiante["Apellido_paterno"]
-                    materno = estudiante["Apellido_materno"]
+                    estudiante = estudiantes[estudiantes["ru"].astype(str) == ru].iloc[0]
+                    nombres = estudiante["nombres"]
+                    paterno = estudiante["apellido_paterno"]
+                    materno = estudiante["apellido_materno"]
                     asistencia = leer_asistencia()
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
-                                          columns=["RU", "Nombres", "Apellido_paterno", "Apellido_materno", "Fecha", "Hora", "Estado"])
+                                          columns=["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
                     guardar_asistencia(asistencia)
-                    st.session_state.ultimo_registro = {"RU": ru, "Nombres": nombres, "Hora": hora, "Fecha": fecha}
+                    st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
                     st.success(f"✅ Asistencia registrada a las {hora}")
     else:
         st.warning("⚠️ No hay estudiantes registrados en el sistema")
@@ -955,26 +951,26 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     asistencia = leer_asistencia()
     if len(asistencia) > 0:
         asistencia_mostrar = asistencia.copy()
-        if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['Fecha']):
-            asistencia_mostrar['Fecha'] = asistencia_mostrar['Fecha'].dt.date
+        if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['fecha']):
+            asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].dt.date
         else:
-            asistencia_mostrar['Fecha'] = pd.to_datetime(asistencia_mostrar['Fecha'], errors='coerce').dt.date
+            asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha'], errors='coerce').dt.date
         
-        if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['Hora']):
-            asistencia_mostrar['Hora'] = asistencia_mostrar['Hora'].dt.strftime('%H:%M:%S')
+        if pd.api.types.is_datetime64_any_dtype(asistencia_mostrar['hora']):
+            asistencia_mostrar['hora'] = asistencia_mostrar['hora'].dt.strftime('%H:%M:%S')
         else:
-            asistencia_mostrar['Hora'] = asistencia_mostrar['Hora'].astype(str).str[:8]
+            asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str).str[:8]
         
         st.dataframe(asistencia_mostrar, use_container_width=True)
         
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
-        duplicados = asistencia.groupby(['RU', 'Fecha']).size().reset_index(name='count')
+        duplicados = asistencia.groupby(['ru', 'fecha']).size().reset_index(name='count')
         duplicados = duplicados[duplicados['count'] > 1]
         if len(duplicados) > 0:
             st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
-                asistencia_limpia = asistencia.drop_duplicates(subset=['RU', 'Fecha'], keep='first')
+                asistencia_limpia = asistencia.drop_duplicates(subset=['ru', 'fecha'], keep='first')
                 guardar_asistencia(asistencia_limpia)
                 st.success("✅ Duplicados eliminados correctamente")
                 st.rerun()
@@ -990,7 +986,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                 nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"])
             with col3:
                 if st.button("🔄 Actualizar", use_container_width=True):
-                    asistencia.loc[indice, "Estado"] = nuevo_estado
+                    asistencia.loc[indice, "estado"] = nuevo_estado
                     guardar_asistencia(asistencia)
                     st.success("✅ Estado actualizado correctamente")
                     st.rerun()
@@ -1009,7 +1005,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
         hoy = str(datetime.now(ZONA_HORARIA).date())
-        asistencia_hoy = asistencia[asistencia["Fecha"].astype(str) == hoy]
+        asistencia_hoy = asistencia[asistencia["fecha"].astype(str) == hoy]
         if len(asistencia_hoy) > 0:
             archivo_descarga = f"asistencia_{hoy}.xlsx"
             asistencia_hoy.to_excel(archivo_descarga, index=False)
