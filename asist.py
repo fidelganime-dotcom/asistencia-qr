@@ -543,11 +543,11 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Generar QR más grande
     qr = qrcode.make(ru, box_size=10, border=2)
-    qr_size = 500  # QR más grande
+    qr_size = 700  # QR más grande
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     # Tarjeta más grande
-    card_size = 800
+    card_size = 1000
     # Fondo con gradiente (oscuro a azul)
     background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
     # Crear un gradiente vertical
@@ -642,7 +642,7 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 60  # Más espacio entre líneas para letras grandes
+    line_spacing = 40  # Más espacio entre líneas para letras grandes
     total_height = len(lines) * line_spacing
     start_y = ru_y + 110
     for i, line in enumerate(lines):
@@ -657,7 +657,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Posicionar QR con más margen
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height + 10
+    qr_y = start_y + total_height + 50
     background.paste(qr, (qr_x, qr_y))
 
     # Pie de página
