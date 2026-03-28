@@ -95,12 +95,14 @@ if "confirmar_eliminar_asistencia" not in st.session_state:
     st.session_state.confirmar_eliminar_asistencia = None
 if "confirmar_eliminar_todo_asistencia" not in st.session_state:
     st.session_state.confirmar_eliminar_todo_asistencia = False
-# Estado de autenticación para registro manual
 if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
+# Para almacenar el estudiante seleccionado en el selector nativo
+if "selected_estudiante_manual" not in st.session_state:
+    st.session_state.selected_estudiante_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (igual que antes)
+# ESTILOS CSS (igual que antes, con un pequeño ajuste para el selector nativo)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -497,6 +499,23 @@ st.markdown("""
         margin-top: 0.5rem;
         font-size: 0.9rem;
     }
+
+    /* Estilo para el selector nativo (no abre teclado) */
+    .native-select {
+        background: var(--input-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        color: var(--text-primary);
+        padding: 0.75rem 1rem;
+        width: 100%;
+        font-size: 1rem;
+        backdrop-filter: blur(5px);
+        cursor: pointer;
+    }
+    .native-select option {
+        background: var(--bg-dark);
+        color: var(--text-primary);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -562,18 +581,17 @@ with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
         if os.path.exists(logo_path):
-            # Tamaño aumentado: 100px de ancho
             st.image(logo_path, width=100)
         else:
-            st.write("")  # Placeholder
+            st.write("")
     with col_texto:
-        # Contenedor flex para centrar verticalmente el texto con el logo
         st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
             <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
             <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
         </div>
         """, unsafe_allow_html=True)
+
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
 # ------------------------------------------------------------
@@ -733,9 +751,7 @@ def crear_tarjeta_estudiante(estudiante):
 # REGISTRAR ESTUDIANTE
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
-    # Al salir de registro manual, asegurar que la autenticación se reinicia
     st.session_state.manual_auth = False
-    
     st.subheader("📝 Registrar nuevo estudiante")
     with st.container():
         col1, col2 = st.columns(2)
@@ -784,21 +800,17 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         st.error(f"❌ Error al guardar estudiante: {e}")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES (con nuevo orden: búsqueda arriba, gestión abajo)
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
-    # Al salir de registro manual, asegurar que la autenticación se reinicia
     st.session_state.manual_auth = False
-    
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
     
     if len(estudiantes) > 0:
-        # Mostrar tabla
         st.dataframe(estudiantes, use_container_width=True)
         st.markdown("---")
         
-        # ========== BÚSQUEDA DE ESTUDIANTE (ahora arriba) ==========
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
@@ -862,8 +874,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             st.warning("⚠️ Por favor ingrese un RU para buscar")
         
         st.markdown("---")
-        
-        # ========== GESTIÓN DE ESTUDIANTES (editar/eliminar) ==========
         st.subheader("✏️ Gestionar estudiante")
         
         estudiantes_display = estudiantes.copy()
@@ -889,7 +899,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             with col_btn2:
                 submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
         
-        # Procesar actualización
         if submit_actualizar:
             if not nuevo_ru or not nuevo_ru.strip():
                 st.error("❌ El RU no puede estar vacío")
@@ -917,7 +926,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 except Exception as e:
                     st.error(f"❌ Error al actualizar: {e}")
         
-        # Procesar eliminación con confirmación
         if submit_eliminar:
             st.session_state.confirmar_eliminar = ru_seleccionado
         
@@ -943,8 +951,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     st.rerun()
         
         st.markdown("---")
-        
-        # ========== DESCARGAR EXCEL ESTUDIANTES ==========
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
             archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -958,9 +964,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
 # ESCANEAR QR
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
-    # Al salir de registro manual, asegurar que la autenticación se reinicia
     st.session_state.manual_auth = False
-    
     st.subheader("📸 Escanear QR")
     st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
@@ -1002,14 +1006,10 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
-    # Aquí NO reseteamos manual_auth porque estamos dentro de la sección
-    
-    # Verificar si ya está autenticado
     if not st.session_state.manual_auth:
-        # Mostrar ventana elegante de contraseña
         with st.container():
             st.markdown("""
             <div class="password-modal">
@@ -1017,14 +1017,11 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                 <p style="color: var(--text-secondary);">Ingrese la contraseña para registrar asistencia manual</p>
             </div>
             """, unsafe_allow_html=True)
-            
-            # Formulario con HTML personalizado para un diseño más elegante
             with st.form(key="password_form"):
                 password = st.text_input("Contraseña", type="password", placeholder="********")
                 col1, col2, col3 = st.columns([1,2,1])
                 with col2:
                     submit_password = st.form_submit_button("🔓 Ingresar", use_container_width=True)
-            
             if submit_password:
                 if password == "pocoyo123":
                     st.session_state.manual_auth = True
@@ -1032,47 +1029,88 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                 else:
                     st.error("❌ Contraseña incorrecta")
     else:
-        # Usuario autenticado, mostrar el contenido normal del registro manual
         st.subheader("✍️ Registrar asistencia manual")
         estudiantes = leer_estudiantes()
         if len(estudiantes) > 0:
-            estudiantes["nombre_completo"] = estudiantes["ru"].astype(str) + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
-            col1, col2 = st.columns(2)
-            with col1:
-                seleccionado = st.selectbox("👤 Seleccionar estudiante", estudiantes["nombre_completo"])
-                ru = seleccionado.split(" - ")[0]
-            with col2:
-                estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
-            fecha, hora = obtener_fecha_hora_exacta()
-            tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-            if tiene_registro:
-                st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
-                col1, col2, col3 = st.columns([1,2,1])
-                with col2:
-                    st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
-                st.caption("Botón deshabilitado - Registro duplicado")
+            # Preparar lista de opciones para el selector nativo
+            estudiantes["display"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
+            opciones = estudiantes[["ru", "display"]].to_dict('records')
+            
+            # Crear el selector nativo con HTML y JavaScript
+            select_html = f"""
+            <select id="estudianteSelect" class="native-select" onchange="sendSelected(this.value)">
+                <option value="" disabled selected>Seleccionar estudiante</option>
+                {''.join([f'<option value="{opt['ru']}">{opt['display']}</option>' for opt in opciones])}
+            </select>
+            <script>
+                function sendSelected(ru) {{
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('selected_ru', ru);
+                    window.history.pushState({{}}, '', url);
+                    // Forzar recarga para que Streamlit lea el parámetro
+                    window.location.reload();
+                }}
+            </script>
+            """
+            st.markdown(select_html, unsafe_allow_html=True)
+            
+            # Leer el parámetro de la URL para obtener el RU seleccionado
+            query_params = st.query_params
+            selected_ru = query_params.get("selected_ru", None)
+            if selected_ru:
+                # Guardar en session_state
+                st.session_state.selected_estudiante_manual = selected_ru
+                # Limpiar parámetro para no recargar continuamente
+                st.query_params.clear()
+                st.rerun()
+            
+            # Mostrar el estudiante seleccionado actualmente
+            ru_seleccionado = st.session_state.selected_estudiante_manual
+            if ru_seleccionado:
+                estudiante_data = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
+                st.info(f"👤 Estudiante seleccionado: **{estudiante_data['display']}**")
             else:
-                col1, col2, col3 = st.columns([1,2,1])
-                with col2:
-                    if st.button("✅ Registrar asistencia", use_container_width=True):
-                        estudiante = estudiantes[estudiantes["ru"].astype(str) == ru].iloc[0]
-                        nombres = estudiante["nombres"]
-                        paterno = estudiante["apellido_paterno"]
-                        materno = estudiante["apellido_materno"]
-                        try:
-                            supabase.table("asistencia").insert({
-                                "ru": ru,
-                                "nombres": nombres,
-                                "apellido_paterno": paterno,
-                                "apellido_materno": materno,
-                                "fecha": fecha.isoformat(),
-                                "hora": hora,
-                                "estado": estado
-                            }).execute()
-                            st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                            st.success(f"✅ Asistencia registrada a las {hora}")
-                        except Exception as e:
-                            st.error(f"❌ Error al guardar asistencia: {e}")
+                st.info("👆 Selecciona un estudiante de la lista")
+            
+            # Estado del registro
+            estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
+            fecha, hora = obtener_fecha_hora_exacta()
+            
+            if ru_seleccionado:
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru_seleccionado, fecha)
+                if tiene_registro:
+                    st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
+                    col1, col2, col3 = st.columns([1,2,1])
+                    with col2:
+                        st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
+                    st.caption("Botón deshabilitado - Registro duplicado")
+                else:
+                    col1, col2, col3 = st.columns([1,2,1])
+                    with col2:
+                        if st.button("✅ Registrar asistencia", use_container_width=True):
+                            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
+                            nombres = estudiante["nombres"]
+                            paterno = estudiante["apellido_paterno"]
+                            materno = estudiante["apellido_materno"]
+                            try:
+                                supabase.table("asistencia").insert({
+                                    "ru": ru_seleccionado,
+                                    "nombres": nombres,
+                                    "apellido_paterno": paterno,
+                                    "apellido_materno": materno,
+                                    "fecha": fecha.isoformat(),
+                                    "hora": hora,
+                                    "estado": estado
+                                }).execute()
+                                st.session_state.ultimo_registro = {"ru": ru_seleccionado, "nombres": nombres, "hora": hora, "fecha": fecha}
+                                st.success(f"✅ Asistencia registrada a las {hora}")
+                                # Limpiar selección después de registrar
+                                st.session_state.selected_estudiante_manual = None
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error al guardar asistencia: {e}")
+            else:
+                st.warning("⚠️ Debes seleccionar un estudiante antes de registrar")
         else:
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
@@ -1080,13 +1118,10 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
 # VER ASISTENCIA
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
-    # Al salir de registro manual, asegurar que la autenticación se reinicia
     st.session_state.manual_auth = False
-    
     st.subheader("📊 Registros de asistencia")
     asistencia = leer_asistencia()
     if len(asistencia) > 0:
-        # Mostrar tabla sin la columna id
         asistencia_mostrar = asistencia.copy()
         asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
         asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
@@ -1112,7 +1147,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
         if len(asistencia) > 0:
-            # Crear una descripción legible para el selector (no se muestra en tabla)
             asistencia["descripcion"] = (asistencia["ru"] + " - " + 
                                          asistencia["nombres"] + " " + 
                                          asistencia["apellido_paterno"] + " (" + 
@@ -1163,7 +1197,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.markdown("---")
         st.subheader("🗑️ Eliminar registro individual")
         if len(asistencia) > 0:
-            # Usar la misma descripción para seleccionar individual
             seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
             idx_elim = asistencia[asistencia["descripcion"] == seleccion_eliminar].index[0]
             id_eliminar = asistencia.loc[idx_elim, "id"]
@@ -1194,7 +1227,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.subheader("⬇️ Descargar asistencia del día")
         hoy = str(datetime.now(ZONA_HORARIA).date())
         asistencia_hoy = asistencia[asistencia["fecha"].astype(str) == hoy].copy()
-        # Eliminar columnas innecesarias para el export (id y descripcion)
         columnas_a_eliminar = ["id", "descripcion"]
         for col in columnas_a_eliminar:
             if col in asistencia_hoy.columns:
