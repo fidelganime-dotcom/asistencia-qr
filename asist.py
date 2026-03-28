@@ -640,7 +640,7 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 80
+    line_spacing = 200
     total_height = len(lines) * line_spacing
     start_y = ru_y + 130
     for i, line in enumerate(lines):
@@ -654,7 +654,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Posicionar QR
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height + 30
+    qr_y = start_y + total_height + 50
     background.paste(qr, (qr_x, qr_y))
 
     # Pie de página
