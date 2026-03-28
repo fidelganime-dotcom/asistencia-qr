@@ -596,7 +596,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Borde decorativo
     border_color = (0, 102, 255)
-    border_width = 10
+    border_width = 5
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
     # Título con contorno negro
@@ -654,7 +654,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     # Posicionar QR
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height + 30
+    qr_y = start_y + total_height + 5
     background.paste(qr, (qr_x, qr_y))
 
     # Pie de página
