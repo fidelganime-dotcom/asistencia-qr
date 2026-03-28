@@ -547,7 +547,7 @@ def crear_tarjeta_estudiante(estudiante):
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     # Tarjeta más grande
-    card_size = 900
+    card_size = 800
     # Fondo con gradiente (oscuro a azul)
     background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
     # Crear un gradiente vertical
@@ -580,7 +580,7 @@ def crear_tarjeta_estudiante(estudiante):
 
     for path in font_paths:
         if os.path.exists(path):
-            title_font = ImageFont.truetype(path, 48)
+            title_font = ImageFont.truetype(path, 38)
             ru_font = ImageFont.truetype(path, 40)
             name_font = ImageFont.truetype(path, 36)
             break
