@@ -55,14 +55,18 @@ def leer_estudiantes():
 def guardar_estudiantes(df):
     """Reemplaza toda la tabla de estudiantes con los datos del DataFrame."""
     try:
+        # Asegurar que solo tenemos las columnas necesarias
+        df_guardar = df[["ru", "nombres", "apellido_paterno", "apellido_materno"]].copy()
         # Eliminar todos los registros actuales
-        supabase.table("estudiantes").delete().neq("ru", "")  # eliminar todos
+        supabase.table("estudiantes").delete().neq("ru", "")
         # Insertar los nuevos
-        registros = df.to_dict(orient="records")
+        registros = df_guardar.to_dict(orient="records")
         if registros:
             supabase.table("estudiantes").insert(registros).execute()
+        return True
     except Exception as e:
         st.error(f"Error al guardar estudiantes: {e}")
+        return False
 
 def leer_asistencia():
     try:
@@ -85,18 +89,21 @@ def leer_asistencia():
 def guardar_asistencia(df):
     """Reemplaza toda la tabla de asistencia con los datos del DataFrame."""
     try:
+        # Asegurar columnas necesarias
+        df_guardar = df[["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]].copy()
         # Eliminar todos los registros actuales
-        supabase.table("asistencia").delete().neq("id", 0)  # eliminar todos
+        supabase.table("asistencia").delete().neq("id", 0)
         # Insertar los nuevos
-        registros = df.to_dict(orient="records")
-        # Convertir fecha y hora a string para Supabase
+        registros = df_guardar.to_dict(orient="records")
         for r in registros:
             r["fecha"] = r["fecha"].isoformat() if hasattr(r["fecha"], "isoformat") else str(r["fecha"])
             r["hora"] = str(r["hora"])
         if registros:
             supabase.table("asistencia").insert(registros).execute()
+        return True
     except Exception as e:
         st.error(f"Error al guardar asistencia: {e}")
+        return False
 
 def verificar_registro_duplicado(ru, fecha):
     """Verifica si ya existe un registro de asistencia para el RU en la fecha dada."""
@@ -121,6 +128,8 @@ if "menu_actual" not in st.session_state:
     st.session_state.menu_actual = "📝 Registrar estudiante"
 if "ultimo_registro" not in st.session_state:
     st.session_state.ultimo_registro = None
+if "confirmar_eliminar" not in st.session_state:
+    st.session_state.confirmar_eliminar = None
 
 # ------------------------------------------------------------
 # ESTILOS CSS (sin cambios)
@@ -572,7 +581,7 @@ with st.sidebar:
     if archivo_import is not None:
         try:
             df_import = pd.read_excel(archivo_import)
-            # Verificar qué tabla podría ser (ahora con snake_case)
+            # Verificar qué tabla podría ser (snake_case)
             if all(col in df_import.columns for col in ["ru", "nombres", "apellido_paterno", "apellido_materno"]):
                 st.success("✅ Se detectó una tabla de estudiantes. ¿Deseas importarla?")
                 if st.button("Importar estudiantes", use_container_width=True):
@@ -623,7 +632,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (sin cambios)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -760,28 +769,128 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         nuevo = pd.DataFrame([[ru, nombres, paterno, materno]],
                                               columns=["ru", "nombres", "apellido_paterno", "apellido_materno"])
                         df = pd.concat([df, nuevo], ignore_index=True)
-                        guardar_estudiantes(df)
-                        st.success("✅ Estudiante registrado exitosamente")
-                        col_img1, col_img2, col_img3 = st.columns([1,2,1])
-                        with col_img2:
-                            nombre_upper = f"{nombres} {paterno}".upper()
-                            st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
-                            st.image(img_bytes, width=500, caption="Código QR del estudiante")
-                            buf = io.BytesIO()
-                            qr_img.save(buf, format="PNG")
-                            buf.seek(0)
-                            st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
+                        if guardar_estudiantes(df):
+                            st.success("✅ Estudiante registrado exitosamente")
+                            col_img1, col_img2, col_img3 = st.columns([1,2,1])
+                            with col_img2:
+                                nombre_upper = f"{nombres} {paterno}".upper()
+                                st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
+                                st.image(img_bytes, width=500, caption="Código QR del estudiante")
+                                buf = io.BytesIO()
+                                qr_img.save(buf, format="PNG")
+                                buf.seek(0)
+                                st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
+                        else:
+                            st.error("❌ Error al guardar estudiante")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES
+# LISTA ESTUDIANTES (corregida)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
+    
     if len(estudiantes) > 0:
+        # Mostrar tabla (sin columna extra)
         st.dataframe(estudiantes, use_container_width=True)
         st.markdown("---")
+        
+        # ========== GESTIÓN DE ESTUDIANTES ==========
+        st.subheader("✏️ Gestionar estudiante")
+        
+        # Crear opciones para el selectbox (usando una copia solo para mostrar)
+        estudiantes_display = estudiantes.copy()
+        estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
+        opciones = estudiantes_display["nombre_completo"].tolist()
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
+            ru_seleccionado = seleccion.split(" - ")[0]
+        
+        # Obtener datos del estudiante seleccionado (del DataFrame original)
+        estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
+        
+        # Formulario de edición
+        with st.form(key="form_editar_estudiante"):
+            nuevo_ru = st.text_input("RU", value=estudiante_data["ru"])
+            nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"])
+            nuevo_paterno = st.text_input("Apellido paterno", value=estudiante_data["apellido_paterno"])
+            nuevo_materno = st.text_input("Apellido materno", value=estudiante_data["apellido_materno"])
+            
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+            with col_btn1:
+                submit_actualizar = st.form_submit_button("🔄 Actualizar estudiante", use_container_width=True)
+            with col_btn2:
+                submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
+        
+        # Procesar actualización
+        if submit_actualizar:
+            # Validaciones
+            if not nuevo_ru or not nuevo_ru.strip():
+                st.error("❌ El RU no puede estar vacío")
+            elif not nuevo_ru.isdigit():
+                st.error("❌ El RU debe contener solo números")
+            elif nuevo_ru != ru_seleccionado and nuevo_ru in estudiantes["ru"].astype(str).values:
+                st.error("❌ El nuevo RU ya existe en la base de datos")
+            else:
+                # Obtener índice del estudiante
+                idx = estudiantes[estudiantes["ru"] == ru_seleccionado].index[0]
+                # Actualizar datos en el DataFrame
+                estudiantes.at[idx, "ru"] = nuevo_ru
+                estudiantes.at[idx, "nombres"] = nuevos_nombres
+                estudiantes.at[idx, "apellido_paterno"] = nuevo_paterno
+                estudiantes.at[idx, "apellido_materno"] = nuevo_materno
+                
+                # Si cambió el RU, actualizar también la asistencia
+                if nuevo_ru != ru_seleccionado:
+                    asistencia = leer_asistencia()
+                    if not asistencia.empty:
+                        # Cambiar RU en los registros de asistencia del estudiante
+                        asistencia.loc[asistencia["ru"] == ru_seleccionado, "ru"] = nuevo_ru
+                        guardar_asistencia(asistencia)
+                
+                # Guardar estudiantes
+                if guardar_estudiantes(estudiantes):
+                    st.success(f"✅ Estudiante actualizado correctamente")
+                    st.rerun()
+                else:
+                    st.error("❌ Error al guardar los cambios")
+        
+        # Procesar eliminación con confirmación usando checkbox
+        if submit_eliminar:
+            st.session_state.confirmar_eliminar = ru_seleccionado
+        
+        if st.session_state.confirmar_eliminar:
+            ru_eliminar = st.session_state.confirmar_eliminar
+            estudiante_eliminar = estudiantes[estudiantes["ru"] == ru_eliminar].iloc[0]
+            nombre_eliminar = f"{estudiante_eliminar['nombres']} {estudiante_eliminar['apellido_paterno']}"
+            st.warning(f"⚠️ ¿Estás seguro de eliminar a **{nombre_eliminar} (RU: {ru_eliminar})**? Se eliminarán también todos sus registros de asistencia.")
+            col_confirm1, col_confirm2, _ = st.columns([1,1,3])
+            with col_confirm1:
+                if st.button("✅ Sí, eliminar", key="confirm_eliminar", use_container_width=True):
+                    # Eliminar estudiante del DataFrame
+                    estudiantes = estudiantes[estudiantes["ru"] != ru_eliminar].reset_index(drop=True)
+                    if guardar_estudiantes(estudiantes):
+                        # Eliminar registros de asistencia asociados
+                        try:
+                            supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
+                        except Exception as e:
+                            st.error(f"Error al eliminar asistencias: {e}")
+                        st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
+                        st.session_state.confirmar_eliminar = None
+                        st.rerun()
+                    else:
+                        st.error("❌ Error al eliminar estudiante")
+            with col_confirm2:
+                if st.button("❌ No, cancelar", key="cancel_eliminar", use_container_width=True):
+                    st.session_state.confirmar_eliminar = None
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        # ========== BÚSQUEDA Y DESCARGA ==========
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
@@ -844,18 +953,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
             st.warning("⚠️ Por favor ingrese un RU para buscar")
-        st.markdown("---")
-        st.subheader("🗑️ Eliminar estudiante")
-        if len(estudiantes) > 0:
-            col1, col2, col3 = st.columns([2,1,2])
-            with col1:
-                eliminar = st.number_input("Índice del estudiante a eliminar", min_value=0, max_value=len(estudiantes)-1, key="eliminar_est")
-            with col2:
-                if st.button("🗑️ Eliminar", use_container_width=True):
-                    estudiantes = estudiantes.drop(eliminar).reset_index(drop=True)
-                    guardar_estudiantes(estudiantes)
-                    st.success("✅ Estudiante eliminado correctamente")
-                    st.rerun()
+        
         st.markdown("---")
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
@@ -893,9 +991,11 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                                           columns=["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
                     asistencia = leer_asistencia()
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-                    guardar_asistencia(asistencia)
-                    st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                    st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                    if guardar_asistencia(asistencia):
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                    else:
+                        st.error("❌ Error al guardar asistencia")
                 else:
                     st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
             else:
@@ -937,9 +1037,11 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                     nuevo = pd.DataFrame([[ru, nombres, paterno, materno, fecha, hora, estado]],
                                           columns=["ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
                     asistencia = pd.concat([asistencia, nuevo], ignore_index=True)
-                    guardar_asistencia(asistencia)
-                    st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                    st.success(f"✅ Asistencia registrada a las {hora}")
+                    if guardar_asistencia(asistencia):
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                        st.success(f"✅ Asistencia registrada a las {hora}")
+                    else:
+                        st.error("❌ Error al guardar asistencia")
     else:
         st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
@@ -971,9 +1073,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
                 asistencia_limpia = asistencia.drop_duplicates(subset=['ru', 'fecha'], keep='first')
-                guardar_asistencia(asistencia_limpia)
-                st.success("✅ Duplicados eliminados correctamente")
-                st.rerun()
+                if guardar_asistencia(asistencia_limpia):
+                    st.success("✅ Duplicados eliminados correctamente")
+                    st.rerun()
+                else:
+                    st.error("❌ Error al eliminar duplicados")
         else:
             st.success("✅ No hay registros duplicados en el sistema")
         st.markdown("---")
@@ -987,9 +1091,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             with col3:
                 if st.button("🔄 Actualizar", use_container_width=True):
                     asistencia.loc[indice, "estado"] = nuevo_estado
-                    guardar_asistencia(asistencia)
-                    st.success("✅ Estado actualizado correctamente")
-                    st.rerun()
+                    if guardar_asistencia(asistencia):
+                        st.success("✅ Estado actualizado correctamente")
+                        st.rerun()
+                    else:
+                        st.error("❌ Error al actualizar estado")
         st.markdown("---")
         st.subheader("🗑️ Eliminar registro")
         if len(asistencia) > 0:
@@ -999,9 +1105,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             with col2:
                 if st.button("🗑️ Eliminar", use_container_width=True):
                     asistencia = asistencia.drop(eliminar).reset_index(drop=True)
-                    guardar_asistencia(asistencia)
-                    st.success("✅ Registro eliminado correctamente")
-                    st.rerun()
+                    if guardar_asistencia(asistencia):
+                        st.success("✅ Registro eliminado correctamente")
+                        st.rerun()
+                    else:
+                        st.error("❌ Error al eliminar registro")
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
         hoy = str(datetime.now(ZONA_HORARIA).date())
