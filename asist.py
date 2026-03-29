@@ -740,7 +740,7 @@ def crear_tarjeta_estudiante(estudiante):
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
     qr = qrcode.make(ru, box_size=10, border=2)
-    qr_size = 900
+    qr_size = 920
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     card_size = 1000
@@ -837,7 +837,7 @@ def crear_tarjeta_estudiante(estudiante):
         draw.text((x, y), line, fill=(355,355,355), font=name_font)
 
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height -20
+    qr_y = start_y + total_height -15
     background.paste(qr, (qr_x, qr_y))
 
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
