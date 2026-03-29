@@ -848,7 +848,7 @@ def crear_tarjeta_estudiante(estudiante):
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
         y = footer_y + i * 36
-        draw.text((x+1, y+1), line, fill=(0,0,0,128), font=footer_font)
+        draw.text((x+2, y+2), line, fill=(0,0,0,128), font=footer_font)
         draw.text((x, y), line, fill=(220, 220, 255), font=footer_font)
 
     img_bytes = io.BytesIO()
