@@ -790,7 +790,7 @@ def crear_tarjeta_estudiante(estudiante):
     border_width = 8
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
-    title_text = "TARJETA DE IDENTIFICACION"
+    title_text = nombre_completo
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
