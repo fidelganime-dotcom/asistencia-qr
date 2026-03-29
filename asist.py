@@ -101,7 +101,7 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (chips jaspeados y cursiva)
+# ESTILOS CSS (chips más pequeños y elegantes, notificación mejorada)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -125,7 +125,6 @@ st.markdown("""
         --badge-color: #020617;
     }
 
-    /* Fuente principal elegante */
     @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
 
     .stApp {
@@ -133,6 +132,32 @@ st.markdown("""
         font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
+    /* Estilo mejorado para mensajes de éxito (más elegante) */
+    .stAlert[data-testid="stAlert"] {
+        background: linear-gradient(135deg, rgba(0,102,255,0.15), rgba(0,51,204,0.1)) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(0,255,204,0.3) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 8px 20px rgba(0,102,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        animation: slideInDown 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
+        color: #e6f7ff !important;
+    }
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    /* Ajuste para que el mensaje no desaparezca abruptamente */
+    .stAlert[data-testid="stAlert"] {
+        transition: all 0.3s ease;
+    }
+
+    /* El resto de los estilos (mantener igual que antes, solo se añade la mejora de éxito) */
     .css-1d391kg, .css-1lcbmhc {
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
@@ -178,7 +203,6 @@ st.markdown("""
         text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    /* Tarjeta de búsqueda */
     .student-search-card {
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
@@ -508,22 +532,22 @@ st.markdown("""
         font-size: 0.9rem;
     }
 
-    /* Chips verticales (jaspeados, cursiva, reducidos) */
+    /* Chips verticales (más pequeños, azul oscuro, cursiva, jaspeado) */
     .chips-container-vertical {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 0.4rem;
         margin-bottom: 1rem;
         width: 100%;
     }
     .chip {
-        background: radial-gradient(circle at 30% 40%, #0a1f3a, #051024);
+        background: radial-gradient(circle at 30% 30%, #051a3b, #010c1c);
         background-size: 200% 200%;
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(0, 102, 255, 0.3);
-        border-radius: 32px;
-        padding: 0.4rem 0.8rem;
-        font-size: 0.85rem;
+        backdrop-filter: blur(2px);
+        border: 1px solid rgba(0, 80, 200, 0.4);
+        border-radius: 24px;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.75rem;
         font-weight: 500;
         font-style: italic;
         font-family: 'Segoe UI', 'Cursive', 'Comic Neue', 'Pacifico', cursive;
@@ -532,25 +556,25 @@ st.markdown("""
         cursor: pointer;
         transition: all 0.2s ease;
         width: 100%;
-        box-shadow: inset 0 0 6px rgba(0,102,255,0.2), 0 2px 4px rgba(0,0,0,0.3);
-        letter-spacing: 0.3px;
+        box-shadow: inset 0 0 4px rgba(0,102,255,0.2), 0 1px 2px rgba(0,0,0,0.3);
+        letter-spacing: 0.2px;
     }
     .chip:hover {
-        background: radial-gradient(circle at 30% 40%, #123b6e, #071833);
-        transform: translateY(-2px);
+        background: radial-gradient(circle at 30% 30%, #0a2a55, #021530);
+        transform: translateY(-1px);
         color: #e0f0ff;
         border-color: var(--accent-color);
-        box-shadow: inset 0 0 10px rgba(0,255,204,0.2), 0 4px 8px rgba(0,0,0,0.3);
+        box-shadow: inset 0 0 8px rgba(0,255,204,0.2), 0 2px 6px rgba(0,0,0,0.3);
     }
     .chip-selected {
-        background: radial-gradient(circle at 30% 40%, #0055aa, #002f6c);
+        background: radial-gradient(circle at 30% 30%, #0a3b70, #022048);
         border-color: var(--accent-color);
         color: white;
         font-weight: 600;
-        box-shadow: 0 0 12px rgba(0,102,255,0.5), inset 0 0 8px rgba(0,255,204,0.3);
+        box-shadow: 0 0 8px rgba(0,102,255,0.5), inset 0 0 6px rgba(0,255,204,0.2);
     }
     .chip-selected:hover {
-        background: radial-gradient(circle at 30% 40%, #0066cc, #003a80);
+        background: radial-gradient(circle at 30% 30%, #124c8a, #032b5e);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1035,7 +1059,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y CHIPS VERTICALES)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y CHIPS VERTICALES MEJORADOS)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -1061,13 +1085,12 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         st.subheader("✍️ Registrar asistencia manual")
         estudiantes = leer_estudiantes()
         if len(estudiantes) > 0:
-            # Mostrar chips verticales con el nuevo estilo
+            # Mostrar chips verticales con estilo reducido y cursiva
             st.markdown('<div class="chips-container-vertical">', unsafe_allow_html=True)
             for _, est in estudiantes.iterrows():
                 ru = str(est["ru"])
                 nombre_corto = f"{est['nombres']} {est['apellido_paterno']}".strip()
                 is_selected = (st.session_state.selected_student_manual == ru)
-                chip_class = "chip chip-selected" if is_selected else "chip"
                 if st.button(f"👤 {nombre_corto}", key=f"chip_vertical_{ru}", use_container_width=True):
                     if st.session_state.selected_student_manual == ru:
                         st.session_state.selected_student_manual = None
