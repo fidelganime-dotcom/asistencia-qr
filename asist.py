@@ -101,7 +101,7 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (mantener igual, pero sin chips)
+# ESTILOS CSS (con mejora para selectores nativos)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -1029,7 +1029,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR CON SCROLL)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -1059,7 +1059,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             estudiantes["nombre_completo"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
             opciones = estudiantes["nombre_completo"].tolist()
             
-            # Selector con scroll (dropdown con muchos elementos)
+            # Selector con scroll (dropdown nativo, no abre teclado)
             seleccionado = st.selectbox("👤 Seleccionar estudiante", opciones, key="select_manual")
             
             if seleccionado:
