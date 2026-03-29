@@ -10,7 +10,7 @@ import io
 import base64
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
-from pyzbar.pyzbar import decode   # <-- NUEVO: para escanear QR
+from pyzbar.pyzbar import decode
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE SUPABASE
@@ -104,7 +104,7 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (con mejora para selectores nativos)
+# ESTILOS CSS (con mejora para selectores nativos y dashboard)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -548,6 +548,89 @@ st.markdown("""
     .student-detail-card p {
         margin: 0.2rem 0;
         color: var(--text-primary);
+    }
+
+    /* Dashboard compacto */
+    .dashboard-compact {
+        display: flex;
+        gap: 0.8rem;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+    }
+    .dashboard-card {
+        flex: 1;
+        min-width: 120px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(8px);
+        border-radius: 20px;
+        padding: 0.6rem 0.8rem;
+        text-align: center;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        transition: all 0.3s ease;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(0,255,204,0.3);
+    }
+    .dashboard-card .title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    .dashboard-card .value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    .dashboard-card .percentage {
+        font-size: 0.65rem;
+        color: var(--text-secondary);
+        margin-top: 0.2rem;
+    }
+    .progress-bar-bg {
+        background: rgba(255,255,255,0.15);
+        border-radius: 20px;
+        height: 5px;
+        width: 100%;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 20px;
+        transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    }
+    .green-card .progress-bar-fill {
+        background: linear-gradient(90deg, #00cc88, #00ffaa);
+        box-shadow: 0 0 6px #00ffaa;
+    }
+    .orange-card .progress-bar-fill {
+        background: linear-gradient(90deg, #ff884d, #ffaa66);
+        box-shadow: 0 0 6px #ffaa66;
+    }
+    .green-card {
+        background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
+        border-left: 3px solid #00ffaa;
+    }
+    .orange-card {
+        background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
+        border-left: 3px solid #ffaa66;
+    }
+    @media (max-width: 600px) {
+        .dashboard-card .value {
+            font-size: 1.1rem;
+        }
+        .dashboard-card .title {
+            font-size: 0.65rem;
+        }
+        .dashboard-card {
+            padding: 0.5rem 0.6rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -995,13 +1078,10 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
     st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
-        # Abrir la imagen con PIL (pyzbar trabaja directamente con PIL)
         img = Image.open(foto)
-        # Decodificar códigos de barras/QR con pyzbar
         decoded_objects = decode(img)
         
         if decoded_objects:
-            # Tomar el primer código detectado
             data = decoded_objects[0].data.decode('utf-8')
             ru = data
             estudiantes = leer_estudiantes()
@@ -1115,29 +1195,67 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA
+# VER ASISTENCIA (con dashboard compacto)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
     st.subheader("📊 Registros de asistencia")
-    asistencia = leer_asistencia()
-    if len(asistencia) > 0:
-        asistencia_mostrar = asistencia.copy()
+    
+    # Obtener datos para el dashboard
+    estudiantes_total = leer_estudiantes()
+    total_estudiantes = len(estudiantes_total)
+    asistencia_df = leer_asistencia()
+    hoy = datetime.now(ZONA_HORARIA).date()
+    ausentes_hoy = asistencia_df[(asistencia_df["fecha"] == hoy) & (asistencia_df["estado"] == "Ausente")].shape[0]
+    
+    # Calcular porcentajes
+    if total_estudiantes > 0:
+        porcentaje_presentes = ((total_estudiantes - ausentes_hoy) / total_estudiantes * 100)
+        porcentaje_faltantes = (ausentes_hoy / total_estudiantes * 100)
+    else:
+        porcentaje_presentes = 0
+        porcentaje_faltantes = 0
+    
+    # Mostrar dashboard compacto
+    st.markdown(f"""
+    <div class="dashboard-compact">
+        <div class="dashboard-card green-card">
+            <div class="title">📋 Total registros</div>
+            <div class="value">{total_estudiantes}</div>
+            <div class="percentage">{porcentaje_presentes:.1f}% asistencia</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {porcentaje_presentes}%;"></div>
+            </div>
+        </div>
+        <div class="dashboard-card orange-card">
+            <div class="title">❌ Faltantes</div>
+            <div class="value">{ausentes_hoy}</div>
+            <div class="percentage">{porcentaje_faltantes:.1f}% ausentes</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {porcentaje_faltantes}%;"></div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Mostrar tabla de asistencia (sin cambios)
+    if len(asistencia_df) > 0:
+        asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
         asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
         st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
         
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
-        duplicados = asistencia.groupby(['ru', 'fecha']).size().reset_index(name='count')
+        duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
         duplicados = duplicados[duplicados['count'] > 1]
         if len(duplicados) > 0:
             st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
                 try:
-                    ids_a_conservar = asistencia.groupby(['ru', 'fecha'])['id'].first().tolist()
+                    ids_a_conservar = asistencia_df.groupby(['ru', 'fecha'])['id'].first().tolist()
                     supabase.table("asistencia").delete().not_.in_("id", ids_a_conservar).execute()
                     st.success("✅ Duplicados eliminados correctamente")
                     st.rerun()
@@ -1148,20 +1266,20 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
-        if len(asistencia) > 0:
-            asistencia["descripcion"] = (asistencia["ru"] + " - " + 
-                                         asistencia["nombres"] + " " + 
-                                         asistencia["apellido_paterno"] + " (" + 
-                                         asistencia["fecha"].astype(str) + " " + 
-                                         asistencia["hora"] + ")")
-            opciones = asistencia["descripcion"].tolist()
+        if len(asistencia_df) > 0:
+            asistencia_df["descripcion"] = (asistencia_df["ru"] + " - " + 
+                                           asistencia_df["nombres"] + " " + 
+                                           asistencia_df["apellido_paterno"] + " (" + 
+                                           asistencia_df["fecha"].astype(str) + " " + 
+                                           asistencia_df["hora"] + ")")
+            opciones = asistencia_df["descripcion"].tolist()
             
             col1, col2 = st.columns([2, 1])
             with col1:
                 seleccion = st.selectbox("Selecciona un registro", opciones, key="select_asistencia")
-                idx = asistencia[asistencia["descripcion"] == seleccion].index[0]
-                id_registro = asistencia.loc[idx, "id"]
-                estado_actual = asistencia.loc[idx, "estado"]
+                idx = asistencia_df[asistencia_df["descripcion"] == seleccion].index[0]
+                id_registro = asistencia_df.loc[idx, "id"]
+                estado_actual = asistencia_df.loc[idx, "estado"]
             with col2:
                 nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"], 
                                             index=["Presente","Tarde","Permiso","Ausente"].index(estado_actual))
@@ -1198,11 +1316,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("🗑️ Eliminar registro individual")
-        if len(asistencia) > 0:
+        if len(asistencia_df) > 0:
             seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
-            idx_elim = asistencia[asistencia["descripcion"] == seleccion_eliminar].index[0]
-            id_eliminar = asistencia.loc[idx_elim, "id"]
-            registro_info = asistencia.loc[idx_elim, "descripcion"]
+            idx_elim = asistencia_df[asistencia_df["descripcion"] == seleccion_eliminar].index[0]
+            id_eliminar = asistencia_df.loc[idx_elim, "id"]
+            registro_info = asistencia_df.loc[idx_elim, "descripcion"]
             
             if st.button("🗑️ Eliminar este registro", use_container_width=True):
                 st.session_state.confirmar_eliminar_asistencia = id_eliminar
@@ -1227,14 +1345,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
-        hoy = str(datetime.now(ZONA_HORARIA).date())
-        asistencia_hoy = asistencia[asistencia["fecha"].astype(str) == hoy].copy()
+        hoy_str = str(hoy)
+        asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
         for col in columnas_a_eliminar:
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
-            archivo_descarga = f"asistencia_{hoy}.xlsx"
+            archivo_descarga = f"asistencia_{hoy_str}.xlsx"
             asistencia_hoy.to_excel(archivo_descarga, index=False)
             with open(archivo_descarga, "rb") as file:
                 st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga, use_container_width=True)
