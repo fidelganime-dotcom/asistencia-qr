@@ -834,7 +834,7 @@ def crear_tarjeta_estudiante(estudiante):
         x = (card_size - line_width) // 2
         y = start_y + i * line_spacing
         draw.text((x+2, y+2), line, fill=(0,0,0,128), font=name_font)
-        draw.text((x, y), line, fill=(255,255,255), font=name_font)
+        draw.text((x, y), line, fill=(355,355,355), font=name_font)
 
     qr_x = (card_size - qr_size) // 2
     qr_y = start_y + total_height - 30
