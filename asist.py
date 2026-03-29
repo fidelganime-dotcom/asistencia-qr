@@ -825,9 +825,9 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 50
+    line_spacing = 10
     total_height = len(lines) * line_spacing
-    start_y = ru_y + 90
+    start_y = ru_y + 30
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0,0), line, font=name_font)
         line_width = bbox[2] - bbox[0]
