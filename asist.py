@@ -101,7 +101,7 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (chips más pequeños y elegantes, notificación mejorada)
+# ESTILOS CSS (mantener igual, pero sin chips)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -132,7 +132,7 @@ st.markdown("""
         font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* Estilo mejorado para mensajes de éxito (más elegante) */
+    /* Estilo mejorado para mensajes de éxito */
     .stAlert[data-testid="stAlert"] {
         background: linear-gradient(135deg, rgba(0,102,255,0.15), rgba(0,51,204,0.1)) !important;
         backdrop-filter: blur(12px) !important;
@@ -152,12 +152,7 @@ st.markdown("""
             transform: translateY(0);
         }
     }
-    /* Ajuste para que el mensaje no desaparezca abruptamente */
-    .stAlert[data-testid="stAlert"] {
-        transition: all 0.3s ease;
-    }
 
-    /* El resto de los estilos (mantener igual que antes, solo se añade la mejora de éxito) */
     .css-1d391kg, .css-1lcbmhc {
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
@@ -532,49 +527,24 @@ st.markdown("""
         font-size: 0.9rem;
     }
 
-    /* Chips verticales (más pequeños, azul oscuro, cursiva, jaspeado) */
-    .chips-container-vertical {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        margin-bottom: 1rem;
-        width: 100%;
-    }
-    .chip {
-        background: radial-gradient(circle at 30% 30%, #051a3b, #010c1c);
-        background-size: 200% 200%;
-        backdrop-filter: blur(2px);
-        border: 1px solid rgba(0, 80, 200, 0.4);
-        border-radius: 24px;
-        padding: 0.3rem 0.6rem;
-        font-size: 0.75rem;
-        font-weight: 500;
-        font-style: italic;
-        font-family: 'Segoe UI', 'Cursive', 'Comic Neue', 'Pacifico', cursive;
-        color: #b8d0ff;
+    /* Estilo para tarjeta de información del estudiante */
+    .student-detail-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+        padding: 1rem;
+        margin: 1rem 0;
         text-align: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        width: 100%;
-        box-shadow: inset 0 0 4px rgba(0,102,255,0.2), 0 1px 2px rgba(0,0,0,0.3);
-        letter-spacing: 0.2px;
+        box-shadow: var(--shadow-3d);
     }
-    .chip:hover {
-        background: radial-gradient(circle at 30% 30%, #0a2a55, #021530);
-        transform: translateY(-1px);
-        color: #e0f0ff;
-        border-color: var(--accent-color);
-        box-shadow: inset 0 0 8px rgba(0,255,204,0.2), 0 2px 6px rgba(0,0,0,0.3);
+    .student-detail-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--accent-color);
     }
-    .chip-selected {
-        background: radial-gradient(circle at 30% 30%, #0a3b70, #022048);
-        border-color: var(--accent-color);
-        color: white;
-        font-weight: 600;
-        box-shadow: 0 0 8px rgba(0,102,255,0.5), inset 0 0 6px rgba(0,255,204,0.2);
-    }
-    .chip-selected:hover {
-        background: radial-gradient(circle at 30% 30%, #124c8a, #032b5e);
+    .student-detail-card p {
+        margin: 0.2rem 0;
+        color: var(--text-primary);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1059,7 +1029,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y CHIPS VERTICALES MEJORADOS)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR CON SCROLL)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -1085,33 +1055,33 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         st.subheader("✍️ Registrar asistencia manual")
         estudiantes = leer_estudiantes()
         if len(estudiantes) > 0:
-            # Mostrar chips verticales con estilo reducido y cursiva
-            st.markdown('<div class="chips-container-vertical">', unsafe_allow_html=True)
-            for _, est in estudiantes.iterrows():
-                ru = str(est["ru"])
-                nombre_corto = f"{est['nombres']} {est['apellido_paterno']}".strip()
-                is_selected = (st.session_state.selected_student_manual == ru)
-                if st.button(f"👤 {nombre_corto}", key=f"chip_vertical_{ru}", use_container_width=True):
-                    if st.session_state.selected_student_manual == ru:
-                        st.session_state.selected_student_manual = None
-                    else:
-                        st.session_state.selected_student_manual = ru
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            # Crear una lista de opciones con formato "RU - Nombre completo"
+            estudiantes["nombre_completo"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
+            opciones = estudiantes["nombre_completo"].tolist()
             
-            if st.session_state.selected_student_manual:
-                estudiante_data = estudiantes[estudiantes["ru"].astype(str) == st.session_state.selected_student_manual].iloc[0]
-                nombre_completo = f"{estudiante_data['nombres']} {estudiante_data['apellido_paterno']}"
-                st.info(f"👤 **Estudiante seleccionado:** {nombre_completo} (RU: {st.session_state.selected_student_manual})")
-            else:
-                st.info("👆 Selecciona un estudiante de la lista")
+            # Selector con scroll (dropdown con muchos elementos)
+            seleccionado = st.selectbox("👤 Seleccionar estudiante", opciones, key="select_manual")
             
-            estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
-            fecha, hora = obtener_fecha_hora_exacta()
-            
-            if st.session_state.selected_student_manual:
-                ru_seleccionado = st.session_state.selected_student_manual
+            if seleccionado:
+                # Extraer RU del seleccionado
+                ru_seleccionado = seleccionado.split(" - ")[0]
+                estudiante_data = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
+                
+                # Mostrar detalles del estudiante en una tarjeta elegante
+                st.markdown(f"""
+                <div class="student-detail-card">
+                    <h4>📋 Datos del estudiante</h4>
+                    <p><strong>RU:</strong> {estudiante_data['ru']}</p>
+                    <p><strong>Nombres:</strong> {estudiante_data['nombres']}</p>
+                    <p><strong>Apellido Paterno:</strong> {estudiante_data['apellido_paterno']}</p>
+                    <p><strong>Apellido Materno:</strong> {estudiante_data['apellido_materno']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
+                fecha, hora = obtener_fecha_hora_exacta()
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru_seleccionado, fecha)
+                
                 if tiene_registro:
                     st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
                     col1, col2, col3 = st.columns([1,2,1])
@@ -1122,31 +1092,23 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                     col1, col2, col3 = st.columns([1,2,1])
                     with col2:
                         if st.button("✅ Registrar asistencia", use_container_width=True):
-                            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
-                            nombres = estudiante["nombres"]
-                            paterno = estudiante["apellido_paterno"]
-                            materno = estudiante["apellido_materno"]
                             try:
                                 supabase.table("asistencia").insert({
                                     "ru": ru_seleccionado,
-                                    "nombres": nombres,
-                                    "apellido_paterno": paterno,
-                                    "apellido_materno": materno,
+                                    "nombres": estudiante_data["nombres"],
+                                    "apellido_paterno": estudiante_data["apellido_paterno"],
+                                    "apellido_materno": estudiante_data["apellido_materno"],
                                     "fecha": fecha.isoformat(),
                                     "hora": hora,
                                     "estado": estado
                                 }).execute()
-                                st.session_state.ultimo_registro = {"ru": ru_seleccionado, "nombres": nombres, "hora": hora, "fecha": fecha}
+                                st.session_state.ultimo_registro = {"ru": ru_seleccionado, "nombres": estudiante_data["nombres"], "hora": hora, "fecha": fecha}
                                 st.success(f"✅ Asistencia registrada a las {hora}")
-                                st.session_state.selected_student_manual = None
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error al guardar asistencia: {e}")
             else:
-                col1, col2, col3 = st.columns([1,2,1])
-                with col2:
-                    st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
-                st.caption("Selecciona un estudiante para habilitar el registro")
+                st.info("👆 Selecciona un estudiante de la lista")
         else:
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
