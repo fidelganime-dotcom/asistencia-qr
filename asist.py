@@ -837,7 +837,7 @@ def crear_tarjeta_estudiante(estudiante):
         draw.text((x, y), line, fill=(355,355,355), font=name_font)
 
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height - 30
+    qr_y = start_y + total_height - 25
     background.paste(qr, (qr_x, qr_y))
 
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
