@@ -772,8 +772,8 @@ def crear_tarjeta_estudiante(estudiante):
 
     for path in font_paths:
         if os.path.exists(path):
-            title_font = ImageFont.truetype(path, 38)
-            ru_font = ImageFont.truetype(path, 40)
+            title_font = ImageFont.truetype(path, 88)
+            ru_font = ImageFont.truetype(path, 50)
             name_font = ImageFont.truetype(path, 66)
             break
     for path in font_regular_paths:
@@ -794,7 +794,7 @@ def crear_tarjeta_estudiante(estudiante):
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
-    title_y = 10
+    title_y = 15
     draw.text((title_x+3, title_y+3), title_text, fill=(0,0,0,128), font=title_font)
     draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
 
