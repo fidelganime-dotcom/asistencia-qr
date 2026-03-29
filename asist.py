@@ -794,7 +794,7 @@ def crear_tarjeta_estudiante(estudiante):
     bbox = draw.textbbox((0,0), title_text, font=title_font)
     title_width = bbox[2] - bbox[0]
     title_x = (card_size - title_width) // 2
-    title_y = 50
+    title_y = 60
     draw.text((title_x+3, title_y+3), title_text, fill=(0,0,0,128), font=title_font)
     draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
 
@@ -806,7 +806,7 @@ def crear_tarjeta_estudiante(estudiante):
     draw.text((ru_x+2, ru_y+2), ru_text, fill=(0,0,0,128), font=ru_font)
     draw.text((ru_x, ru_y), ru_text, fill=(255,255,200), font=ru_font)
 
-    max_width = card_size - 40
+    max_width = card_size - 60
     words = nombre_completo.split()
     lines = []
     current_line = ""
