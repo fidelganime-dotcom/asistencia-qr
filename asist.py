@@ -10,6 +10,7 @@ import io
 import base64
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
+from pyzbar.pyzbar import decode   # <-- NUEVO: para escanear QR
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE SUPABASE
@@ -982,7 +983,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
@@ -992,11 +993,14 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
     st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
-        file_bytes = np.asarray(bytearray(foto.read()), dtype=np.uint8)
-        frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-        detector = cv2.QRCodeDetector()
-        data, bbox, _ = detector.detectAndDecode(frame)
-        if data:
+        # Abrir la imagen con PIL (pyzbar trabaja directamente con PIL)
+        img = Image.open(foto)
+        # Decodificar códigos de barras/QR con pyzbar
+        decoded_objects = decode(img)
+        
+        if decoded_objects:
+            # Tomar el primer código detectado
+            data = decoded_objects[0].data.decode('utf-8')
             ru = data
             estudiantes = leer_estudiantes()
             estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
@@ -1055,19 +1059,15 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         st.subheader("✍️ Registrar asistencia manual")
         estudiantes = leer_estudiantes()
         if len(estudiantes) > 0:
-            # Crear una lista de opciones con formato "RU - Nombre completo"
             estudiantes["nombre_completo"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
             opciones = estudiantes["nombre_completo"].tolist()
             
-            # Selector con scroll (dropdown nativo, no abre teclado)
             seleccionado = st.selectbox("👤 Seleccionar estudiante", opciones, key="select_manual")
             
             if seleccionado:
-                # Extraer RU del seleccionado
                 ru_seleccionado = seleccionado.split(" - ")[0]
                 estudiante_data = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
                 
-                # Mostrar detalles del estudiante en una tarjeta elegante
                 st.markdown(f"""
                 <div class="student-detail-card">
                     <h4>📋 Datos del estudiante</h4>
