@@ -104,7 +104,7 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (con mejora para selectores nativos y dashboard)
+# ESTILOS CSS (con tres tarjetas)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -550,7 +550,7 @@ st.markdown("""
         color: var(--text-primary);
     }
 
-    /* Dashboard compacto */
+    /* Dashboard compacto - tres tarjetas */
     .dashboard-compact {
         display: flex;
         gap: 0.8rem;
@@ -559,7 +559,7 @@ st.markdown("""
     }
     .dashboard-card {
         flex: 1;
-        min-width: 120px;
+        min-width: 100px;
         background: var(--glass-bg);
         backdrop-filter: blur(8px);
         border-radius: 20px;
@@ -613,6 +613,10 @@ st.markdown("""
         background: linear-gradient(90deg, #ff884d, #ffaa66);
         box-shadow: 0 0 6px #ffaa66;
     }
+    .blue-card .progress-bar-fill {
+        background: linear-gradient(90deg, #3399ff, #66ccff);
+        box-shadow: 0 0 6px #66ccff;
+    }
     .green-card {
         background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
         border-left: 3px solid #00ffaa;
@@ -620,6 +624,10 @@ st.markdown("""
     .orange-card {
         background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
         border-left: 3px solid #ffaa66;
+    }
+    .blue-card {
+        background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
+        border-left: 3px solid #66ccff;
     }
     @media (max-width: 600px) {
         .dashboard-card .value {
@@ -1195,7 +1203,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (con dashboard compacto)
+# VER ASISTENCIA (con dashboard de tres tarjetas)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
@@ -1203,36 +1211,47 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
-    # Obtener datos para el dashboard
+    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
-    ausentes_hoy = asistencia_df[(asistencia_df["fecha"] == hoy) & (asistencia_df["estado"] == "Ausente")].shape[0]
     
-    # Calcular porcentajes
+    # Estudiantes que ya registraron hoy (cualquier estado)
+    registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
+    faltantes = total_estudiantes - registrados_hoy
+    
+    # Porcentajes
     if total_estudiantes > 0:
-        porcentaje_presentes = ((total_estudiantes - ausentes_hoy) / total_estudiantes * 100)
-        porcentaje_faltantes = (ausentes_hoy / total_estudiantes * 100)
+        porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
+        porcentaje_faltantes = (faltantes / total_estudiantes * 100)
     else:
-        porcentaje_presentes = 0
+        porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
-    # Mostrar dashboard compacto
+    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
             <div class="title">📋 Total registros</div>
             <div class="value">{total_estudiantes}</div>
-            <div class="percentage">{porcentaje_presentes:.1f}% asistencia</div>
+            <div class="percentage">100% total</div>
             <div class="progress-bar-bg">
-                <div class="progress-bar-fill" style="width: {porcentaje_presentes}%;"></div>
+                <div class="progress-bar-fill" style="width: 100%;"></div>
+            </div>
+        </div>
+        <div class="dashboard-card blue-card">
+            <div class="title">✅ Ya registrados</div>
+            <div class="value">{registrados_hoy}</div>
+            <div class="percentage">{porcentaje_registrados:.1f}% del total</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {porcentaje_registrados}%;"></div>
             </div>
         </div>
         <div class="dashboard-card orange-card">
             <div class="title">❌ Faltantes</div>
-            <div class="value">{ausentes_hoy}</div>
-            <div class="percentage">{porcentaje_faltantes:.1f}% ausentes</div>
+            <div class="value">{faltantes}</div>
+            <div class="percentage">{porcentaje_faltantes:.1f}% sin registrar</div>
             <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: {porcentaje_faltantes}%;"></div>
             </div>
