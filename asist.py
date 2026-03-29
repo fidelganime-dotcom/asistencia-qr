@@ -774,7 +774,7 @@ def crear_tarjeta_estudiante(estudiante):
         if os.path.exists(path):
             title_font = ImageFont.truetype(path, 38)
             ru_font = ImageFont.truetype(path, 40)
-            name_font = ImageFont.truetype(path, 36)
+            name_font = ImageFont.truetype(path, 66)
             break
     for path in font_regular_paths:
         if os.path.exists(path):
