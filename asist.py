@@ -740,7 +740,7 @@ def crear_tarjeta_estudiante(estudiante):
     nombre_completo = f"{nombres} {paterno} {materno}".strip().upper()
 
     qr = qrcode.make(ru, box_size=10, border=2)
-    qr_size = 1000
+    qr_size = 900
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     card_size = 1000
