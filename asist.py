@@ -61,6 +61,8 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
+            df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
             return pd.DataFrame(columns=["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"])
