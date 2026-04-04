@@ -14,7 +14,7 @@ CSS_STYLES = """
         --success-gradient: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
         --input-bg: rgba(15, 23, 42, 0.5);
         --input-bg-focus: rgba(15, 23, 42, 0.8);
-        --table-header-bg: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%);
+        --table-header-bg: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
         --table-row-hover: rgba(0, 102, 255, 0.1);
         --badge-bg: var(--success-gradient);
         --badge-color: #020617;
@@ -37,17 +37,13 @@ CSS_STYLES = """
         animation: slideInDown 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
         color: #e6f7ff !important;
     }
+    
     @keyframes slideInDown {
-        from {
-            opacity: 0;
-            transform: translateY(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(-30px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
+    /* Sidebar */
     .css-1d391kg, .css-1lcbmhc {
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
@@ -55,14 +51,16 @@ CSS_STYLES = """
         box-shadow: var(--shadow-3d) !important;
     }
 
+    /* Títulos */
     h1, h2, h3 {
-        color: var(--text-primary);
+        background: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
         font-weight: 700;
         letter-spacing: -0.02em;
-        text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
         position: relative;
         display: inline-block;
-        font-family: 'Inter', system-ui, sans-serif;
     }
 
     h1::after, h2::after {
@@ -70,30 +68,27 @@ CSS_STYLES = """
         position: absolute;
         bottom: -10px;
         left: 0;
-        width: 100%;
+        width: 60px;
         height: 3px;
         background: var(--success-gradient);
         border-radius: 3px;
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.3s ease;
+        transition: width 0.3s ease;
     }
 
     h1:hover::after, h2:hover::after {
-        transform: scaleX(1);
+        width: 100%;
     }
 
     .subtitle-script {
         color: var(--text-secondary);
         margin-top: -10px;
         font-family: 'Pacifico', 'Dancing Script', 'Brush Script MT', cursive;
-        font-size: 1.1rem;
+        font-size: 1rem;
         letter-spacing: 0.5px;
-        font-weight: normal;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    .student-search-card {
+    /* Tarjetas */
+    .student-search-card, .student-detail-card, .password-modal {
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
         border-radius: 24px;
@@ -104,19 +99,24 @@ CSS_STYLES = """
         text-align: center;
         transition: all 0.3s ease;
     }
+    
     .student-search-card:hover {
         transform: translateY(-5px);
         box-shadow: var(--shadow-hover);
         border-color: rgba(0, 102, 255, 0.3);
     }
+    
     .student-name {
         font-size: 2rem;
         font-weight: 700;
-        color: var(--accent-color);
+        background: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
         margin-bottom: 0.5rem;
-        text-shadow: 0 0 10px rgba(0,255,204,0.3);
         text-transform: uppercase;
     }
+    
     .student-ru {
         font-size: 1.3rem;
         color: var(--text-secondary);
@@ -124,11 +124,14 @@ CSS_STYLES = """
         letter-spacing: 1px;
         text-transform: uppercase;
     }
+
+    /* QR */
     .qr-container {
         display: flex;
         justify-content: center;
         margin: 1.5rem 0;
     }
+    
     .qr-container img {
         border-radius: 16px;
         box-shadow: var(--shadow-3d);
@@ -136,63 +139,37 @@ CSS_STYLES = """
         max-width: 100%;
         height: auto;
     }
+    
     .qr-container img:hover {
         transform: scale(1.02);
     }
-    .download-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin-top: 1.5rem;
+    
+    .qr-info {
+        font-size: 1.3rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
     }
-    .info-card, .student-info, .stDataFrame {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 16px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .info-card::before, .student-info::before, .stDataFrame::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(0,102,255,0.1) 0%, rgba(0,102,255,0) 70%);
-        transform: rotate(30deg);
-        transition: all 0.5s ease;
-        opacity: 0;
-        pointer-events: none;
+    
+    .qr-ru {
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        text-align: center;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
     }
 
-    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
-        opacity: 1;
-        animation: shine 3s infinite;
-    }
-
-    @keyframes shine {
-        0% { transform: rotate(30deg) translate(-10%, -10%); }
-        100% { transform: rotate(30deg) translate(10%, 10%); }
-    }
-
-    .info-card:hover, .student-info:hover, .stDataFrame:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(0, 102, 255, 0.3);
-    }
-
+    /* Menú horizontal */
     div.row-widget.stRadio > div {
         display: flex;
         flex-direction: row;
         justify-content: center;
-        gap: 0.75rem;
+        gap: 0.5rem;
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
         padding: 0.5rem;
@@ -200,18 +177,18 @@ CSS_STYLES = """
         box-shadow: var(--shadow-3d);
         margin-bottom: 2rem;
         border: 1px solid var(--glass-border);
+        flex-wrap: wrap;
     }
 
     div.row-widget.stRadio > div label {
         background: transparent;
         color: var(--text-secondary);
         font-weight: 500;
-        padding: 0.6rem 1.2rem;
+        padding: 0.5rem 1rem;
         border-radius: 40px;
         transition: all 0.3s ease;
         cursor: pointer;
-        font-size: 0.9rem;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 0.85rem;
     }
 
     div.row-widget.stRadio > div label:hover {
@@ -227,8 +204,9 @@ CSS_STYLES = """
         font-weight: 600;
     }
 
+    /* Botones */
     .stButton button {
-        background: var(--primary-color);
+        background: linear-gradient(135deg, #0066ff 0%, #0052cc 100%);
         color: white;
         border: none;
         border-radius: 12px;
@@ -239,8 +217,8 @@ CSS_STYLES = """
         position: relative;
         overflow: hidden;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
-        font-family: 'Inter', system-ui, sans-serif;
+        cursor: pointer;
+        width: 100%;
     }
 
     .stButton button::before {
@@ -251,7 +229,7 @@ CSS_STYLES = """
         width: 100%;
         height: 100%;
         background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.7s;
+        transition: left 0.5s;
     }
 
     .stButton button:hover::before {
@@ -259,196 +237,177 @@ CSS_STYLES = """
     }
 
     .stButton button:hover {
-        background: var(--primary-hover);
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        transform: translateY(-2px) scale(1.01);
+        box-shadow: 0 8px 25px rgba(0, 102, 255, 0.4);
     }
 
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
+    /* Inputs */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stTextArea textarea {
         background: var(--input-bg) !important;
         border: 1px solid var(--glass-border) !important;
         border-radius: 12px !important;
         color: var(--text-primary) !important;
-        padding: 0.75rem 1rem !important;
-        backdrop-filter: blur(5px) !important;
-        font-family: 'Inter', system-ui, sans-serif;
+        padding: 0.7rem 1rem !important;
     }
 
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
-        background: var(--input-bg-focus) !important;
         border-color: var(--primary-color) !important;
         box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2) !important;
-        transform: scale(1.01);
     }
 
+    /* ============================================
+       TABLAS CON COLORES ELEGANTES - VERSIÓN CORREGIDA
+    ============================================ */
+    
     .stDataFrame {
-        padding: 0;
-        overflow: hidden;
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        background: transparent !important;
     }
-
+    
     .stDataFrame table {
         width: 100%;
         border-collapse: collapse;
-        color: var(--text-primary);
-        font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    .stDataFrame thead tr th {
-        background: var(--table-header-bg) !important;
-        color: white !important;
-        font-weight: 600;
-        padding: 1rem 1rem !important;
-        border: none !important;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .stDataFrame tbody tr {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .stDataFrame tbody tr:hover {
-        background: var(--table-row-hover);
-        transform: translateX(5px);
-    }
-
-    .stDataFrame tbody td {
-        padding: 0.75rem 1rem !important;
-        border: none !important;
-    }
-
-    .stAlert {
-        background: var(--glass-bg) !important;
-        backdrop-filter: blur(20px) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: 16px !important;
-        color: var(--text-primary) !important;
-        padding: 1rem !important;
-        box-shadow: var(--shadow-3d) !important;
-        font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: 70vh !important;
-        object-fit: cover;
-        border-radius: 16px;
-        border: 2px solid var(--primary-color);
-        box-shadow: var(--shadow-3d);
-    }
-
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-    }
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary-color);
-        border-radius: 4px;
-    }
-
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
-        animation: fadeInUp 0.5s ease-out;
-    }
-    
-    .qr-info {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: var(--accent-color);
-        text-align: center;
-        margin-bottom: 0.5rem;
-        letter-spacing: 0.5px;
-        text-shadow: 0 0 8px rgba(0,255,204,0.3);
-        text-transform: uppercase;
-    }
-    .qr-ru {
-        font-size: 1.1rem;
-        color: var(--text-secondary);
-        text-align: center;
-        margin-bottom: 1rem;
-        text-transform: uppercase;
-    }
-    
-    /* Estilos para la pantalla flotante de contraseña */
-    .password-modal {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 2rem;
-        margin: 2rem auto;
-        max-width: 500px;
-        text-align: center;
-        animation: fadeInUp 0.4s ease-out;
-    }
-    .password-modal h3 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-    }
-    .password-modal input {
-        width: 100%;
-        background: var(--input-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 12px;
-        padding: 0.75rem;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-    }
-    .password-modal button {
-        background: var(--primary-color);
-        border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: white;
-    }
-    .password-modal button:hover {
-        background: var(--primary-hover);
-        transform: translateY(-2px);
-    }
-    .password-error {
-        color: #ff6b6b;
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-    }
-
-    /* Estilo para tarjeta de información del estudiante */
-    .student-detail-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(12px);
         border-radius: 20px;
-        border: 1px solid var(--glass-border);
-        padding: 1rem;
-        margin: 1rem 0;
+        overflow: hidden;
+    }
+    
+    /* Encabezados */
+    .stDataFrame thead tr th {
+        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 0.85rem !important;
+        padding: 12px 16px !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
         text-align: center;
-        box-shadow: var(--shadow-3d);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
     }
-    .student-detail-card h4 {
-        margin: 0 0 0.5rem 0;
-        color: var(--accent-color);
+    
+    /* Celdas base */
+    .stDataFrame tbody td {
+        padding: 10px 12px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        transition: all 0.2s ease;
     }
-    .student-detail-card p {
-        margin: 0.2rem 0;
-        color: var(--text-primary);
+    
+    /* Columna Índice */
+    .stDataFrame tbody tr td:first-child {
+        background: rgba(100, 100, 120, 0.2) !important;
+        color: #b8c6db !important;
+        font-weight: 600;
+        text-align: center;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    /* Columna RU */
+    .stDataFrame tbody tr td:nth-child(2) {
+        background: rgba(45, 106, 79, 0.25) !important;
+        color: #74c69d !important;
+        font-weight: 700;
+        font-family: monospace;
+        text-align: center;
+    }
+    
+    /* Columna Nombres */
+    .stDataFrame tbody tr td:nth-child(3) {
+        background: rgba(0, 100, 200, 0.18) !important;
+        color: #7bc5ff !important;
+        font-weight: 600;
+    }
+    
+    /* Columna Apellido Paterno */
+    .stDataFrame tbody tr td:nth-child(4) {
+        background: rgba(123, 44, 191, 0.18) !important;
+        color: #c77dff !important;
+        font-weight: 600;
+    }
+    
+    /* Columna Apellido Materno */
+    .stDataFrame tbody tr td:nth-child(5) {
+        background: rgba(255, 180, 50, 0.12) !important;
+        color: #ffd966 !important;
+        font-weight: 600;
+    }
+    
+    /* Columna Fecha (si existe) */
+    .stDataFrame tbody tr td:nth-child(6) {
+        background: rgba(255, 214, 10, 0.12) !important;
+        color: #ffe066 !important;
+        font-family: monospace;
+    }
+    
+    /* Columna Hora (si existe) */
+    .stDataFrame tbody tr td:nth-child(7) {
+        background: rgba(0, 255, 200, 0.1) !important;
+        color: #5fffd9 !important;
+        font-family: monospace;
+        font-weight: 600;
+    }
+    
+    /* Columna Estado (si existe) */
+    .stDataFrame tbody tr td:last-child {
+        font-weight: 700;
+        text-align: center;
+    }
+    
+    /* Estados específicos */
+    .stDataFrame tbody tr td:last-child:contains("Presente"),
+    .stDataFrame tbody tr td:contains("Presente") {
+        background: rgba(45, 106, 79, 0.35) !important;
+        color: #95d5b2 !important;
+    }
+    
+    .stDataFrame tbody tr td:contains("Tarde") {
+        background: rgba(255, 160, 0, 0.25) !important;
+        color: #ffb347 !important;
+    }
+    
+    .stDataFrame tbody tr td:contains("Permiso") {
+        background: rgba(0, 150, 255, 0.25) !important;
+        color: #66b0ff !important;
+    }
+    
+    .stDataFrame tbody tr td:contains("Ausente") {
+        background: rgba(220, 53, 69, 0.25) !important;
+        color: #ff8a92 !important;
+    }
+    
+    /* Hover en filas */
+    .stDataFrame tbody tr:hover td {
+        background: rgba(82, 183, 136, 0.25) !important;
+        transform: scale(1.001);
+    }
+    
+    .stDataFrame tbody tr:hover td:first-child {
+        background: rgba(100, 100, 120, 0.4) !important;
+    }
+    
+    .stDataFrame tbody tr:hover td:nth-child(2) {
+        background: rgba(45, 106, 79, 0.45) !important;
+    }
+    
+    .stDataFrame tbody tr:hover td:nth-child(3) {
+        background: rgba(0, 100, 200, 0.35) !important;
+    }
+    
+    .stDataFrame tbody tr:hover td:nth-child(4) {
+        background: rgba(123, 44, 191, 0.35) !important;
+    }
+    
+    .stDataFrame tbody tr:hover td:nth-child(5) {
+        background: rgba(255, 180, 50, 0.28) !important;
     }
 
-    /* Dashboard compacto - tres tarjetas */
+    /* Dashboard de tarjetas */
     .dashboard-compact {
         display: flex;
         gap: 0.8rem;
         margin-bottom: 1.2rem;
         flex-wrap: wrap;
     }
+    
     .dashboard-card {
         flex: 1;
         min-width: 100px;
@@ -461,10 +420,12 @@ CSS_STYLES = """
         box-shadow: var(--shadow-3d);
         transition: all 0.3s ease;
     }
+    
     .dashboard-card:hover {
         transform: translateY(-3px);
         border-color: rgba(0,255,204,0.3);
     }
+    
     .dashboard-card .title {
         font-size: 0.7rem;
         font-weight: 600;
@@ -473,17 +434,20 @@ CSS_STYLES = """
         text-transform: uppercase;
         letter-spacing: 0.8px;
     }
+    
     .dashboard-card .value {
         font-size: 1.3rem;
         font-weight: 700;
         color: var(--text-primary);
         line-height: 1.2;
     }
+    
     .dashboard-card .percentage {
         font-size: 0.65rem;
         color: var(--text-secondary);
         margin-top: 0.2rem;
     }
+    
     .progress-bar-bg {
         background: rgba(255,255,255,0.15);
         border-radius: 20px;
@@ -492,36 +456,78 @@ CSS_STYLES = """
         margin-top: 0.5rem;
         overflow: hidden;
     }
+    
     .progress-bar-fill {
         height: 100%;
         border-radius: 20px;
         transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
     }
+    
     .green-card .progress-bar-fill {
         background: linear-gradient(90deg, #00cc88, #00ffaa);
         box-shadow: 0 0 6px #00ffaa;
     }
+    
     .orange-card .progress-bar-fill {
         background: linear-gradient(90deg, #ff884d, #ffaa66);
         box-shadow: 0 0 6px #ffaa66;
     }
+    
     .blue-card .progress-bar-fill {
         background: linear-gradient(90deg, #3399ff, #66ccff);
         box-shadow: 0 0 6px #66ccff;
     }
+    
     .green-card {
         background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
         border-left: 3px solid #00ffaa;
     }
+    
     .orange-card {
         background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
         border-left: 3px solid #ffaa66;
     }
+    
     .blue-card {
         background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
         border-left: 3px solid #66ccff;
     }
-    @media (max-width: 600px) {
+
+    /* Cámara */
+    div[data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: 60vh !important;
+        object-fit: cover;
+        border-radius: 16px;
+        border: 2px solid var(--primary-color);
+        box-shadow: var(--shadow-3d);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #0066ff, #00ffcc);
+        border-radius: 10px;
+    }
+
+    /* Animaciones */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .stAlert, .stButton, .stDataFrame, .student-search-card {
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
         .dashboard-card .value {
             font-size: 1.1rem;
         }
@@ -531,179 +537,18 @@ CSS_STYLES = """
         .dashboard-card {
             padding: 0.5rem 0.6rem;
         }
-
-        
+        div.row-widget.stRadio > div label {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.7rem;
+        }
+        .stDataFrame thead tr th {
+            font-size: 0.7rem;
+            padding: 8px 6px !important;
+        }
+        .stDataFrame tbody td {
+            font-size: 0.7rem;
+            padding: 6px 4px !important;
+        }
     }
-    /* ============================================
-   TABLA PRINCIPAL - COLORES ELEGANTES PROFESIONALES
-   ============================================ */
-
-/* Estilo general de la tabla */
-.stDataFrame table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-/* Encabezados de la tabla - Gradiente elegante */
-.stDataFrame thead tr th {
-    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%) !important;
-    color: #ffffff !important;
-    font-weight: 700;
-    font-size: 0.9rem;
-    padding: 14px 16px !important;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    text-align: center;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-}
-
-/* ============================================
-   COLORES POR COLUMNA (Índice, RU, Nombres, Apellidos)
-   ============================================ */
-
-/* Columna Índice (primera columna) - Gradiente metálico */
-.stDataFrame tbody tr td:first-child {
-    background: linear-gradient(135deg, rgba(100, 100, 120, 0.15), rgba(80, 80, 100, 0.08)) !important;
-    color: #b8c6db !important;
-    font-weight: 600;
-    text-align: center;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Columna RU (segunda columna) - Verde esmeralda premium */
-.stDataFrame tbody tr td:nth-child(2) {
-    background: rgba(45, 106, 79, 0.25) !important;
-    color: #74c69d !important;
-    font-weight: 700;
-    font-family: 'Courier New', monospace;
-    font-size: 0.95rem;
-    text-align: center;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Columna Nombres (tercera columna) - Azul zafiro */
-.stDataFrame tbody tr td:nth-child(3) {
-    background: rgba(0, 100, 200, 0.18) !important;
-    color: #7bc5ff !important;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Columna Apellido Paterno (cuarta columna) - Púrpura real */
-.stDataFrame tbody tr td:nth-child(4) {
-    background: rgba(123, 44, 191, 0.18) !important;
-    color: #c77dff !important;
-    font-weight: 600;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Columna Apellido Materno (quinta columna) - Dorado elegante */
-.stDataFrame tbody tr td:nth-child(5) {
-    background: rgba(255, 180, 50, 0.12) !important;
-    color: #ffd966 !important;
-    font-weight: 600;
-}
-
-/* ============================================
-   EFECTOS HOVER Y FILAS ALTERNAS
-   ============================================ */
-
-/* Filas pares - efecto de profundidad */
-.stDataFrame tbody tr:nth-child(even) td {
-    backdrop-filter: brightness(0.95);
-}
-
-/* Filas impares */
-.stDataFrame tbody tr:nth-child(odd) td {
-    backdrop-filter: brightness(1.02);
-}
-
-/* Efecto hover en filas */
-.stDataFrame tbody tr:hover td {
-    background: rgba(82, 183, 136, 0.25) !important;
-    transform: scale(1.001);
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-/* Efecto específico hover por columna */
-.stDataFrame tbody tr:hover td:first-child {
-    background: rgba(100, 100, 120, 0.35) !important;
-}
-
-.stDataFrame tbody tr:hover td:nth-child(2) {
-    background: rgba(45, 106, 79, 0.45) !important;
-    text-shadow: 0 0 5px rgba(116, 198, 157, 0.3);
-}
-
-.stDataFrame tbody tr:hover td:nth-child(3) {
-    background: rgba(0, 100, 200, 0.35) !important;
-}
-
-.stDataFrame tbody tr:hover td:nth-child(4) {
-    background: rgba(123, 44, 191, 0.35) !important;
-}
-
-.stDataFrame tbody tr:hover td:nth-child(5) {
-    background: rgba(255, 180, 50, 0.28) !important;
-}
-
-/* ============================================
-   BORDES Y SOMBRAS ELEGANTES
-   ============================================ */
-
-/* Bordes redondeados en celdas */
-.stDataFrame tbody td {
-    padding: 10px 12px !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    transition: all 0.2s ease;
-}
-
-/* Sombra interna en la tabla */
-.stDataFrame {
-    background: rgba(15, 25, 35, 0.5) !important;
-    border-radius: 20px !important;
-    backdrop-filter: blur(5px);
-}
-
-/* ============================================
-   ANIMACIÓN DE ENTRADA
-   ============================================ */
-
-@keyframes tableFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.stDataFrame {
-    animation: tableFadeIn 0.5s ease-out;
-}
-
-/* ============================================
-   RESPONSIVE PARA MÓVIL
-   ============================================ */
-
-@media (max-width: 768px) {
-    .stDataFrame thead tr th {
-        font-size: 0.7rem;
-        padding: 8px 6px !important;
-    }
-    
-    .stDataFrame tbody td {
-        font-size: 0.75rem;
-        padding: 6px 4px !important;
-    }
-}
 </style>
 """
