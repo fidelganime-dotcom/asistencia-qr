@@ -228,19 +228,17 @@ CSS_STYLES = """
     }
 
     .stButton button {
-        background: #1e3a8a;
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        font-size: 0.9rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
-        font-family: 'Inter', system-ui, sans-serif;
+        background: linear-gradient(135deg, #172554, #1e3a8a, #1e40af);
+    border: 2px solid #00d4ff;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+    animation: none;
+    color: white;
+    border-radius: 16px;
+    padding: 0.7rem 1.8rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.35s ease;
+    cursor: pointer;
     }
 
     .stButton button::before {
