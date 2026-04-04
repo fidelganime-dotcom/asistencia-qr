@@ -61,6 +61,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -82,12 +83,7 @@ def verificar_registro_duplicado(ru, fecha):
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
-st.set_page_config(
-    page_title="Sistema QR Attendance", 
-    layout="wide", 
-    initial_sidebar_state="collapsed",
-    page_icon="📱"
-)
+st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
 # INICIALIZAR SESSION STATE
@@ -108,1084 +104,633 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ✨ NUEVO CSS - DISEÑO MOBILE-FIRST DARK MODERNO ✨
+# ESTILOS CSS (con tres tarjetas)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
-    /* ===== VARIABLES GLOBALES - SISTEMA DE DISEÑO ===== */
     :root {
-        /* Colores base - Dark Mode nativo */
-        --bg-primary: #09090b;
-        --bg-secondary: #18181b;
-        --bg-tertiary: #27272a;
-        --bg-elevated: #3f3f46;
-        
-        /* Colores de acento - Sistema monocromático */
-        --accent-primary: #ffffff;
-        --accent-secondary: #a1a1aa;
-        --accent-tertiary: #71717a;
-        
-        /* Colores de estado */
-        --success: #22c55e;
-        --warning: #f59e0b;
-        --error: #ef4444;
-        --info: #3b82f6;
-        
-        /* Tipografía del sistema */
-        --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        
-        /* Espaciado y bordes */
-        --radius-sm: 8px;
-        --radius-md: 12px;
-        --radius-lg: 16px;
-        --radius-xl: 24px;
-        --radius-full: 9999px;
-        
-        /* Sombras sutiles estilo sistema */
-        --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3);
-        --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -2px rgba(0,0,0,0.4);
-        
-        /* Transiciones */
-        --transition-fast: 150ms ease;
-        --transition-normal: 250ms ease;
-        --transition-slow: 400ms ease;
-        
-        /* Touch targets mobile */
-        --touch-min: 44px;
+        --primary-color: #0066ff;
+        --primary-hover: #0052cc;
+        --accent-color: #00ffcc;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --bg-dark: #0f172a;
+        --glass-bg: rgba(15, 23, 42, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --shadow-3d: 0 10px 25px -5px rgba(0, 102, 255, 0.2), 0 10px 10px -5px rgba(0, 102, 255, 0.1);
+        --shadow-hover: 0 20px 50px -10px rgba(0, 102, 255, 0.4);
+        --success-gradient: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
+        --input-bg: rgba(15, 23, 42, 0.5);
+        --input-bg-focus: rgba(15, 23, 42, 0.8);
+        --table-header-bg: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%);
+        --table-row-hover: rgba(0, 102, 255, 0.1);
+        --badge-bg: var(--success-gradient);
+        --badge-color: #020617;
     }
 
-    /* ===== RESET Y BASE ===== */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
+
     .stApp {
-        background: var(--bg-primary);
-        font-family: var(--font-stack);
-        color: var(--accent-primary);
-        -webkit-font-smoothing: antialiased;
+        background-color: var(--bg-dark);
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* ===== HEADER COMPACTO MOBILE ===== */
-    [data-testid="stHeader"] {
-        background: var(--bg-secondary) !important;
-        border-bottom: 1px solid var(--bg-tertiary) !important;
-        padding: 8px 16px !important;
-        position: sticky;
-        top: 0;
-        z-index: 100;
+    /* Estilo mejorado para mensajes de éxito */
+    .stAlert[data-testid="stAlert"] {
+        background: linear-gradient(135deg, rgba(0,102,255,0.15), rgba(0,51,204,0.1)) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(0,255,204,0.3) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 8px 20px rgba(0,102,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        animation: slideInDown 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
+        color: #e6f7ff !important;
     }
-    
-    [data-testid="stHeader"] .stAppViewBlock {
-        padding: 0 !important;
-    }
-
-    /* ===== TÍTULOS MINIMALISTAS ===== */
-    h1, h2, h3, h4 {
-        color: var(--accent-primary);
-        font-weight: 600;
-        letter-spacing: -0.025em;
-        line-height: 1.3;
-    }
-    h1 { font-size: 1.5rem; margin: 0 0 12px; }
-    h2 { font-size: 1.25rem; margin: 20px 0 12px; color: var(--accent-secondary); }
-    h3 { font-size: 1.1rem; margin: 16px 0 8px; }
-
-    /* ===== NAVIGATION MOBILE-FIRST ===== */
-    .nav-container {
-        display: flex;
-        gap: 4px;
-        padding: 8px;
-        background: var(--bg-secondary);
-        border-radius: var(--radius-lg);
-        margin: 12px 0 20px;
-        overflow-x: auto;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-    .nav-container::-webkit-scrollbar { display: none; }
-    
-    .nav-item {
-        flex: 0 0 auto;
-        padding: 10px 16px;
-        background: transparent;
-        border: none;
-        border-radius: var(--radius-md);
-        color: var(--accent-tertiary);
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-height: var(--touch-min);
-    }
-    .nav-item:hover {
-        background: var(--bg-tertiary);
-        color: var(--accent-primary);
-    }
-    .nav-item.active {
-        background: var(--accent-primary);
-        color: var(--bg-primary);
-        font-weight: 600;
-    }
-    
-    /* Ocultar radio nativo de Streamlit para nav */
-    div[data-testid="stRadio"] { display: none !important; }
-    div[data-testid="stRadio"] + div { display: none !important; }
-
-    /* ===== TARJETAS MODERNAS ===== */
-    .card {
-        background: var(--bg-secondary);
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--bg-tertiary);
-        padding: 16px;
-        margin: 12px 0;
-        transition: all var(--transition-normal);
-    }
-    .card:hover {
-        border-color: var(--bg-elevated);
-        transform: translateY(-1px);
-    }
-    .card.elevated {
-        background: var(--bg-tertiary);
-        box-shadow: var(--shadow-md);
-    }
-    .card.compact {
-        padding: 12px;
-        margin: 8px 0;
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    /* ===== BOTONES SISTEMA - MOBILE OPTIMIZED ===== */
-    .stButton > button {
-        background: var(--accent-primary) !important;
-        color: var(--bg-primary) !important;
-        border: none !important;
-        border-radius: var(--radius-md) !important;
-        padding: 12px 20px !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-        min-height: var(--touch-min) !important;
-        min-width: var(--touch-min) !important;
-        transition: all var(--transition-fast) !important;
-        box-shadow: var(--shadow-sm) !important;
-        width: 100% !important;
-        font-family: var(--font-stack) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 8px !important;
-    }
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: var(--shadow-md) !important;
-        filter: brightness(0.95) !important;
-    }
-    .stButton > button:active {
-        transform: translateY(0) !important;
-        filter: brightness(0.9) !important;
-    }
-    .stButton > button[disabled] {
-        background: var(--bg-tertiary) !important;
-        color: var(--accent-tertiary) !important;
-        cursor: not-allowed !important;
-        transform: none !important;
-    }
-    
-    /* Botones secundarios */
-    .btn-secondary {
-        background: var(--bg-tertiary) !important;
-        color: var(--accent-primary) !important;
-        border: 1px solid var(--bg-elevated) !important;
-    }
-    .btn-secondary:hover {
-        background: var(--bg-elevated) !important;
-    }
-    
-    /* Botones de estado */
-    .btn-success { background: var(--success) !important; color: #000 !important; }
-    .btn-warning { background: var(--warning) !important; color: #000 !important; }
-    .btn-error { background: var(--error) !important; color: #fff !important; }
-
-    /* ===== INPUTS MODERNOS ===== */
-    .stTextInput > div > div > input,
-    .stSelectbox > div > div {
-        background: var(--bg-tertiary) !important;
-        border: 1px solid var(--bg-elevated) !important;
-        border-radius: var(--radius-md) !important;
-        color: var(--accent-primary) !important;
-        padding: 12px 16px !important;
-        font-size: 1rem !important;
-        min-height: var(--touch-min) !important;
-        transition: all var(--transition-fast) !important;
-        font-family: var(--font-stack) !important;
-    }
-    .stTextInput > div > div > input:focus,
-    .stSelectbox > div > div:focus-within {
-        border-color: var(--accent-primary) !important;
-        box-shadow: 0 0 0 3px rgba(255,255,255,0.15) !important;
-        background: var(--bg-elevated) !important;
-    }
-    .stTextInput label, .stSelectbox label {
-        color: var(--accent-secondary) !important;
-        font-size: 0.9rem !important;
-        margin-bottom: 6px !important;
-        font-weight: 500 !important;
+    .css-1d391kg, .css-1lcbmhc {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(20px) !important;
+        border-right: 1px solid var(--glass-border) !important;
+        box-shadow: var(--shadow-3d) !important;
     }
 
-    /* ===== ALERTS Y MENSAJES ===== */
-    .stAlert {
-        background: var(--bg-tertiary) !important;
-        border: 1px solid var(--bg-elevated) !important;
-        border-radius: var(--radius-md) !important;
-        color: var(--accent-primary) !important;
-        padding: 12px 16px !important;
-        margin: 12px 0 !important;
-        font-size: 0.95rem !important;
-    }
-    .stAlert[data-testid="stAlert"]:has([data-testid="stAlertIcon"] svg:first-child) {
-        border-left: 4px solid var(--info);
-    }
-    .stAlert[data-testid="stAlert"]:has([data-testid="stAlertIcon"] svg[stroke="currentColor"]):nth-child(2) {
-        border-left: 4px solid var(--success);
-    }
-    .stAlert[data-testid="stAlert"]:has([data-testid="stAlertIcon"] svg[stroke="currentColor"]):nth-child(3) {
-        border-left: 4px solid var(--warning);
-    }
-    .stAlert[data-testid="stAlert"]:has([data-testid="stAlertIcon"] svg[stroke="currentColor"]):nth-child(4) {
-        border-left: 4px solid var(--error);
+    h1, h2, h3 {
+        color: var(--text-primary);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
+        position: relative;
+        display: inline-block;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
-    /* ===== TABLAS RESPONSIVAS ===== */
-    .stDataFrame {
-        background: var(--bg-secondary) !important;
-        border-radius: var(--radius-lg) !important;
-        border: 1px solid var(--bg-tertiary) !important;
-        overflow: hidden !important;
-        margin: 12px 0 !important;
+    h1::after, h2::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: var(--success-gradient);
+        border-radius: 3px;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
     }
-    .stDataFrame table {
-        font-size: 0.9rem !important;
+
+    h1:hover::after, h2:hover::after {
+        transform: scaleX(1);
     }
-    .stDataFrame thead th {
-        background: var(--bg-tertiary) !important;
-        color: var(--accent-secondary) !important;
-        font-weight: 600 !important;
-        padding: 12px !important;
-        border-bottom: 1px solid var(--bg-elevated) !important;
+
+    .subtitle-script {
+        color: var(--text-secondary);
+        margin-top: -10px;
+        font-family: 'Pacifico', 'Dancing Script', 'Brush Script MT', cursive;
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
+        font-weight: normal;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .student-search-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 2rem;
+        margin: 1.5rem 0;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .student-search-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(0, 102, 255, 0.3);
+    }
+    .student-name {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent-color);
+        margin-bottom: 0.5rem;
+        text-shadow: 0 0 10px rgba(0,255,204,0.3);
         text-transform: uppercase;
-        font-size: 0.75rem !important;
-        letter-spacing: 0.05em;
     }
-    .stDataFrame tbody td {
-        padding: 12px !important;
-        border-bottom: 1px solid var(--bg-tertiary) !important;
-        color: var(--accent-primary) !important;
+    .student-ru {
+        font-size: 1.3rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
     }
-    .stDataFrame tbody tr:hover {
-        background: var(--bg-tertiary) !important;
-    }
-
-    /* ===== QR Y TARJETAS VISUALES ===== */
-    .qr-showcase {
+    .qr-container {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 16px;
-        padding: 20px;
-        background: var(--bg-secondary);
-        border-radius: var(--radius-xl);
-        margin: 16px 0;
+        justify-content: center;
+        margin: 1.5rem 0;
     }
-    .qr-image {
-        border-radius: var(--radius-lg);
-        border: 4px solid var(--bg-tertiary);
-        box-shadow: var(--shadow-lg);
+    .qr-container img {
+        border-radius: 16px;
+        box-shadow: var(--shadow-3d);
+        transition: transform 0.3s ease;
         max-width: 100%;
         height: auto;
     }
-    .student-badge {
-        text-align: center;
-        padding: 8px 16px;
-        background: var(--bg-tertiary);
-        border-radius: var(--radius-full);
-        font-weight: 600;
-        font-size: 0.9rem;
+    .qr-container img:hover {
+        transform: scale(1.02);
     }
-    .student-ru {
-        color: var(--accent-secondary);
-        font-family: monospace;
-        font-size: 0.85rem;
-        margin-top: 4px;
+    .download-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1.5rem;
     }
-
-    /* ===== DASHBOARD CARDS ===== */
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 12px;
-        margin: 16px 0;
-    }
-    .stat-card {
-        background: var(--bg-secondary);
-        border-radius: var(--radius-lg);
-        padding: 16px;
-        text-align: center;
-        border: 1px solid var(--bg-tertiary);
-        transition: all var(--transition-normal);
-    }
-    .stat-card:hover {
-        border-color: var(--accent-primary);
-        transform: translateY(-2px);
-    }
-    .stat-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: var(--accent-primary);
-        line-height: 1;
-        margin: 4px 0;
-    }
-    .stat-label {
-        font-size: 0.8rem;
-        color: var(--accent-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 500;
-    }
-    .stat-bar {
-        height: 4px;
-        background: var(--bg-tertiary);
-        border-radius: var(--radius-full);
-        margin-top: 12px;
+    .info-card, .student-info, .stDataFrame {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        position: relative;
         overflow: hidden;
     }
-    .stat-fill {
-        height: 100%;
-        border-radius: var(--radius-full);
-        transition: width var(--transition-slow);
-    }
-    .stat-fill.green { background: var(--success); }
-    .stat-fill.blue { background: var(--info); }
-    .stat-fill.orange { background: var(--warning); }
 
-    /* ===== MODALES Y CONFIRMACIONES ===== */
-    .modal-overlay {
-        background: rgba(0,0,0,0.7);
-        border-radius: var(--radius-lg);
-        padding: 20px;
-        margin: 16px 0;
-        border: 1px solid var(--bg-elevated);
+    .info-card::before, .student-info::before, .stDataFrame::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(0,102,255,0.1) 0%, rgba(0,102,255,0) 70%);
+        transform: rotate(30deg);
+        transition: all 0.5s ease;
+        opacity: 0;
+        pointer-events: none;
     }
-    .modal-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 12px;
+
+    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
+        opacity: 1;
+        animation: shine 3s infinite;
+    }
+
+    @keyframes shine {
+        0% { transform: rotate(30deg) translate(-10%, -10%); }
+        100% { transform: rotate(30deg) translate(10%, 10%); }
+    }
+
+    .info-card:hover, .student-info:hover, .stDataFrame:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(0, 102, 255, 0.3);
+    }
+
+    div.row-widget.stRadio > div {
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: row;
+        justify-content: center;
+        gap: 0.75rem;
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        padding: 0.5rem;
+        border-radius: 60px;
+        box-shadow: var(--shadow-3d);
+        margin-bottom: 2rem;
+        border: 1px solid var(--glass-border);
     }
 
-    /* ===== UTILIDADES ===== */
-    .text-center { text-align: center; }
-    .text-muted { color: var(--accent-secondary); }
-    .text-success { color: var(--success); }
-    .text-warning { color: var(--warning); }
-    .text-error { color: var(--error); }
-    .mt-0 { margin-top: 0; }
-    .mb-0 { margin-bottom: 0; }
-    .mt-2 { margin-top: 8px; }
-    .mb-2 { margin-bottom: 8px; }
-    .mt-4 { margin-top: 16px; }
-    .mb-4 { margin-bottom: 16px; }
-    
-    .flex { display: flex; }
-    .flex-col { flex-direction: column; }
-    .items-center { align-items: center; }
-    .justify-center { justify-content: center; }
-    .justify-between { justify-content: space-between; }
-    .gap-2 { gap: 8px; }
-    .gap-4 { gap: 16px; }
-    
-    .w-full { width: 100%; }
-    
-    /* ===== RESPONSIVE MOBILE ===== */
-    @media (max-width: 768px) {
-        .stMainBlockContainer > div {
-            padding: 12px !important;
-        }
-        h1 { font-size: 1.3rem; }
-        h2 { font-size: 1.1rem; }
-        .card { padding: 14px; border-radius: var(--radius-md); }
-        .dashboard-grid { grid-template-columns: 1fr; }
-        .nav-item { padding: 10px 12px; font-size: 0.8rem; }
+    div.row-widget.stRadio > div label {
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 500;
+        padding: 0.6rem 1.2rem;
+        border-radius: 40px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
-    /* ===== ANIMACIONES SUTILES ===== */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .card, .stAlert, .stButton, .stDataFrame {
-        animation: fadeIn var(--transition-normal) ease-out;
+    div.row-widget.stRadio > div label:hover {
+        background: rgba(0, 102, 255, 0.2);
+        color: var(--accent-color);
+        transform: translateY(-2px);
     }
 
-    /* ===== SCROLLBAR PERSONALIZADO ===== */
+    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
+        background: var(--success-gradient);
+        color: var(--badge-color);
+        box-shadow: var(--shadow-3d);
+        font-weight: 600;
+    }
+
+    .stButton button {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .stButton button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.7s;
+    }
+
+    .stButton button:hover::before {
+        left: 100%;
+    }
+
+    .stButton button:hover {
+        background: var(--primary-hover);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
+        background: var(--input-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 12px !important;
+        color: var(--text-primary) !important;
+        padding: 0.75rem 1rem !important;
+        backdrop-filter: blur(5px) !important;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
+        background: var(--input-bg-focus) !important;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2) !important;
+        transform: scale(1.01);
+    }
+
+    .stDataFrame {
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .stDataFrame table {
+        width: 100%;
+        border-collapse: collapse;
+        color: var(--text-primary);
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .stDataFrame thead tr th {
+        background: var(--table-header-bg) !important;
+        color: white !important;
+        font-weight: 600;
+        padding: 1rem 1rem !important;
+        border: none !important;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stDataFrame tbody tr {
+        transition: all 0.3s ease;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stDataFrame tbody tr:hover {
+        background: var(--table-row-hover);
+        transform: translateX(5px);
+    }
+
+    .stDataFrame tbody td {
+        padding: 0.75rem 1rem !important;
+        border: none !important;
+    }
+
+    .stAlert {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 16px !important;
+        color: var(--text-primary) !important;
+        padding: 1rem !important;
+        box-shadow: var(--shadow-3d) !important;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    div[data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: 70vh !important;
+        object-fit: cover;
+        border-radius: 16px;
+        border: 2px solid var(--primary-color);
+        box-shadow: var(--shadow-3d);
+    }
+
     ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
     }
     ::-webkit-scrollbar-track {
-        background: var(--bg-secondary);
+        background: rgba(255, 255, 255, 0.1);
     }
     ::-webkit-scrollbar-thumb {
-        background: var(--bg-elevated);
-        border-radius: var(--radius-full);
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--accent-tertiary);
+        background: var(--primary-color);
+        border-radius: 4px;
     }
 
-    /* ===== ICONOS MONOCROMÁTICOS SVG ===== */
-    .icon {
-        width: 20px;
-        height: 20px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: currentColor;
-        flex-shrink: 0;
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    .icon-lg { width: 24px; height: 24px; }
-    .icon-sm { width: 16px; height: 16px; }
+    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
+        animation: fadeInUp 0.5s ease-out;
+    }
+    
+    .qr-info {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--accent-color);
+        text-align: center;
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 8px rgba(0,255,204,0.3);
+        text-transform: uppercase;
+    }
+    .qr-ru {
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        text-align: center;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+    }
+    
+    /* Estilos para la pantalla flotante de contraseña */
+    .password-modal {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 2rem;
+        margin: 2rem auto;
+        max-width: 500px;
+        text-align: center;
+        animation: fadeInUp 0.4s ease-out;
+    }
+    .password-modal h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+    .password-modal input {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 0.75rem;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+    .password-modal button {
+        background: var(--primary-color);
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+    }
+    .password-modal button:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+    }
+    .password-error {
+        color: #ff6b6b;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* Estilo para tarjeta de información del estudiante */
+    .student-detail-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+        padding: 1rem;
+        margin: 1rem 0;
+        text-align: center;
+        box-shadow: var(--shadow-3d);
+    }
+    .student-detail-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--accent-color);
+    }
+    .student-detail-card p {
+        margin: 0.2rem 0;
+        color: var(--text-primary);
+    }
+
+    /* Dashboard compacto - tres tarjetas */
+    .dashboard-compact {
+        display: flex;
+        gap: 0.8rem;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+    }
+    .dashboard-card {
+        flex: 1;
+        min-width: 100px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(8px);
+        border-radius: 20px;
+        padding: 0.6rem 0.8rem;
+        text-align: center;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        transition: all 0.3s ease;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(0,255,204,0.3);
+    }
+    .dashboard-card .title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    .dashboard-card .value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    .dashboard-card .percentage {
+        font-size: 0.65rem;
+        color: var(--text-secondary);
+        margin-top: 0.2rem;
+    }
+    .progress-bar-bg {
+        background: rgba(255,255,255,0.15);
+        border-radius: 20px;
+        height: 5px;
+        width: 100%;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 20px;
+        transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    }
+    .green-card .progress-bar-fill {
+        background: linear-gradient(90deg, #00cc88, #00ffaa);
+        box-shadow: 0 0 6px #00ffaa;
+    }
+    .orange-card .progress-bar-fill {
+        background: linear-gradient(90deg, #ff884d, #ffaa66);
+        box-shadow: 0 0 6px #ffaa66;
+    }
+    .blue-card .progress-bar-fill {
+        background: linear-gradient(90deg, #3399ff, #66ccff);
+        box-shadow: 0 0 6px #66ccff;
+    }
+    .green-card {
+        background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
+        border-left: 3px solid #00ffaa;
+    }
+    .orange-card {
+        background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
+        border-left: 3px solid #ffaa66;
+    }
+    .blue-card {
+        background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
+        border-left: 3px solid #66ccff;
+    }
+    @media (max-width: 600px) {
+        .dashboard-card .value {
+            font-size: 1.1rem;
+        }
+        .dashboard-card .title {
+            font-size: 0.65rem;
+        }
+        .dashboard-card {
+            padding: 0.5rem 0.6rem;
+        }
+    }
 </style>
+""", unsafe_allow_html=True)
 
-<!-- SVG Icons Library - Sistema monocromático -->
+# ------------------------------------------------------------
+# PARTÍCULAS ANIMADAS
+# ------------------------------------------------------------
+st.markdown("""
 <script>
-// Iconos SVG inline para consistencia visual
-const icons = {
-    register: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>',
-    list: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>',
-    scan: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>',
-    manual: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>',
-    stats: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>',
-    calendar: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>',
-    check: '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>',
-    warning: '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
-    error: '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
-    download: '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>',
-    search: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>',
-    edit: '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>',
-    trash: '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>',
-    lock: '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>'
-};
-
-// Inyectar iconos en botones después de cargar
-document.addEventListener('DOMContentLoaded', function() {
-    // Reemplazar emojis en navegación con iconos SVG
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        const text = btn.textContent.trim();
-        if (text.includes('📝')) btn.innerHTML = icons.register + ' Registrar';
-        if (text.includes('📋')) btn.innerHTML = icons.list + ' Lista';
-        if (text.includes('📸')) btn.innerHTML = icons.scan + ' Escanear';
-        if (text.includes('✍️')) btn.innerHTML = icons.manual + ' Manual';
-        if (text.includes('📊')) btn.innerHTML = icons.stats + ' Asistencia';
-        if (text.includes('📅')) btn.innerHTML = icons.calendar + ' Por Fecha';
-    });
-});
+    function createParticles() {
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.pointerEvents = 'none';
+        container.style.zIndex = '-1';
+        document.body.appendChild(container);
+        
+        const particleCount = 80;
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.style.position = 'absolute';
+            particle.style.width = (Math.random() * 3 + 2) + 'px';
+            particle.style.height = particle.style.width;
+            particle.style.background = Math.random() > 0.66 ? '#00ffcc' : '#0066ff';
+            particle.style.borderRadius = '50%';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animation = `float ${Math.random() * 5 + 5}s infinite ease-in-out`;
+            particle.style.animationDelay = Math.random() * 8 + 's';
+            particle.style.opacity = '0.6';
+            container.appendChild(particle);
+        }
+    }
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
+            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
+            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
+            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
+        }
+    `;
+    document.head.appendChild(style);
+    window.addEventListener('load', createParticles);
 </script>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# NAVIGATION MOBILE-FIRST (Reemplaza sidebar)
+# SIDEBAR
+# ------------------------------------------------------------
+with st.sidebar:
+    st.markdown("## 📂 Desarrollado por Josué")
+    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# TÍTULO CON LOGO
+# ------------------------------------------------------------
+logo_path = "assets/logo.png"
+
+with st.container():
+    col_logo, col_texto = st.columns([1, 8])
+    with col_logo:
+        if os.path.exists(logo_path):
+            st.image(logo_path, width=100)
+        else:
+            st.write("")
+    with col_texto:
+        st.markdown("""
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+            <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
+            <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ------------------------------------------------------------
+# MENÚ HORIZONTAL
 # ------------------------------------------------------------
 opciones_menu = [
     "📝 Registrar estudiante",
-    "📋 Lista estudiantes", 
+    "📋 Lista estudiantes",
     "📸 Escanear QR",
     "✍️ Registrar asistencia manual",
-    "📊 Ver asistencia",
-    "📅 Asistencia por fecha"
+    "📊 Ver asistencia"
 ]
-
-# Crear navegación horizontal con scroll
-nav_html = '<div class="nav-container">'
-for i, opcion in enumerate(opciones_menu):
-    active_class = "active" if st.session_state.menu_actual == opcion else ""
-    # Extraer texto sin emoji para mostrar
-    texto = opcion.split(" ", 1)[1] if " " in opcion else opcion
-    nav_html += f'<button class="nav-item {active_class}" data-value="{opcion}" onclick="selectMenu(\'{opcion}\')">{opcion}</button>'
-nav_html += '</div>'
-
-st.markdown(nav_html, unsafe_allow_html=True)
-
-# Script para manejar navegación sin recargar toda la página
-st.markdown("""
-<script>
-function selectMenu(value) {
-    // Streamlit no permite cambio directo de session state desde JS,
-    // pero podemos usar el radio oculto que Streamlit genera
-    const radio = document.querySelector('input[data-testid="stRadioInput"][value="' + value + '"]');
-    if (radio) {
-        radio.checked = true;
-        radio.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    // Actualizar visualmente
-    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-}
-// Sincronizar estado inicial
-document.addEventListener('DOMContentLoaded', function() {
-    const current = localStorage.getItem('menu_actual') || '';
-    if (current) {
-        document.querySelectorAll('.nav-item').forEach(btn => {
-            if (btn.dataset.value === current) btn.classList.add('active');
-        });
-    }
-});
-</script>
-""", unsafe_allow_html=True)
-
-# Mantener radio oculto para funcionalidad de Streamlit
-menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio", index=0)
+menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio")
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIONES DE UI REUTILIZABLES
-# ------------------------------------------------------------
-def icon(icon_name):
-    """Helper para iconos SVG monocromáticos"""
-    icon_map = {
-        'check': '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>',
-        'warning': '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
-        'error': '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
-        'download': '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>',
-        'search': '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>',
-        'edit': '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>',
-        'trash': '<svg class="icon icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>',
-        'lock': '<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>'
-    }
-    return icon_map.get(icon_name, '')
-
-def card(content, elevated=False, compact=False):
-    """Wrapper para tarjetas con estilos consistentes"""
-    classes = "card"
-    if elevated: classes += " elevated"
-    if compact: classes += " compact"
-    return f'<div class="{classes}">{content}</div>'
-
-# ------------------------------------------------------------
-# HEADER COMPACTO
-# ------------------------------------------------------------
-with st.container():
-    col_logo, col_title = st.columns([1, 4])
-    with col_logo:
-        logo_path = "assets/logo.png"
-        if os.path.exists(logo_path):
-            st.image(logo_path, width=50)
-        else:
-            st.markdown('<div style="width:50px;height:50px;background:var(--bg-tertiary);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem">🎓</div>', unsafe_allow_html=True)
-    with col_title:
-        st.markdown("""
-        <div>
-            <h1 style="margin:0;font-size:1.3rem">INGENIERÍA DE SISTEMAS</h1>
-            <p style="margin:2px 0 0;color:var(--accent-secondary);font-size:0.85rem">Sistema de Asistencia QR</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-# 📝 REGISTRAR ESTUDIANTE
-# ------------------------------------------------------------
-if st.session_state.menu_actual == "📝 Registrar estudiante":
-    st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None
-    
-    st.markdown('<h2>Registrar nuevo estudiante</h2>', unsafe_allow_html=True)
-    
-    with st.container():
-        col1, col2 = st.columns(2)
-        with col1:
-            ru = st.text_input("RU", placeholder="Solo números", key="reg_ru")
-            nombres = st.text_input("Nombres", placeholder="Nombres completos", key="reg_nom")
-        with col2:
-            paterno = st.text_input("Apellido paterno", placeholder="Paterno", key="reg_pat")
-            materno = st.text_input("Apellido materno", placeholder="Materno", key="reg_mat")
-        
-        col_btn, _, _ = st.columns([2, 1, 1])
-        with col_btn:
-            if st.button("💾 Guardar estudiante", use_container_width=True, key="btn_guardar"):
-                if not ru or not ru.strip():
-                    st.error("❌ El RU no puede estar vacío")
-                elif not ru.isdigit():
-                    st.error("❌ El RU debe contener solo números")
-                else:
-                    try:
-                        existe = supabase.table("estudiantes").select("ru").eq("ru", ru).execute()
-                        if existe.data:
-                            st.error("❌ Este RU ya existe")
-                        else:
-                            supabase.table("estudiantes").insert({
-                                "ru": ru, "nombres": nombres,
-                                "apellido_paterno": paterno, "apellido_materno": materno
-                            }).execute()
-                            st.success("✅ Estudiante registrado exitosamente")
-                            
-                            # Mostrar QR generado
-                            qr_img = qrcode.make(ru)
-                            img_bytes = io.BytesIO()
-                            qr_img.save(img_bytes, format='PNG')
-                            img_bytes.seek(0)
-                            
-                            with st.container():
-                                st.markdown(f"""
-                                <div class="qr-showcase">
-                                    <div class="student-badge">{nombres} {paterno}</div>
-                                    <div class="student-ru">RU: {ru}</div>
-                                    <img class="qr-image" src="data:image/png;base64,{base64.b64encode(img_bytes.getvalue()).decode()}" width="200">
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                col_dl1, col_dl2 = st.columns(2)
-                                with col_dl1:
-                                    buf = io.BytesIO()
-                                    qr_img.save(buf, format="PNG")
-                                    buf.seek(0)
-                                    st.download_button("⬇️ QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
-                    except Exception as e:
-                        st.error(f"❌ Error: {e}")
-
-# ------------------------------------------------------------
-# 📋 LISTA ESTUDIANTES
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "📋 Lista estudiantes":
-    st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None
-    
-    st.markdown('<h2>Lista de estudiantes</h2>', unsafe_allow_html=True)
-    estudiantes = leer_estudiantes()
-    
-    if len(estudiantes) > 0:
-        st.dataframe(estudiantes, use_container_width=True, hide_index=True)
-        
-        st.markdown('<div class="mt-4 mb-2"><strong>🔍 Buscar estudiante</strong></div>', unsafe_allow_html=True)
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            ru_ver = st.text_input("", placeholder="Ingrese RU para buscar", key="buscar_ru", label_visibility="collapsed")
-        with col2:
-            buscar_click = st.button("🔍", key="buscar_btn", use_container_width=True)
-        
-        if buscar_click and ru_ver:
-            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru_ver]
-            if len(estudiante) > 0:
-                ed = estudiante.iloc[0]
-                nombre_completo = f"{ed['nombres']} {ed['apellido_paterno']}".strip().upper()
-                
-                qr_img = qrcode.make(ru_ver)
-                qr_buffer = io.BytesIO()
-                qr_img.save(qr_buffer, format='PNG')
-                qr_buffer.seek(0)
-                
-                st.markdown(f"""
-                <div class="card elevated text-center">
-                    <div class="student-badge" style="font-size:1.2rem">{nombre_completo}</div>
-                    <div class="student-ru" style="font-size:1rem;margin:8px 0">RU: {ru_ver}</div>
-                    <img class="qr-image" src="data:image/png;base64,{base64.b64encode(qr_buffer.getvalue()).decode()}" width="180" style="margin:12px 0">
-                </div>
-                """, unsafe_allow_html=True)
-                
-                col_btn1, col_btn2 = st.columns(2)
-                with col_btn1:
-                    st.download_button("📥 QR", data=qr_buffer.getvalue(), file_name=f"{ru_ver}_qr.png", mime="image/png", use_container_width=True)
-                with col_btn2:
-                    tarjeta_img = crear_tarjeta_estudiante(ed)
-                    st.download_button("📇 Tarjeta", data=tarjeta_img, file_name=f"tarjeta_{ru_ver}.png", mime="image/png", use_container_width=True)
-            else:
-                st.warning("⚠️ RU no encontrado")
-        
-        st.markdown("---")
-        st.markdown('<h3>✏️ Gestionar</h3>', unsafe_allow_html=True)
-        
-        estudiantes_display = estudiantes.copy()
-        estudiantes_display["nombre_completo"] = estudiantes_display["ru"].astype(str) + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
-        opciones = estudiantes_display["nombre_completo"].tolist()
-        
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            seleccion = st.selectbox("Estudiante", opciones, key="select_est", label_visibility="collapsed")
-            ru_seleccionado = seleccion.split(" - ")[0] if seleccion else None
-        
-        if ru_seleccionado:
-            estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
-            
-            with st.form(key="form_editar"):
-                c1, c2 = st.columns(2)
-                with c1:
-                    nuevo_ru = st.text_input("RU", value=estudiante_data["ru"], key="edit_ru")
-                    nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"], key="edit_nom")
-                with c2:
-                    nuevo_paterno = st.text_input("Paterno", value=estudiante_data["apellido_paterno"], key="edit_pat")
-                    nuevo_materno = st.text_input("Materno", value=estudiante_data["apellido_materno"], key="edit_mat")
-                
-                col_btn1, col_btn2 = st.columns(2)
-                with col_btn1:
-                    submit_actualizar = st.form_submit_button("🔄 Actualizar", use_container_width=True)
-                with col_btn2:
-                    submit_eliminar = st.form_submit_button("🗑️ Eliminar", use_container_width=True)
-            
-            if submit_actualizar:
-                if not nuevo_ru or not nuevo_ru.isdigit():
-                    st.error("❌ RU inválido")
-                else:
-                    try:
-                        if nuevo_ru != ru_seleccionado:
-                            existe = supabase.table("estudiantes").select("ru").eq("ru", nuevo_ru).execute()
-                            if existe.data:
-                                st.error("❌ RU ya existe")
-                                st.stop()
-                        supabase.table("estudiantes").update({
-                            "ru": nuevo_ru, "nombres": nuevos_nombres,
-                            "apellido_paterno": nuevo_paterno, "apellido_materno": nuevo_materno
-                        }).eq("ru", ru_seleccionado).execute()
-                        if nuevo_ru != ru_seleccionado:
-                            supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
-                        st.success("✅ Actualizado")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error: {e}")
-            
-            if submit_eliminar:
-                st.session_state.confirmar_eliminar = ru_seleccionado
-            
-            if st.session_state.confirmar_eliminar:
-                st.markdown(f"""
-                <div class="modal-overlay">
-                    <div class="modal-title">{icon('warning')} Confirmar eliminación</div>
-                    <p>¿Eliminar estudiante RU: {st.session_state.confirmar_eliminar}?</p>
-                    <p class="text-muted" style="font-size:0.9rem">Se eliminarán también sus registros de asistencia.</p>
-                </div>
-                """, unsafe_allow_html=True)
-                col_c1, col_c2 = st.columns(2)
-                with col_c1:
-                    if st.button("✅ Sí, eliminar", use_container_width=True, key="confirm_elim"):
-                        try:
-                            supabase.table("asistencia").delete().eq("ru", st.session_state.confirmar_eliminar).execute()
-                            supabase.table("estudiantes").delete().eq("ru", st.session_state.confirmar_eliminar).execute()
-                            st.success("✅ Eliminado")
-                            st.session_state.confirmar_eliminar = None
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error: {e}")
-                with col_c2:
-                    if st.button("❌ Cancelar", use_container_width=True, key="cancel_elim", type="secondary"):
-                        st.session_state.confirmar_eliminar = None
-                        st.rerun()
-        
-        st.markdown("---")
-        archivo_descarga = "registro_estudiantes_temp.xlsx"
-        estudiantes.to_excel(archivo_descarga, index=False)
-        with open(archivo_descarga, "rb") as file:
-            st.download_button("📥 Exportar Excel", data=file, file_name="estudiantes.xlsx", use_container_width=True)
-    else:
-        st.info("📭 No hay estudiantes registrados")
-
-# ------------------------------------------------------------
-# 📸 ESCANEAR QR
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "📸 Escanear QR":
-    st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None
-    
-    st.markdown('<h2>Escanear código QR</h2>', unsafe_allow_html=True)
-    st.markdown('<p class="text-muted">Apunta la cámara al código QR del estudiante</p>', unsafe_allow_html=True)
-    
-    foto = st.camera_input("", label_visibility="collapsed")
-    if foto is not None:
-        img = Image.open(foto)
-        decoded_objects = decode(img)
-        
-        if decoded_objects:
-            data = decoded_objects[0].data.decode('utf-8')
-            ru = data
-            estudiantes = leer_estudiantes()
-            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-            
-            if len(estudiante) > 0:
-                nombres = estudiante.iloc[0]["nombres"]
-                paterno = estudiante.iloc[0]["apellido_paterno"]
-                materno = estudiante.iloc[0]["apellido_materno"]
-                fecha, hora = obtener_fecha_hora_exacta()
-                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-                
-                if not tiene_registro:
-                    try:
-                        supabase.table("asistencia").insert({
-                            "ru": ru, "nombres": nombres, "apellido_paterno": paterno,
-                            "apellido_materno": materno, "fecha": fecha.isoformat(),
-                            "hora": hora, "estado": "Presente"
-                        }).execute()
-                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                        st.success(f"✅ {nombres} {paterno} - Registrado {hora}")
-                    except Exception as e:
-                        st.error(f"❌ Error: {e}")
-                else:
-                    st.warning(f"⚠️ Ya registrado hoy a las {registro_existente['hora']}")
-            else:
-                st.error("❌ Estudiante no encontrado")
-        else:
-            st.warning("⚠️ No se detectó código QR")
-
-# ------------------------------------------------------------
-# ✍️ REGISTRO MANUAL
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
-    if not st.session_state.manual_auth:
-        st.markdown(f"""
-        <div class="card elevated text-center" style="max-width:400px;margin:20px auto">
-            <div style="font-size:2rem;margin-bottom:12px">{icon('lock')}</div>
-            <h3 style="margin:0 0 8px">Acceso restringido</h3>
-            <p class="text-muted" style="margin:0 0 16px">Ingrese contraseña para continuar</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        with st.form(key="password_form"):
-            password = st.text_input("", type="password", placeholder="Contraseña", label_visibility="collapsed", key="pwd_input")
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                submit_password = st.form_submit_button("🔓 Ingresar", use_container_width=True)
-        
-        if submit_password:
-            if password == "pocoyo123":
-                st.session_state.manual_auth = True
-                st.rerun()
-            else:
-                st.error("❌ Contraseña incorrecta")
-    else:
-        st.markdown('<h2>Registro manual</h2>', unsafe_allow_html=True)
-        estudiantes = leer_estudiantes()
-        
-        if len(estudiantes) > 0:
-            estudiantes["nombre_completo"] = estudiantes["ru"].astype(str) + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
-            opciones = estudiantes["nombre_completo"].tolist()
-            
-            seleccionado = st.selectbox("👤 Seleccionar estudiante", opciones, key="select_manual", label_visibility="collapsed")
-            
-            if seleccionado:
-                ru_sel = seleccionado.split(" - ")[0]
-                ed = estudiantes[estudiantes["ru"].astype(str) == ru_sel].iloc[0]
-                
-                st.markdown(f"""
-                <div class="card compact">
-                    <strong>{ed['nombres']} {ed['apellido_paterno']}</strong><br>
-                    <span class="text-muted">RU: {ed['ru']}</span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                estado = st.selectbox("Estado", ["Presente", "Tarde", "Permiso", "Ausente"], key="estado_manual")
-                fecha, hora = obtener_fecha_hora_exacta()
-                tiene_registro, reg_exist = verificar_registro_duplicado(ru_sel, fecha)
-                
-                if tiene_registro:
-                    st.warning(f"⚠️ Ya registrado hoy {reg_exist['hora']} ({reg_exist['estado']})")
-                    st.button("✅ Registrar", disabled=True, use_container_width=True)
-                else:
-                    if st.button("✅ Registrar asistencia", use_container_width=True, key="btn_manual_reg"):
-                        try:
-                            supabase.table("asistencia").insert({
-                                "ru": ru_sel, "nombres": ed["nombres"],
-                                "apellido_paterno": ed["apellido_paterno"], "apellido_materno": ed["apellido_materno"],
-                                "fecha": fecha.isoformat(), "hora": hora, "estado": estado
-                            }).execute()
-                            st.success(f"✅ Registrado {hora}")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error: {e}")
-        else:
-            st.warning("⚠️ No hay estudiantes registrados")
-
-# ------------------------------------------------------------
-# 📊 VER ASISTENCIA
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "📊 Ver asistencia":
-    st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None
-    
-    st.markdown('<h2>Panel de asistencia</h2>', unsafe_allow_html=True)
-    
-    estudiantes_total = leer_estudiantes()
-    total_est = len(estudiantes_total)
-    asistencia_df = leer_asistencia()
-    hoy = datetime.now(ZONA_HORARIA).date()
-    
-    registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
-    faltantes = total_est - registrados_hoy
-    pct_reg = (registrados_hoy / total_est * 100) if total_est > 0 else 0
-    pct_falt = (faltantes / total_est * 100) if total_est > 0 else 0
-    
-    # Dashboard cards estilo sistema
-    st.markdown(f"""
-    <div class="dashboard-grid">
-        <div class="stat-card">
-            <div class="stat-label">Total</div>
-            <div class="stat-value">{total_est}</div>
-            <div class="stat-bar"><div class="stat-fill blue" style="width:100%"></div></div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Registrados</div>
-            <div class="stat-value text-success">{registrados_hoy}</div>
-            <div class="stat-bar"><div class="stat-fill green" style="width:{pct_reg}%"></div></div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Faltantes</div>
-            <div class="stat-value text-warning">{faltantes}</div>
-            <div class="stat-bar"><div class="stat-fill orange" style="width:{pct_falt}%"></div></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if len(asistencia_df) > 0:
-        asistencia_mostrar = asistencia_df.copy()
-        asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
-        asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
-        st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True, hide_index=True)
-        
-        st.markdown("---")
-        
-        # Verificación de duplicados
-        st.markdown('<h3>🔍 Integridad</h3>', unsafe_allow_html=True)
-        duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
-        duplicados = duplicados[duplicados['count'] > 1]
-        if len(duplicados) > 0:
-            st.warning(f"⚠️ {len(duplicados)} registros duplicados detectados")
-            if st.button("🧹 Limpiar duplicados", use_container_width=True, key="btn_limp_dup"):
-                try:
-                    ids_ok = asistencia_df.groupby(['ru', 'fecha'])['id'].first().tolist()
-                    supabase.table("asistencia").delete().not_.in_("id", ids_ok).execute()
-                    st.success("✅ Duplicados eliminados")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
-        else:
-            st.success("✅ Sin duplicados")
-        
-        # Editar estado
-        st.markdown("---")
-        st.markdown('<h3>✏️ Editar estado</h3>', unsafe_allow_html=True)
-        if len(asistencia_df) > 0:
-            asistencia_df["desc"] = (asistencia_df["ru"].astype(str) + " - " + 
-                                   asistencia_df["nombres"] + " " + asistencia_df["apellido_paterno"] + 
-                                   f" ({asistencia_df['fecha']} {asistencia_df['hora']})")
-            opciones = asistencia_df["desc"].tolist()
-            
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                sel = st.selectbox("Registro", opciones, key="sel_edit_asist", label_visibility="collapsed")
-                idx = asistencia_df[asistencia_df["desc"] == sel].index[0]
-                id_reg = asistencia_df.loc[idx, "id"]
-                estado_act = asistencia_df.loc[idx, "estado"]
-            with col2:
-                nuevo_estado = st.selectbox("Nuevo estado", ["Presente","Tarde","Permiso","Ausente"], 
-                                           index=["Presente","Tarde","Permiso","Ausente"].index(estado_act), key="nuevo_estado_sel")
-            
-            if st.button("🔄 Actualizar", use_container_width=True, key="btn_upd_estado"):
-                try:
-                    supabase.table("asistencia").update({"estado": nuevo_estado}).eq("id", id_reg).execute()
-                    st.success("✅ Actualizado")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
-        
-        # Exportar día
-        st.markdown("---")
-        hoy_str = str(hoy)
-        asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
-        if len(asistencia_hoy) > 0:
-            asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
-            nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
-            asistencia_hoy.to_excel(nombre_archivo, index=False)
-            with open(nombre_archivo, "rb") as file:
-                st.download_button("📥 Descargar hoy", data=file, file_name=nombre_archivo, use_container_width=True)
-    else:
-        st.info("📭 Sin registros")
-
-# ------------------------------------------------------------
-# 📅 ASISTENCIA POR FECHA
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "📅 Asistencia por fecha":
-    st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None
-    
-    st.markdown('<h2>Consulta por fecha</h2>', unsafe_allow_html=True)
-    
-    fecha_sel = st.date_input("📆 Fecha", value=datetime.now(ZONA_HORARIA).date(), key="fecha_consulta_new", label_visibility="collapsed")
-    
-    asistencia_df = leer_asistencia()
-    
-    if len(asistencia_df) > 0:
-        asistencia_df['fecha_date'] = pd.to_datetime(asistencia_df['fecha']).dt.date
-        asistentes_fecha = asistencia_df[asistencia_df['fecha_date'] == fecha_sel].copy()
-        
-        if len(asistentes_fecha) > 0:
-            st.markdown(f"### 📌 {fecha_sel.strftime('%d/%m/%Y')}")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("👥 Asistentes", len(asistentes_fecha))
-            with col2:
-                conteo = asistentes_fecha['estado'].value_counts().to_dict()
-                st.metric("📊 Estados", ", ".join([f"{k}: {v}" for k, v in conteo.items()]))
-            
-            tabla = asistentes_fecha.drop(columns=['id', 'fecha_date'], errors='ignore').sort_values('hora')
-            st.dataframe(tabla, use_container_width=True, hide_index=True)
-            
-            # Exportar
-            tabla_exp = tabla.copy()
-            tabla_exp['fecha'] = pd.to_datetime(tabla_exp['fecha']).dt.strftime('%d-%m-%Y')
-            archivo = f"asistencia_{fecha_sel.strftime('%Y%m%d')}.xlsx"
-            tabla_exp.to_excel(archivo, index=False)
-            with open(archivo, "rb") as f:
-                st.download_button("📥 Exportar", data=f, file_name=archivo, use_container_width=True)
-        else:
-            st.info(f"📭 Sin registros para {fecha_sel.strftime('%d/%m/%Y')}")
-        
-        # Exportar semana
-        st.markdown("---")
-        st.markdown('<h3>📆 Exportar semana</h3>', unsafe_allow_html=True)
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            fecha_ini = st.date_input("Inicio", value=datetime.now(ZONA_HORARIA).date(), key="sem_ini", label_visibility="collapsed")
-        with col_f2:
-            dias = 6 - fecha_ini.weekday()
-            fecha_fin = fecha_ini + pd.Timedelta(days=dias)
-            st.write(f"**Hasta:** {fecha_fin.strftime('%d/%m/%Y')}")
-        
-        if st.button("📊 Generar Excel semanal", use_container_width=True, key="btn_sem_exp"):
-            asistencia_df = leer_asistencia()
-            asistencia_df['fecha_date'] = pd.to_datetime(asistencia_df['fecha']).dt.date
-            semana_df = asistencia_df[(asistencia_df['fecha_date'] >= fecha_ini) & (asistencia_df['fecha_date'] <= fecha_fin)]
-            
-            if len(semana_df) > 0:
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    for fecha, grupo in semana_df.groupby('fecha_date'):
-                        nombre_hoja = fecha.strftime('%a_%d%m')[:31]
-                        grupo_limpio = grupo.drop(columns=['id', 'fecha_date'], errors='ignore')
-                        grupo_limpio['fecha'] = pd.to_datetime(grupo_limpio['fecha']).dt.strftime('%d-%m-%Y')
-                        grupo_limpio = grupo_limpio.sort_values('hora')
-                        grupo_limpio.to_excel(writer, sheet_name=nombre_hoja, index=False)
-                output.seek(0)
-                st.download_button(
-                    label="📥 Descargar semana",
-                    data=output,
-                    file_name=f"asistencia_semana_{fecha_ini.strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-            else:
-                st.warning("⚠️ Sin registros en el rango")
-    else:
-        st.info("📭 Sin registros en el sistema")
-
-# ------------------------------------------------------------
-# FUNCIÓN CREAR TARJETA (Sin cambios en lógica)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -1310,3 +855,530 @@ def crear_tarjeta_estudiante(estudiante):
     background.save(img_bytes, format='PNG')
     img_bytes.seek(0)
     return img_bytes
+
+# ------------------------------------------------------------
+# REGISTRAR ESTUDIANTE
+# ------------------------------------------------------------
+if st.session_state.menu_actual == "📝 Registrar estudiante":
+    st.session_state.manual_auth = False
+    st.session_state.selected_student_manual = None
+    
+    st.subheader("📝 Registrar nuevo estudiante")
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            ru = st.text_input("🔢 RU", placeholder="Ingrese el RU del estudiante (solo números)")
+            nombres = st.text_input("👤 Nombres", placeholder="Ingrese los nombres")
+        with col2:
+            paterno = st.text_input("👨 Apellido paterno", placeholder="Ingrese el apellido paterno")
+            materno = st.text_input("👩 Apellido materno", placeholder="Ingrese el apellido materno")
+        col1, col2, col3 = st.columns([1,1,1])
+        with col2:
+            if st.button("💾 Guardar estudiante", use_container_width=True):
+                if not ru or not ru.strip():
+                    st.error("❌ El RU no puede estar vacío")
+                elif not ru.isdigit():
+                    st.error("❌ El RU debe contener solo números")
+                else:
+                    try:
+                        existe = supabase.table("estudiantes").select("ru").eq("ru", ru).execute()
+                        if existe.data:
+                            st.error("❌ Este RU ya existe")
+                        else:
+                            supabase.table("estudiantes").insert({
+                                "ru": ru,
+                                "nombres": nombres,
+                                "apellido_paterno": paterno,
+                                "apellido_materno": materno
+                            }).execute()
+                            st.success("✅ Estudiante registrado exitosamente")
+                            
+                            qr_img = qrcode.make(ru)
+                            img_bytes = io.BytesIO()
+                            qr_img.save(img_bytes, format='PNG')
+                            img_bytes.seek(0)
+                            col_img1, col_img2, col_img3 = st.columns([1,2,1])
+                            with col_img2:
+                                nombre_upper = f"{nombres} {paterno}".upper()
+                                st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
+                                st.image(img_bytes, width=500, caption="Código QR del estudiante")
+                                buf = io.BytesIO()
+                                qr_img.save(buf, format="PNG")
+                                buf.seek(0)
+                                st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar estudiante: {e}")
+
+# ------------------------------------------------------------
+# LISTA ESTUDIANTES
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "📋 Lista estudiantes":
+    st.session_state.manual_auth = False
+    st.session_state.selected_student_manual = None
+    
+    st.subheader("📋 Lista de estudiantes")
+    estudiantes = leer_estudiantes()
+    
+    if len(estudiantes) > 0:
+        st.dataframe(estudiantes, use_container_width=True)
+        st.markdown("---")
+        
+        st.subheader("🔍 Buscar estudiante")
+        col1, col2, col3 = st.columns([3,1,3])
+        with col1:
+            ru_ver = st.text_input("Ingrese RU para buscar", placeholder="Código Único", key="buscar_ru")
+        with col2:
+            buscar_click = st.button("🔍 Buscar", key="buscar_btn", use_container_width=True)
+        if buscar_click and ru_ver:
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru_ver]
+            if len(estudiante) > 0:
+                estudiante_data = estudiante.iloc[0]
+                nombres = estudiante_data["nombres"]
+                paterno = estudiante_data["apellido_paterno"]
+                ru = estudiante_data["ru"]
+                nombre_completo = f"{nombres} {paterno}".strip().upper()
+                
+                qr_img = qrcode.make(ru)
+                qr_buffer = io.BytesIO()
+                qr_img.save(qr_buffer, format='PNG')
+                qr_buffer.seek(0)
+                qr_base64 = base64.b64encode(qr_buffer.read()).decode()
+                
+                st.markdown(f"""
+                <div class="student-search-card">
+                    <div class="student-name">{nombre_completo}</div>
+                    <div class="student-ru">RU: {ru}</div>
+                    <div class="qr-container">
+                        <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
+                    </div>
+                    <div class="download-buttons">
+                        <div style="display: inline-block;" id="qr-download-btn"></div>
+                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
+                with col_btn1:
+                    st.download_button(
+                        label="📥 Descargar QR",
+                        data=qr_buffer.getvalue(),
+                        file_name=f"{ru}_qr.png",
+                        mime="image/png",
+                        key="download_qr_search",
+                        use_container_width=True
+                    )
+                with col_btn2:
+                    tarjeta_img = crear_tarjeta_estudiante(estudiante_data)
+                    st.download_button(
+                        label="📇 Descargar Tarjeta Ejecutiva",
+                        data=tarjeta_img,
+                        file_name=f"tarjeta_{ru}.png",
+                        mime="image/png",
+                        key="download_tarjeta_search",
+                        use_container_width=True
+                    )
+                with col_btn3:
+                    st.write("")
+            else:
+                st.warning("⚠️ RU no encontrado en la base de datos")
+        elif buscar_click and not ru_ver:
+            st.warning("⚠️ Por favor ingrese un RU para buscar")
+        
+        st.markdown("---")
+        
+        st.subheader("✏️ Gestionar estudiante")
+        
+        estudiantes_display = estudiantes.copy()
+        estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
+        opciones = estudiantes_display["nombre_completo"].tolist()
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
+            ru_seleccionado = seleccion.split(" - ")[0]
+        
+        estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
+        
+        with st.form(key="form_editar_estudiante"):
+            nuevo_ru = st.text_input("RU", value=estudiante_data["ru"])
+            nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"])
+            nuevo_paterno = st.text_input("Apellido paterno", value=estudiante_data["apellido_paterno"])
+            nuevo_materno = st.text_input("Apellido materno", value=estudiante_data["apellido_materno"])
+            
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+            with col_btn1:
+                submit_actualizar = st.form_submit_button("🔄 Actualizar estudiante", use_container_width=True)
+            with col_btn2:
+                submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
+        
+        if submit_actualizar:
+            if not nuevo_ru or not nuevo_ru.strip():
+                st.error("❌ El RU no puede estar vacío")
+            elif not nuevo_ru.isdigit():
+                st.error("❌ El RU debe contener solo números")
+            else:
+                try:
+                    if nuevo_ru != ru_seleccionado:
+                        existe = supabase.table("estudiantes").select("ru").eq("ru", nuevo_ru).execute()
+                        if existe.data:
+                            st.error("❌ El nuevo RU ya existe en la base de datos")
+                            st.stop()
+                    supabase.table("estudiantes").update({
+                        "ru": nuevo_ru,
+                        "nombres": nuevos_nombres,
+                        "apellido_paterno": nuevo_paterno,
+                        "apellido_materno": nuevo_materno
+                    }).eq("ru", ru_seleccionado).execute()
+                    
+                    if nuevo_ru != ru_seleccionado:
+                        supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
+                    
+                    st.success("✅ Estudiante actualizado correctamente")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error al actualizar: {e}")
+        
+        if submit_eliminar:
+            st.session_state.confirmar_eliminar = ru_seleccionado
+        
+        if st.session_state.confirmar_eliminar:
+            ru_eliminar = st.session_state.confirmar_eliminar
+            estudiante_eliminar = estudiantes[estudiantes["ru"] == ru_eliminar].iloc[0]
+            nombre_eliminar = f"{estudiante_eliminar['nombres']} {estudiante_eliminar['apellido_paterno']}"
+            st.warning(f"⚠️ ¿Estás seguro de eliminar a **{nombre_eliminar} (RU: {ru_eliminar})**? Se eliminarán también todos sus registros de asistencia.")
+            col_confirm1, col_confirm2, _ = st.columns([1,1,3])
+            with col_confirm1:
+                if st.button("✅ Sí, eliminar", key="confirm_eliminar", use_container_width=True):
+                    try:
+                        supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
+                        supabase.table("estudiantes").delete().eq("ru", ru_eliminar).execute()
+                        st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
+                        st.session_state.confirmar_eliminar = None
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al eliminar: {e}")
+            with col_confirm2:
+                if st.button("❌ No, cancelar", key="cancel_eliminar", use_container_width=True):
+                    st.session_state.confirmar_eliminar = None
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        st.subheader("⬇️ Descargar Excel estudiantes")
+        if len(estudiantes) > 0:
+            archivo_descarga = "registro_estudiantes_temp.xlsx"
+            estudiantes.to_excel(archivo_descarga, index=False)
+            with open(archivo_descarga, "rb") as file:
+                st.download_button("📥 Descargar Excel completo", data=file, file_name="estudiantes_exportados.xlsx", use_container_width=True)
+    else:
+        st.info("📭 No hay estudiantes registrados")
+
+# ------------------------------------------------------------
+# ESCANEAR QR (MEJORADO CON pyzbar)
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "📸 Escanear QR":
+    st.session_state.manual_auth = False
+    st.session_state.selected_student_manual = None
+    
+    st.subheader("📸 Escanear QR")
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    foto = st.camera_input("", label_visibility="collapsed")
+    if foto is not None:
+        img = Image.open(foto)
+        decoded_objects = decode(img)
+        
+        if decoded_objects:
+            data = decoded_objects[0].data.decode('utf-8')
+            ru = data
+            estudiantes = leer_estudiantes()
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+            if len(estudiante) > 0:
+                nombres = estudiante.iloc[0]["nombres"]
+                paterno = estudiante.iloc[0]["apellido_paterno"]
+                materno = estudiante.iloc[0]["apellido_materno"]
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                if not tiene_registro:
+                    try:
+                        supabase.table("asistencia").insert({
+                            "ru": ru,
+                            "nombres": nombres,
+                            "apellido_paterno": paterno,
+                            "apellido_materno": materno,
+                            "fecha": fecha.isoformat(),
+                            "hora": hora,
+                            "estado": "Presente"
+                        }).execute()
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar asistencia: {e}")
+                else:
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
+            else:
+                st.error("❌ Estudiante no encontrado en la base de datos")
+        else:
+            st.warning("⚠️ No se detectó ningún código QR en la imagen")
+
+# ------------------------------------------------------------
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
+    if not st.session_state.manual_auth:
+        with st.container():
+            st.markdown("""
+            <div class="password-modal">
+                <h3>🔒 Acceso restringido</h3>
+                <p style="color: var(--text-secondary);">Ingrese la contraseña para registrar asistencia manual</p>
+            </div>
+            """, unsafe_allow_html=True)
+            with st.form(key="password_form"):
+                password = st.text_input("Contraseña", type="password", placeholder="********")
+                col1, col2, col3 = st.columns([1,2,1])
+                with col2:
+                    submit_password = st.form_submit_button("🔓 Ingresar", use_container_width=True)
+            if submit_password:
+                if password == "pocoyo123":
+                    st.session_state.manual_auth = True
+                    st.rerun()
+                else:
+                    st.error("❌ Contraseña incorrecta")
+    else:
+        st.subheader("✍️ Registrar asistencia manual")
+        estudiantes = leer_estudiantes()
+        if len(estudiantes) > 0:
+            estudiantes["nombre_completo"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
+            opciones = estudiantes["nombre_completo"].tolist()
+            
+            seleccionado = st.selectbox("👤 Seleccionar estudiante", opciones, key="select_manual")
+            
+            if seleccionado:
+                ru_seleccionado = seleccionado.split(" - ")[0]
+                estudiante_data = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
+                
+                st.markdown(f"""
+                <div class="student-detail-card">
+                    <h4>📋 Datos del estudiante</h4>
+                    <p><strong>RU:</strong> {estudiante_data['ru']}</p>
+                    <p><strong>Nombres:</strong> {estudiante_data['nombres']}</p>
+                    <p><strong>Apellido Paterno:</strong> {estudiante_data['apellido_paterno']}</p>
+                    <p><strong>Apellido Materno:</strong> {estudiante_data['apellido_materno']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru_seleccionado, fecha)
+                
+                if tiene_registro:
+                    st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
+                    col1, col2, col3 = st.columns([1,2,1])
+                    with col2:
+                        st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
+                    st.caption("Botón deshabilitado - Registro duplicado")
+                else:
+                    col1, col2, col3 = st.columns([1,2,1])
+                    with col2:
+                        if st.button("✅ Registrar asistencia", use_container_width=True):
+                            try:
+                                supabase.table("asistencia").insert({
+                                    "ru": ru_seleccionado,
+                                    "nombres": estudiante_data["nombres"],
+                                    "apellido_paterno": estudiante_data["apellido_paterno"],
+                                    "apellido_materno": estudiante_data["apellido_materno"],
+                                    "fecha": fecha.isoformat(),
+                                    "hora": hora,
+                                    "estado": estado
+                                }).execute()
+                                st.session_state.ultimo_registro = {"ru": ru_seleccionado, "nombres": estudiante_data["nombres"], "hora": hora, "fecha": fecha}
+                                st.success(f"✅ Asistencia registrada a las {hora}")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error al guardar asistencia: {e}")
+            else:
+                st.info("👆 Selecciona un estudiante de la lista")
+        else:
+            st.warning("⚠️ No hay estudiantes registrados en el sistema")
+
+# ------------------------------------------------------------
+# VER ASISTENCIA (con dashboard de tres tarjetas)
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "📊 Ver asistencia":
+    st.session_state.manual_auth = False
+    st.session_state.selected_student_manual = None
+    
+    st.subheader("📊 Registros de asistencia")
+    
+    # Obtener datos
+    estudiantes_total = leer_estudiantes()
+    total_estudiantes = len(estudiantes_total)
+    asistencia_df = leer_asistencia()
+    hoy = datetime.now(ZONA_HORARIA).date()
+    
+    # Estudiantes que ya registraron hoy (cualquier estado)
+    registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
+    faltantes = total_estudiantes - registrados_hoy
+    
+    # Porcentajes
+    if total_estudiantes > 0:
+        porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
+        porcentaje_faltantes = (faltantes / total_estudiantes * 100)
+    else:
+        porcentaje_registrados = 0
+        porcentaje_faltantes = 0
+    
+    # Mostrar dashboard con tres tarjetas
+    st.markdown(f"""
+    <div class="dashboard-compact">
+        <div class="dashboard-card green-card">
+            <div class="title">📋 Total registros</div>
+            <div class="value">{total_estudiantes}</div>
+            <div class="percentage">100% total</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: 100%;"></div>
+            </div>
+        </div>
+        <div class="dashboard-card blue-card">
+            <div class="title">✅ Ya registrados</div>
+            <div class="value">{registrados_hoy}</div>
+            <div class="percentage">{porcentaje_registrados:.1f}% del total</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {porcentaje_registrados}%;"></div>
+            </div>
+        </div>
+        <div class="dashboard-card orange-card">
+            <div class="title">❌ Faltantes</div>
+            <div class="value">{faltantes}</div>
+            <div class="percentage">{porcentaje_faltantes:.1f}% sin registrar</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {porcentaje_faltantes}%;"></div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Mostrar tabla de asistencia (sin cambios)
+    if len(asistencia_df) > 0:
+        asistencia_mostrar = asistencia_df.copy()
+        asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
+        asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
+        st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
+        
+        st.markdown("---")
+        st.subheader("🔍 Verificación de integridad")
+        duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
+        duplicados = duplicados[duplicados['count'] > 1]
+        if len(duplicados) > 0:
+            st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
+            if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
+                try:
+                    ids_a_conservar = asistencia_df.groupby(['ru', 'fecha'])['id'].first().tolist()
+                    supabase.table("asistencia").delete().not_.in_("id", ids_a_conservar).execute()
+                    st.success("✅ Duplicados eliminados correctamente")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error al limpiar duplicados: {e}")
+        else:
+            st.success("✅ No hay registros duplicados en el sistema")
+        
+        st.markdown("---")
+        st.subheader("✏️ Editar estado de registro")
+        if len(asistencia_df) > 0:
+            asistencia_df["descripcion"] = (asistencia_df["ru"] + " - " + 
+                                           asistencia_df["nombres"] + " " + 
+                                           asistencia_df["apellido_paterno"] + " (" + 
+                                           asistencia_df["fecha"].astype(str) + " " + 
+                                           asistencia_df["hora"] + ")")
+            opciones = asistencia_df["descripcion"].tolist()
+            
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                seleccion = st.selectbox("Selecciona un registro", opciones, key="select_asistencia")
+                idx = asistencia_df[asistencia_df["descripcion"] == seleccion].index[0]
+                id_registro = asistencia_df.loc[idx, "id"]
+                estado_actual = asistencia_df.loc[idx, "estado"]
+            with col2:
+                nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"], 
+                                            index=["Presente","Tarde","Permiso","Ausente"].index(estado_actual))
+            
+            if st.button("🔄 Actualizar estado", use_container_width=True):
+                try:
+                    supabase.table("asistencia").update({"estado": nuevo_estado}).eq("id", id_registro).execute()
+                    st.success("✅ Estado actualizado correctamente")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error al actualizar: {e}")
+        
+        st.markdown("---")
+        st.subheader("🗑️ Eliminar todo el registro de asistencia")
+        if st.button("⚠️ Eliminar TODOS los registros de asistencia", use_container_width=True):
+            st.session_state.confirmar_eliminar_todo_asistencia = True
+        
+        if st.session_state.confirmar_eliminar_todo_asistencia:
+            st.warning("⚠️ ¡Esta acción borrará TODOS los registros de asistencia! No se puede deshacer.")
+            col_confirm1, col_confirm2, _ = st.columns([1,1,3])
+            with col_confirm1:
+                if st.button("✅ Sí, eliminar todos", key="confirm_eliminar_todo", use_container_width=True):
+                    try:
+                        supabase.table("asistencia").delete().neq("id", 0).execute()
+                        st.success("✅ Todos los registros de asistencia han sido eliminados")
+                        st.session_state.confirmar_eliminar_todo_asistencia = False
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al eliminar: {e}")
+            with col_confirm2:
+                if st.button("❌ No, cancelar", key="cancel_eliminar_todo", use_container_width=True):
+                    st.session_state.confirmar_eliminar_todo_asistencia = False
+                    st.rerun()
+        
+        st.markdown("---")
+        st.subheader("🗑️ Eliminar registro individual")
+        if len(asistencia_df) > 0:
+            seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
+            idx_elim = asistencia_df[asistencia_df["descripcion"] == seleccion_eliminar].index[0]
+            id_eliminar = asistencia_df.loc[idx_elim, "id"]
+            registro_info = asistencia_df.loc[idx_elim, "descripcion"]
+            
+            if st.button("🗑️ Eliminar este registro", use_container_width=True):
+                st.session_state.confirmar_eliminar_asistencia = id_eliminar
+            
+            if st.session_state.confirmar_eliminar_asistencia:
+                if st.session_state.confirmar_eliminar_asistencia == id_eliminar:
+                    st.warning(f"⚠️ ¿Estás seguro de eliminar el registro **{registro_info}**?")
+                    col_confirm1, col_confirm2, _ = st.columns([1,1,3])
+                    with col_confirm1:
+                        if st.button("✅ Sí, eliminar", key="confirm_eliminar_asist", use_container_width=True):
+                            try:
+                                supabase.table("asistencia").delete().eq("id", id_eliminar).execute()
+                                st.success("✅ Registro eliminado correctamente")
+                                st.session_state.confirmar_eliminar_asistencia = None
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error al eliminar: {e}")
+                    with col_confirm2:
+                        if st.button("❌ No, cancelar", key="cancel_eliminar_asist", use_container_width=True):
+                            st.session_state.confirmar_eliminar_asistencia = None
+                            st.rerun()
+        
+        st.markdown("---")
+        st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
+        hoy_str = str(hoy)
+        asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
+        columnas_a_eliminar = ["id", "descripcion"]
+        for col in columnas_a_eliminar:
+            if col in asistencia_hoy.columns:
+                asistencia_hoy = asistencia_hoy.drop(columns=[col])
+        if len(asistencia_hoy) > 0:
+            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
+            asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
+            nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
+            asistencia_hoy.to_excel(nombre_archivo, index=False)
+            with open(nombre_archivo, "rb") as file:
+                st.download_button("📥 Descargar Excel del día", data=file, file_name=nombre_archivo, use_container_width=True)
+        else:
+            st.info("📭 No hay registros para el día de hoy")
+    else:
+        st.info("📭 No hay registros de asistencia en el sistema")
