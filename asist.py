@@ -705,7 +705,7 @@ with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
         if os.path.exists(logo_path):
-            st.image(logo_path, width=100)
+            st.image(logo_path, width=50)
         else:
             st.write("")
     with col_texto:
