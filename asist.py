@@ -693,25 +693,20 @@ st.markdown("""
 # SIDEBAR
 # ------------------------------------------------------------
 with st.sidebar:
-    # Logo más grande en el sidebar
     logo_path = "assets/logo.png"
     if os.path.exists(logo_path):
-        st.image(logo_path, width=150)  # Tamaño aumentado (antes 100)
+        st.image(logo_path, width=150)   # Logo más grande
     else:
-        st.write("")  # Espacio en blanco si no existe el logo
+        st.write("")
 
     st.markdown("## 📂 Desarrollado por Josué")
     st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# TÍTULO (sin logo, solo texto)
+# ENCABEZADO PRINCIPAL (sin logo, más arriba)
 # ------------------------------------------------------------
-st.markdown("""
-<div style="display: flex; flex-direction: column; justify-content: center;">
-    <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
-    <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
-</div>
-""", unsafe_allow_html=True)
+st.header("INGENIERÍA DE SISTEMAS")
+st.caption("Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!")
 
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
