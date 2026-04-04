@@ -228,19 +228,21 @@ CSS_STYLES = """
     }
 
     .stButton button {
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        font-size: 0.9rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
-        font-family: 'Inter', system-ui, sans-serif;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark, var(--primary-color)) 100%);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.3px;
+    transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
     }
 
     .stButton button::before {
