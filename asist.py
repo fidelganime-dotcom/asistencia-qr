@@ -61,7 +61,6 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -83,7 +82,7 @@ def verificar_registro_duplicado(ru, fecha):
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
-st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Sistemas UAP | Asistencia QR", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
 
 # ------------------------------------------------------------
 # INICIALIZAR SESSION STATE
@@ -104,615 +103,364 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (con tres tarjetas)
+# ESTILOS GLOBALES MODERNOS (FULL REDISEÑO)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
-    :root {
-        --primary-color: #0066ff;
-        --primary-hover: #0052cc;
-        --accent-color: #00ffcc;
-        --text-primary: #f8fafc;
-        --text-secondary: #cbd5e1;
-        --bg-dark: #0f172a;
-        --glass-bg: rgba(15, 23, 42, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.1);
-        --shadow-3d: 0 10px 25px -5px rgba(0, 102, 255, 0.2), 0 10px 10px -5px rgba(0, 102, 255, 0.1);
-        --shadow-hover: 0 20px 50px -10px rgba(0, 102, 255, 0.4);
-        --success-gradient: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
-        --input-bg: rgba(15, 23, 42, 0.5);
-        --input-bg-focus: rgba(15, 23, 42, 0.8);
-        --table-header-bg: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%);
-        --table-row-hover: rgba(0, 102, 255, 0.1);
-        --badge-bg: var(--success-gradient);
-        --badge-color: #020617;
-    }
-
     @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
 
-    .stApp {
-        background-color: var(--bg-dark);
-        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
 
-    /* Estilo mejorado para mensajes de éxito */
-    .stAlert[data-testid="stAlert"] {
-        background: linear-gradient(135deg, rgba(0,102,255,0.15), rgba(0,51,204,0.1)) !important;
-        backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(0,255,204,0.3) !important;
-        border-radius: 20px !important;
-        box-shadow: 0 8px 20px rgba(0,102,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-        animation: slideInDown 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
-        color: #e6f7ff !important;
-    }
-    @keyframes slideInDown {
-        from {
-            opacity: 0;
-            transform: translateY(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    html, body, .stApp {
+        background: radial-gradient(circle at 10% 20%, #0a0f1e, #03050b);
+        font-family: 'Inter', sans-serif;
+        color: #f1f5f9;
     }
 
-    .css-1d391kg, .css-1lcbmhc {
-        background: var(--glass-bg) !important;
-        backdrop-filter: blur(20px) !important;
-        border-right: 1px solid var(--glass-border) !important;
-        box-shadow: var(--shadow-3d) !important;
+    /* Scrollbar elegante */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.05);
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #3b82f6, #06b6d4);
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #2563eb, #0891b2);
     }
 
-    h1, h2, h3 {
-        color: var(--text-primary);
+    /* Contenedor principal con max-width para móvil */
+    .main .block-container {
+        padding: 1.2rem 1rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Títulos con efecto neón */
+    h1, h2, h3, .custom-title {
         font-weight: 700;
+        background: linear-gradient(135deg, #ffffff, #94a3b8);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
         letter-spacing: -0.02em;
-        text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
-        position: relative;
-        display: inline-block;
-        font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    h1::after, h2::after {
-        content: '';
-        position: absolute;
-        bottom: -10px;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        background: var(--success-gradient);
-        border-radius: 3px;
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.3s ease;
-    }
-
-    h1:hover::after, h2:hover::after {
-        transform: scaleX(1);
-    }
-
-    .subtitle-script {
-        color: var(--text-secondary);
-        margin-top: -10px;
-        font-family: 'Pacifico', 'Dancing Script', 'Brush Script MT', cursive;
-        font-size: 1.1rem;
-        letter-spacing: 0.5px;
-        font-weight: normal;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-
-    .student-search-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 2rem;
-        margin: 1.5rem 0;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-    .student-search-card:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(0, 102, 255, 0.3);
-    }
-    .student-name {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--accent-color);
         margin-bottom: 0.5rem;
-        text-shadow: 0 0 10px rgba(0,255,204,0.3);
-        text-transform: uppercase;
     }
-    .student-ru {
-        font-size: 1.3rem;
-        color: var(--text-secondary);
-        margin-bottom: 1.5rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
+    h1::after, h2::after {
+        display: none;
     }
-    .qr-container {
-        display: flex;
-        justify-content: center;
-        margin: 1.5rem 0;
-    }
-    .qr-container img {
-        border-radius: 16px;
-        box-shadow: var(--shadow-3d);
-        transition: transform 0.3s ease;
-        max-width: 100%;
-        height: auto;
-    }
-    .qr-container img:hover {
-        transform: scale(1.02);
-    }
-    .download-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin-top: 1.5rem;
-    }
-    .info-card, .student-info, .stDataFrame {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 16px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .info-card::before, .student-info::before, .stDataFrame::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(0,102,255,0.1) 0%, rgba(0,102,255,0) 70%);
-        transform: rotate(30deg);
-        transition: all 0.5s ease;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
-        opacity: 1;
-        animation: shine 3s infinite;
-    }
-
-    @keyframes shine {
-        0% { transform: rotate(30deg) translate(-10%, -10%); }
-        100% { transform: rotate(30deg) translate(10%, 10%); }
-    }
-
-    .info-card:hover, .student-info:hover, .stDataFrame:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(0, 102, 255, 0.3);
-    }
-
-    div.row-widget.stRadio > div {
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-        gap: 0.75rem;
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        padding: 0.5rem;
-        border-radius: 60px;
-        box-shadow: var(--shadow-3d);
-        margin-bottom: 2rem;
-        border: 1px solid var(--glass-border);
-    }
-
-    div.row-widget.stRadio > div label {
-        background: transparent;
-        color: var(--text-secondary);
-        font-weight: 500;
-        padding: 0.6rem 1.2rem;
-        border-radius: 40px;
-        transition: all 0.3s ease;
-        cursor: pointer;
+    .subtitle-script {
         font-size: 0.9rem;
-        font-family: 'Inter', system-ui, sans-serif;
+        color: #94a3b8;
+        font-weight: 400;
+        border-left: 3px solid #3b82f6;
+        padding-left: 12px;
+        margin-top: -5px;
     }
 
-    div.row-widget.stRadio > div label:hover {
-        background: rgba(0, 102, 255, 0.2);
-        color: var(--accent-color);
+    /* Navegación estilo moderno (segmented control) */
+    .stRadio > div {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(16px);
+        border-radius: 48px;
+        padding: 0.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(59,130,246,0.3);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    .stRadio > div label {
+        background: transparent;
+        border-radius: 40px;
+        padding: 0.5rem 1.2rem;
+        font-weight: 500;
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .stRadio > div label:hover {
+        background: rgba(59,130,246,0.2);
+        color: white;
         transform: translateY(-2px);
     }
-
-    div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
-        background: var(--success-gradient);
-        color: var(--badge-color);
-        box-shadow: var(--shadow-3d);
-        font-weight: 600;
+    .stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+        text-shadow: 0 0 2px rgba(0,0,0,0.2);
+    }
+    /* Ocultar el círculo del radio */
+    .stRadio > div label input {
+        display: none;
     }
 
+    /* Tarjetas con efecto glassmorphism + hover */
+    .info-card, .student-info, .stDataFrame, .student-search-card, .student-detail-card, .password-modal {
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(16px);
+        border-radius: 28px;
+        border: 1px solid rgba(59,130,246,0.25);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+    }
+    .info-card:hover, .student-info:hover, .student-search-card:hover {
+        transform: translateY(-5px);
+        border-color: #3b82f6;
+        box-shadow: 0 20px 35px -10px rgba(59,130,246,0.4);
+    }
+
+    /* Botones modernos con gradiente y animación */
     .stButton button {
-        background: var(--primary-color);
-        color: white;
+        background: linear-gradient(135deg, #3b82f6, #1e40af);
         border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.5rem;
+        border-radius: 40px;
+        padding: 0.6rem 1.4rem;
         font-weight: 600;
         font-size: 0.9rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
-        font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    .stButton button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
+        color: white;
+        transition: all 0.25s ease;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.3);
         width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.7s;
+        cursor: pointer;
+        letter-spacing: 0.3px;
     }
-
-    .stButton button:hover::before {
-        left: 100%;
-    }
-
     .stButton button:hover {
-        background: var(--primary-hover);
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        transform: scale(1.02) translateY(-2px);
+        background: linear-gradient(135deg, #2563eb, #1e3a8a);
+        box-shadow: 0 12px 20px rgba(59,130,246,0.4);
+    }
+    .stButton button:active {
+        transform: scale(0.98);
     }
 
+    /* Inputs con borde luminoso */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: var(--input-bg) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: 12px !important;
-        color: var(--text-primary) !important;
-        padding: 0.75rem 1rem !important;
-        backdrop-filter: blur(5px) !important;
-        font-family: 'Inter', system-ui, sans-serif;
+        background: rgba(0,0,0,0.4);
+        border: 1px solid #334155;
+        border-radius: 20px;
+        padding: 0.7rem 1rem;
+        color: #f1f5f9;
+        font-size: 0.9rem;
+        transition: all 0.2s;
     }
-
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
-        background: var(--input-bg-focus) !important;
-        border-color: var(--primary-color) !important;
-        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2) !important;
-        transform: scale(1.01);
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+        outline: none;
     }
 
+    /* Tabla de datos (DataFrame) elegante */
     .stDataFrame {
         padding: 0;
-        overflow: hidden;
+        overflow-x: auto;
+        border-radius: 24px;
     }
-
     .stDataFrame table {
         width: 100%;
         border-collapse: collapse;
-        color: var(--text-primary);
-        font-family: 'Inter', system-ui, sans-serif;
     }
-
     .stDataFrame thead tr th {
-        background: var(--table-header-bg) !important;
-        color: white !important;
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        color: #e2e8f0;
         font-weight: 600;
-        padding: 1rem 1rem !important;
-        border: none !important;
-        font-size: 0.9rem;
+        padding: 12px 10px;
+        font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-
     .stDataFrame tbody tr {
-        transition: all 0.3s ease;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        transition: background 0.2s;
     }
-
     .stDataFrame tbody tr:hover {
-        background: var(--table-row-hover);
-        transform: translateX(5px);
+        background: rgba(59,130,246,0.1);
     }
-
     .stDataFrame tbody td {
-        padding: 0.75rem 1rem !important;
-        border: none !important;
+        padding: 10px 8px;
+        color: #cbd5e1;
     }
 
-    .stAlert {
-        background: var(--glass-bg) !important;
-        backdrop-filter: blur(20px) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: 16px !important;
-        color: var(--text-primary) !important;
-        padding: 1rem !important;
-        box-shadow: var(--shadow-3d) !important;
-        font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: 70vh !important;
-        object-fit: cover;
-        border-radius: 16px;
-        border: 2px solid var(--primary-color);
-        box-shadow: var(--shadow-3d);
-    }
-
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-    }
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary-color);
-        border-radius: 4px;
-    }
-
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
-        animation: fadeInUp 0.5s ease-out;
-    }
-    
-    .qr-info {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: var(--accent-color);
-        text-align: center;
-        margin-bottom: 0.5rem;
-        letter-spacing: 0.5px;
-        text-shadow: 0 0 8px rgba(0,255,204,0.3);
-        text-transform: uppercase;
-    }
-    .qr-ru {
-        font-size: 1.1rem;
-        color: var(--text-secondary);
-        text-align: center;
-        margin-bottom: 1rem;
-        text-transform: uppercase;
-    }
-    
-    /* Estilos para la pantalla flotante de contraseña */
-    .password-modal {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 2rem;
-        margin: 2rem auto;
-        max-width: 500px;
-        text-align: center;
-        animation: fadeInUp 0.4s ease-out;
-    }
-    .password-modal h3 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-    }
-    .password-modal input {
-        width: 100%;
-        background: var(--input-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 12px;
-        padding: 0.75rem;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-    }
-    .password-modal button {
-        background: var(--primary-color);
-        border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: white;
-    }
-    .password-modal button:hover {
-        background: var(--primary-hover);
-        transform: translateY(-2px);
-    }
-    .password-error {
-        color: #ff6b6b;
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-    }
-
-    /* Estilo para tarjeta de información del estudiante */
-    .student-detail-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(12px);
-        border-radius: 20px;
-        border: 1px solid var(--glass-border);
-        padding: 1rem;
-        margin: 1rem 0;
-        text-align: center;
-        box-shadow: var(--shadow-3d);
-    }
-    .student-detail-card h4 {
-        margin: 0 0 0.5rem 0;
-        color: var(--accent-color);
-    }
-    .student-detail-card p {
-        margin: 0.2rem 0;
-        color: var(--text-primary);
-    }
-
-    /* Dashboard compacto - tres tarjetas */
+    /* Dashboard cards compactas */
     .dashboard-compact {
         display: flex;
-        gap: 0.8rem;
-        margin-bottom: 1.2rem;
+        gap: 1rem;
         flex-wrap: wrap;
+        margin: 1rem 0;
     }
     .dashboard-card {
         flex: 1;
-        min-width: 100px;
-        background: var(--glass-bg);
-        backdrop-filter: blur(8px);
-        border-radius: 20px;
-        padding: 0.6rem 0.8rem;
+        min-width: 130px;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(12px);
+        border-radius: 28px;
+        padding: 1rem 0.8rem;
         text-align: center;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        transition: all 0.3s ease;
+        border: 1px solid rgba(59,130,246,0.3);
+        transition: all 0.2s;
     }
     .dashboard-card:hover {
-        transform: translateY(-3px);
-        border-color: rgba(0,255,204,0.3);
+        transform: translateY(-4px);
+        border-color: #3b82f6;
     }
     .dashboard-card .title {
         font-size: 0.7rem;
         font-weight: 600;
-        color: var(--text-secondary);
-        margin-bottom: 0.2rem;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 1px;
+        color: #94a3b8;
+        margin-bottom: 0.4rem;
     }
     .dashboard-card .value {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--text-primary);
+        font-size: 1.8rem;
+        font-weight: 800;
         line-height: 1.2;
+        color: white;
     }
     .dashboard-card .percentage {
-        font-size: 0.65rem;
-        color: var(--text-secondary);
-        margin-top: 0.2rem;
+        font-size: 0.7rem;
+        color: #94a3b8;
     }
     .progress-bar-bg {
-        background: rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.1);
         border-radius: 20px;
-        height: 5px;
+        height: 6px;
         width: 100%;
-        margin-top: 0.5rem;
+        margin-top: 10px;
         overflow: hidden;
     }
     .progress-bar-fill {
         height: 100%;
         border-radius: 20px;
-        transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        transition: width 0.5s ease;
     }
-    .green-card .progress-bar-fill {
-        background: linear-gradient(90deg, #00cc88, #00ffaa);
-        box-shadow: 0 0 6px #00ffaa;
+    .green-card .progress-bar-fill { background: linear-gradient(90deg, #10b981, #34d399); }
+    .blue-card .progress-bar-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .orange-card .progress-bar-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+    /* Cámara y QR */
+    div[data-testid="stCameraInput"] video {
+        border-radius: 28px;
+        border: 2px solid #3b82f6;
+        box-shadow: 0 0 15px rgba(59,130,246,0.3);
     }
-    .orange-card .progress-bar-fill {
-        background: linear-gradient(90deg, #ff884d, #ffaa66);
-        box-shadow: 0 0 6px #ffaa66;
+    .qr-container img {
+        border-radius: 24px;
+        background: white;
+        padding: 8px;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
     }
-    .blue-card .progress-bar-fill {
-        background: linear-gradient(90deg, #3399ff, #66ccff);
-        box-shadow: 0 0 6px #66ccff;
+
+    /* Mensajes de éxito/error con animación */
+    .stAlert {
+        border-radius: 20px !important;
+        backdrop-filter: blur(12px) !important;
+        background: rgba(15,23,42,0.9) !important;
+        border-left: 4px solid #3b82f6 !important;
+        animation: slideIn 0.3s ease-out;
     }
-    .green-card {
-        background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
-        border-left: 3px solid #00ffaa;
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-15px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    .orange-card {
-        background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
-        border-left: 3px solid #ffaa66;
+
+    /* Modal de contraseña centrado */
+    .password-modal {
+        max-width: 400px;
+        margin: 2rem auto;
+        text-align: center;
     }
-    .blue-card {
-        background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
-        border-left: 3px solid #66ccff;
-    }
-    @media (max-width: 600px) {
+
+    /* Ajustes móviles */
+    @media (max-width: 640px) {
+        .stRadio > div label {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.7rem;
+        }
         .dashboard-card .value {
-            font-size: 1.1rem;
+            font-size: 1.3rem;
         }
-        .dashboard-card .title {
-            font-size: 0.65rem;
+        .stButton button {
+            padding: 0.5rem 1rem;
         }
-        .dashboard-card {
-            padding: 0.5rem 0.6rem;
-        }
+    }
+
+    /* Partículas flotantes sutiles */
+    .particle {
+        position: fixed;
+        background: radial-gradient(circle, #3b82f6, #06b6d4);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: -1;
+        opacity: 0.2;
     }
 </style>
-""", unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS
-# ------------------------------------------------------------
-st.markdown("""
 <script>
-    function createParticles() {
-        const container = document.createElement('div');
-        container.style.position = 'fixed';
-        container.style.top = '0';
-        container.style.left = '0';
-        container.style.width = '100%';
-        container.style.height = '100%';
-        container.style.pointerEvents = 'none';
-        container.style.zIndex = '-1';
-        document.body.appendChild(container);
-        
-        const particleCount = 80;
-        for (let i = 0; i < particleCount; i++) {
-            const particle = document.createElement('div');
-            particle.style.position = 'absolute';
-            particle.style.width = (Math.random() * 3 + 2) + 'px';
-            particle.style.height = particle.style.width;
-            particle.style.background = Math.random() > 0.66 ? '#00ffcc' : '#0066ff';
-            particle.style.borderRadius = '50%';
+    function addParticles() {
+        const body = document.body;
+        for(let i=0; i<50; i++) {
+            let particle = document.createElement('div');
+            particle.classList.add('particle');
+            let size = Math.random() * 4 + 2;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
             particle.style.left = Math.random() * 100 + '%';
             particle.style.top = Math.random() * 100 + '%';
-            particle.style.animation = `float ${Math.random() * 5 + 5}s infinite ease-in-out`;
-            particle.style.animationDelay = Math.random() * 8 + 's';
-            particle.style.opacity = '0.6';
-            container.appendChild(particle);
+            particle.style.animation = `float ${Math.random() * 10 + 8}s infinite ease-in-out`;
+            body.appendChild(particle);
         }
     }
-    const style = document.createElement('style');
-    style.textContent = `
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = `
         @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
-            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
-            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
-            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
+            0% { transform: translateY(0px) rotate(0deg); opacity: 0.2; }
+            50% { transform: translateY(-20px) rotate(180deg); opacity: 0.6; }
+            100% { transform: translateY(0px) rotate(360deg); opacity: 0.2; }
         }
     `;
-    document.head.appendChild(style);
-    window.addEventListener('load', createParticles);
+    document.head.appendChild(styleSheet);
+    window.addEventListener('load', addParticles);
 </script>
 """, unsafe_allow_html=True)
 
-
-
 # ------------------------------------------------------------
-# TÍTULO CON LOGO
+# CABECERA CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
-
-with st.container():
-    col_logo, col_texto = st.columns([1, 8])
-    with col_logo:
-        if os.path.exists(logo_path):
-            st.image(logo_path, width=100)
-        else:
-            st.write("")
-    with col_texto:
-        st.markdown("""
-        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-            <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
-            <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
-        </div>
-        """, unsafe_allow_html=True)
+col_logo, col_titulo = st.columns([1, 6])
+with col_logo:
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=70)
+    else:
+        st.markdown('<i class="fas fa-university" style="font-size: 48px; color: #3b82f6;"></i>', unsafe_allow_html=True)
+with col_titulo:
+    st.markdown("""
+    <div>
+        <h1 style="margin:0;">INGENIERÍA DE SISTEMAS</h1>
+        <p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# MENÚ HORIZONTAL
+# MENÚ HORIZONTAL MODERNO (con iconos)
 # ------------------------------------------------------------
 opciones_menu = [
     "📝 Registrar estudiante",
@@ -725,7 +473,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
+# FUNCIÓN PARA CREAR TARJETA EJECUTIVA (sin cambios)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -852,21 +600,22 @@ def crear_tarjeta_estudiante(estudiante):
     return img_bytes
 
 # ------------------------------------------------------------
-# REGISTRAR ESTUDIANTE
+# REGISTRAR ESTUDIANTE (diseño mejorado)
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
+    st.markdown('<div class="info-card">', unsafe_allow_html=True)
     st.subheader("📝 Registrar nuevo estudiante")
     with st.container():
         col1, col2 = st.columns(2)
         with col1:
-            ru = st.text_input("🔢 RU", placeholder="Ingrese el RU del estudiante (solo números)")
-            nombres = st.text_input("👤 Nombres", placeholder="Ingrese los nombres")
+            ru = st.text_input("🔢 RU", placeholder="Ej: 202412345")
+            nombres = st.text_input("👤 Nombres", placeholder="Nombres completos")
         with col2:
-            paterno = st.text_input("👨 Apellido paterno", placeholder="Ingrese el apellido paterno")
-            materno = st.text_input("👩 Apellido materno", placeholder="Ingrese el apellido materno")
+            paterno = st.text_input("👨 Apellido paterno", placeholder="Primer apellido")
+            materno = st.text_input("👩 Apellido materno", placeholder="Segundo apellido")
         col1, col2, col3 = st.columns([1,1,1])
         with col2:
             if st.button("💾 Guardar estudiante", use_container_width=True):
@@ -895,18 +644,19 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                             col_img1, col_img2, col_img3 = st.columns([1,2,1])
                             with col_img2:
                                 nombre_upper = f"{nombres} {paterno}".upper()
-                                st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
-                                st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
-                                st.image(img_bytes, width=500, caption="Código QR del estudiante")
+                                st.markdown(f'<div class="qr-info" style="font-weight:700; text-align:center; color:#3b82f6;">{nombre_upper}</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div style="text-align:center; margin-bottom:10px;">RU: {ru}</div>', unsafe_allow_html=True)
+                                st.image(img_bytes, width=300)
                                 buf = io.BytesIO()
                                 qr_img.save(buf, format="PNG")
                                 buf.seek(0)
                                 st.download_button("⬇️ Descargar QR", data=buf, file_name=f"{ru}_qr.png", mime="image/png", use_container_width=True)
                     except Exception as e:
                         st.error(f"❌ Error al guardar estudiante: {e}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES
+# LISTA ESTUDIANTES (con diseño mejorado)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.session_state.manual_auth = False
@@ -942,14 +692,12 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 
                 st.markdown(f"""
                 <div class="student-search-card">
-                    <div class="student-name">{nombre_completo}</div>
+                    <div class="student-name" style="font-size:1.8rem; font-weight:700;">{nombre_completo}</div>
                     <div class="student-ru">RU: {ru}</div>
                     <div class="qr-container">
-                        <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
+                        <img src="data:image/png;base64,{qr_base64}" width="250" alt="QR Code">
                     </div>
-                    <div class="download-buttons">
-                        <div style="display: inline-block;" id="qr-download-btn"></div>
-                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                    <div class="download-buttons" style="display:flex; gap:12px; justify-content:center; margin-top:15px;">
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -957,7 +705,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
                 with col_btn1:
                     st.download_button(
-                        label="📥 Descargar QR",
+                        label="📥 QR",
                         data=qr_buffer.getvalue(),
                         file_name=f"{ru}_qr.png",
                         mime="image/png",
@@ -967,7 +715,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 with col_btn2:
                     tarjeta_img = crear_tarjeta_estudiante(estudiante_data)
                     st.download_button(
-                        label="📇 Descargar Tarjeta Ejecutiva",
+                        label="📇 Tarjeta",
                         data=tarjeta_img,
                         file_name=f"tarjeta_{ru}.png",
                         mime="image/png",
@@ -977,12 +725,11 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 with col_btn3:
                     st.write("")
             else:
-                st.warning("⚠️ RU no encontrado en la base de datos")
+                st.warning("⚠️ RU no encontrado")
         elif buscar_click and not ru_ver:
-            st.warning("⚠️ Por favor ingrese un RU para buscar")
+            st.warning("⚠️ Ingrese un RU")
         
         st.markdown("---")
-        
         st.subheader("✏️ Gestionar estudiante")
         
         estudiantes_display = estudiantes.copy()
@@ -1004,9 +751,9 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             
             col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
             with col_btn1:
-                submit_actualizar = st.form_submit_button("🔄 Actualizar estudiante", use_container_width=True)
+                submit_actualizar = st.form_submit_button("🔄 Actualizar", use_container_width=True)
             with col_btn2:
-                submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
+                submit_eliminar = st.form_submit_button("🗑️ Eliminar", use_container_width=True)
         
         if submit_actualizar:
             if not nuevo_ru or not nuevo_ru.strip():
@@ -1018,7 +765,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     if nuevo_ru != ru_seleccionado:
                         existe = supabase.table("estudiantes").select("ru").eq("ru", nuevo_ru).execute()
                         if existe.data:
-                            st.error("❌ El nuevo RU ya existe en la base de datos")
+                            st.error("❌ El nuevo RU ya existe")
                             st.stop()
                     supabase.table("estudiantes").update({
                         "ru": nuevo_ru,
@@ -1030,10 +777,10 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     if nuevo_ru != ru_seleccionado:
                         supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
                     
-                    st.success("✅ Estudiante actualizado correctamente")
+                    st.success("✅ Estudiante actualizado")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error al actualizar: {e}")
+                    st.error(f"❌ Error: {e}")
         
         if submit_eliminar:
             st.session_state.confirmar_eliminar = ru_seleccionado
@@ -1042,25 +789,24 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             ru_eliminar = st.session_state.confirmar_eliminar
             estudiante_eliminar = estudiantes[estudiantes["ru"] == ru_eliminar].iloc[0]
             nombre_eliminar = f"{estudiante_eliminar['nombres']} {estudiante_eliminar['apellido_paterno']}"
-            st.warning(f"⚠️ ¿Estás seguro de eliminar a **{nombre_eliminar} (RU: {ru_eliminar})**? Se eliminarán también todos sus registros de asistencia.")
+            st.warning(f"⚠️ ¿Eliminar a **{nombre_eliminar} (RU: {ru_eliminar})**? También se borrarán sus asistencias.")
             col_confirm1, col_confirm2, _ = st.columns([1,1,3])
             with col_confirm1:
                 if st.button("✅ Sí, eliminar", key="confirm_eliminar", use_container_width=True):
                     try:
                         supabase.table("asistencia").delete().eq("ru", ru_eliminar).execute()
                         supabase.table("estudiantes").delete().eq("ru", ru_eliminar).execute()
-                        st.success("✅ Estudiante y sus registros de asistencia eliminados correctamente")
+                        st.success("✅ Eliminado correctamente")
                         st.session_state.confirmar_eliminar = None
                         st.rerun()
                     except Exception as e:
-                        st.error(f"❌ Error al eliminar: {e}")
+                        st.error(f"❌ Error: {e}")
             with col_confirm2:
                 if st.button("❌ No, cancelar", key="cancel_eliminar", use_container_width=True):
                     st.session_state.confirmar_eliminar = None
                     st.rerun()
         
         st.markdown("---")
-        
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
             archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -1071,14 +817,14 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (MEJORADO CON pyzbar)
+# ESCANEAR QR (mejorado visualmente)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #94a3b8;">Toma una foto del código QR del estudiante</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
         img = Image.open(foto)
@@ -1109,24 +855,25 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                         st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
                         st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
                     except Exception as e:
-                        st.error(f"❌ Error al guardar asistencia: {e}")
+                        st.error(f"❌ Error: {e}")
                 else:
-                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
+                    st.warning(f"⚠️ {nombres} {paterno} ya registró hoy a las {registro_existente['hora']}")
             else:
-                st.error("❌ Estudiante no encontrado en la base de datos")
+                st.error("❌ Estudiante no encontrado")
         else:
-            st.warning("⚠️ No se detectó ningún código QR en la imagen")
+            st.warning("⚠️ No se detectó ningún código QR")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
+# REGISTRO MANUAL (con modal de contraseña mejorado)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
         with st.container():
             st.markdown("""
             <div class="password-modal">
+                <i class="fas fa-lock" style="font-size: 48px; color: #3b82f6;"></i>
                 <h3>🔒 Acceso restringido</h3>
-                <p style="color: var(--text-secondary);">Ingrese la contraseña para registrar asistencia manual</p>
+                <p style="color: #94a3b8;">Ingrese la contraseña para registrar asistencia manual</p>
             </div>
             """, unsafe_allow_html=True)
             with st.form(key="password_form"):
@@ -1168,11 +915,10 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru_seleccionado, fecha)
                 
                 if tiene_registro:
-                    st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
+                    st.warning(f"⚠️ Ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
                     col1, col2, col3 = st.columns([1,2,1])
                     with col2:
                         st.button("✅ Registrar asistencia", disabled=True, use_container_width=True)
-                    st.caption("Botón deshabilitado - Registro duplicado")
                 else:
                     col1, col2, col3 = st.columns([1,2,1])
                     with col2:
@@ -1191,14 +937,14 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                                 st.success(f"✅ Asistencia registrada a las {hora}")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"❌ Error al guardar asistencia: {e}")
+                                st.error(f"❌ Error: {e}")
             else:
-                st.info("👆 Selecciona un estudiante de la lista")
+                st.info("👆 Selecciona un estudiante")
         else:
-            st.warning("⚠️ No hay estudiantes registrados en el sistema")
+            st.warning("⚠️ No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (con dashboard de tres tarjetas)
+# VER ASISTENCIA (dashboard mejorado)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
@@ -1206,17 +952,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
-    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
-    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
-    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -1224,37 +967,29 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
-    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
-            <div class="title">📋 Total registros</div>
+            <div class="title"><i class="fas fa-users"></i> Total estudiantes</div>
             <div class="value">{total_estudiantes}</div>
-            <div class="percentage">100% total</div>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" style="width: 100%;"></div>
-            </div>
+            <div class="percentage">100%</div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:100%"></div></div>
         </div>
         <div class="dashboard-card blue-card">
-            <div class="title">✅ Ya registrados</div>
+            <div class="title"><i class="fas fa-check-circle"></i> Ya registrados</div>
             <div class="value">{registrados_hoy}</div>
-            <div class="percentage">{porcentaje_registrados:.1f}% del total</div>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" style="width: {porcentaje_registrados}%;"></div>
-            </div>
+            <div class="percentage">{porcentaje_registrados:.1f}%</div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:{porcentaje_registrados}%"></div></div>
         </div>
         <div class="dashboard-card orange-card">
-            <div class="title">❌ Faltantes</div>
+            <div class="title"><i class="fas fa-hourglass-half"></i> Faltantes</div>
             <div class="value">{faltantes}</div>
-            <div class="percentage">{porcentaje_faltantes:.1f}% sin registrar</div>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" style="width: {porcentaje_faltantes}%;"></div>
-            </div>
+            <div class="percentage">{porcentaje_faltantes:.1f}%</div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:{porcentaje_faltantes}%"></div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
@@ -1266,17 +1001,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
         duplicados = duplicados[duplicados['count'] > 1]
         if len(duplicados) > 0:
-            st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
+            st.warning(f"⚠️ Se encontraron {len(duplicados)} registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
                 try:
                     ids_a_conservar = asistencia_df.groupby(['ru', 'fecha'])['id'].first().tolist()
                     supabase.table("asistencia").delete().not_.in_("id", ids_a_conservar).execute()
-                    st.success("✅ Duplicados eliminados correctamente")
+                    st.success("✅ Duplicados eliminados")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error al limpiar duplicados: {e}")
+                    st.error(f"❌ Error: {e}")
         else:
-            st.success("✅ No hay registros duplicados en el sistema")
+            st.success("✅ No hay registros duplicados")
         
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
@@ -1301,14 +1036,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if st.button("🔄 Actualizar estado", use_container_width=True):
                 try:
                     supabase.table("asistencia").update({"estado": nuevo_estado}).eq("id", id_registro).execute()
-                    st.success("✅ Estado actualizado correctamente")
+                    st.success("✅ Estado actualizado")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error al actualizar: {e}")
+                    st.error(f"❌ Error: {e}")
         
         st.markdown("---")
         st.subheader("🗑️ Eliminar todo el registro de asistencia")
-        if st.button("⚠️ Eliminar TODOS los registros de asistencia", use_container_width=True):
+        if st.button("⚠️ Eliminar TODOS los registros", use_container_width=True):
             st.session_state.confirmar_eliminar_todo_asistencia = True
         
         if st.session_state.confirmar_eliminar_todo_asistencia:
@@ -1318,11 +1053,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                 if st.button("✅ Sí, eliminar todos", key="confirm_eliminar_todo", use_container_width=True):
                     try:
                         supabase.table("asistencia").delete().neq("id", 0).execute()
-                        st.success("✅ Todos los registros de asistencia han sido eliminados")
+                        st.success("✅ Todos los registros eliminados")
                         st.session_state.confirmar_eliminar_todo_asistencia = False
                         st.rerun()
                     except Exception as e:
-                        st.error(f"❌ Error al eliminar: {e}")
+                        st.error(f"❌ Error: {e}")
             with col_confirm2:
                 if st.button("❌ No, cancelar", key="cancel_eliminar_todo", use_container_width=True):
                     st.session_state.confirmar_eliminar_todo_asistencia = False
@@ -1341,17 +1076,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             
             if st.session_state.confirmar_eliminar_asistencia:
                 if st.session_state.confirmar_eliminar_asistencia == id_eliminar:
-                    st.warning(f"⚠️ ¿Estás seguro de eliminar el registro **{registro_info}**?")
+                    st.warning(f"⚠️ ¿Eliminar el registro **{registro_info}**?")
                     col_confirm1, col_confirm2, _ = st.columns([1,1,3])
                     with col_confirm1:
                         if st.button("✅ Sí, eliminar", key="confirm_eliminar_asist", use_container_width=True):
                             try:
                                 supabase.table("asistencia").delete().eq("id", id_eliminar).execute()
-                                st.success("✅ Registro eliminado correctamente")
+                                st.success("✅ Registro eliminado")
                                 st.session_state.confirmar_eliminar_asistencia = None
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"❌ Error al eliminar: {e}")
+                                st.error(f"❌ Error: {e}")
                     with col_confirm2:
                         if st.button("❌ No, cancelar", key="cancel_eliminar_asist", use_container_width=True):
                             st.session_state.confirmar_eliminar_asistencia = None
@@ -1371,6 +1106,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             with open(archivo_descarga, "rb") as file:
                 st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga, use_container_width=True)
         else:
-            st.info("📭 No hay registros para el día de hoy")
+            st.info("📭 No hay registros para hoy")
     else:
         st.info("📭 No hay registros de asistencia en el sistema")
