@@ -239,10 +239,9 @@ CSS_STYLES = """
     transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     cursor: pointer;
-    backdrop-filter: blur(2px);
     }
 
     .stButton button::before {
