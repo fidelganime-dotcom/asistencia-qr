@@ -689,12 +689,7 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# ------------------------------------------------------------
-# SIDEBAR
-# ------------------------------------------------------------
-with st.sidebar:
-    st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
+
 
 # ------------------------------------------------------------
 # TÍTULO CON LOGO
