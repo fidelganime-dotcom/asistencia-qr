@@ -64,6 +64,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -91,37 +92,6 @@ st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", ini
 # APLICAR ESTILOS CSS (importados desde styles.py)
 # ------------------------------------------------------------
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-# ESTILO ADICIONAL PARA AGRANDAR LA CÁMARA Y EL TEXTO (REFUERZO)
-# ------------------------------------------------------------
-st.markdown("""
-<style>
-    /* Agrandar el texto descriptivo del escáner QR */
-    .custom-camera-text {
-        font-size: 1.5rem !important;
-        text-align: center !important;
-        color: var(--text-primary) !important;
-        margin-bottom: 1rem !important;
-        font-weight: 500;
-    }
-    /* Hacer que el video ocupe casi toda la pantalla */
-    div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: 75vh !important;
-        max-height: 85vh !important;
-        object-fit: cover !important;
-        border-radius: 20px !important;
-        border: 2px solid var(--primary-color) !important;
-        box-shadow: var(--shadow-3d) !important;
-    }
-    /* Ajustar el contenedor de la cámara */
-    div[data-testid="stCameraInput"] {
-        width: 100% !important;
-        margin: 0 auto !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # INICIALIZAR SESSION STATE
@@ -228,7 +198,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -574,16 +544,14 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (MEJORADO CON pyzbar) - TEXTO AGRANDADO Y CÁMARA MÁS GRANDE
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
     st.subheader("📸 Escanear QR")
-    # Texto descriptivo más grande y centrado
-    st.markdown('<p class="custom-camera-text">📸 Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
-    
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
         img = Image.open(foto)
@@ -623,7 +591,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -711,14 +679,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
+    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
+    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
+    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -726,6 +697,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
+    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
@@ -755,12 +727,12 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
+    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
-    asistencia_mostrar = asistencia_df.copy()
-    # Convertir fecha a formato dd-mm-aaaa (04-04-2026)
-    asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
-    asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
-    st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
+        asistencia_mostrar = asistencia_df.copy()
+        asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
+        asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
+        st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
         
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
@@ -860,6 +832,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -867,6 +840,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
+            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
