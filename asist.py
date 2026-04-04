@@ -61,7 +61,6 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -83,7 +82,7 @@ def verificar_registro_duplicado(ru, fecha):
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
-st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Sistema de Asistencia Premium", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
 # INICIALIZAR SESSION STATE
@@ -104,73 +103,93 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (con tres tarjetas)
+# ESTILOS CSS - DISEÑO PREMIUM VERDE PLOMO / ESMERALDA / TURQUESA / PÚRPURA
 # ------------------------------------------------------------
 st.markdown("""
 <style>
-    :root {
-        --primary-color: #0066ff;
-        --primary-hover: #0052cc;
-        --accent-color: #00ffcc;
-        --text-primary: #f8fafc;
-        --text-secondary: #cbd5e1;
-        --bg-dark: #0f172a;
-        --glass-bg: rgba(15, 23, 42, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.1);
-        --shadow-3d: 0 10px 25px -5px rgba(0, 102, 255, 0.2), 0 10px 10px -5px rgba(0, 102, 255, 0.1);
-        --shadow-hover: 0 20px 50px -10px rgba(0, 102, 255, 0.4);
-        --success-gradient: linear-gradient(135deg, #00ffcc 0%, #0066ff 100%);
-        --input-bg: rgba(15, 23, 42, 0.5);
-        --input-bg-focus: rgba(15, 23, 42, 0.8);
-        --table-header-bg: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%);
-        --table-row-hover: rgba(0, 102, 255, 0.1);
-        --badge-bg: var(--success-gradient);
-        --badge-color: #020617;
-    }
-
     @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
+    
+    :root {
+        --verde-plomo: #2d6a4f;
+        --verde-esmeralda: #40916c;
+        --verde-menta: #95d5b2;
+        --turquesa: #74c69d;
+        --purpura: #7b2cbf;
+        --purpura-claro: #9d4edd;
+        --dorado: #ffd60a;
+        --dorado-suave: #ffea8c;
+        --fondo-oscuro: #0a0c10;
+        --fondo-card: rgba(13, 17, 23, 0.85);
+        --texto-primario: #e8f0fe;
+        --texto-secundario: #a8c7bb;
+        --glass-border: rgba(64, 145, 108, 0.25);
+        --gradiente-verde: linear-gradient(135deg, #2d6a4f 0%, #52b788 50%, #74c69d 100%);
+        --gradiente-purpura: linear-gradient(135deg, #7b2cbf 0%, #9d4edd 50%, #c77dff 100%);
+        --gradiente-dorado: linear-gradient(135deg, #ffd60a 0%, #ffea8c 50%, #fff3b0 100%);
+        --shadow-premium: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(64, 145, 108, 0.2);
+        --shadow-neon-verde: 0 0 20px rgba(82, 183, 136, 0.3);
+        --shadow-neon-purpura: 0 0 20px rgba(123, 44, 191, 0.3);
+        --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(82, 183, 136, 0.4);
+    }
 
     .stApp {
-        background-color: var(--bg-dark);
-        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #0a0c10 0%, #0f1218 50%, #0d1117 100%);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
-    /* Estilo mejorado para mensajes de éxito */
+    /* Efecto de partículas en el fondo */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: radial-gradient(circle at 25% 40%, rgba(82, 183, 136, 0.08) 0%, transparent 50%),
+                          radial-gradient(circle at 75% 60%, rgba(157, 78, 221, 0.06) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Mensajes de éxito premium */
     .stAlert[data-testid="stAlert"] {
-        background: linear-gradient(135deg, rgba(0,102,255,0.15), rgba(0,51,204,0.1)) !important;
+        background: linear-gradient(135deg, rgba(45, 106, 79, 0.2), rgba(82, 183, 136, 0.1)) !important;
         backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(0,255,204,0.3) !important;
+        border: 1px solid rgba(82, 183, 136, 0.4) !important;
         border-radius: 20px !important;
-        box-shadow: 0 8px 20px rgba(0,102,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        box-shadow: var(--shadow-neon-verde) !important;
         animation: slideInDown 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
-        color: #e6f7ff !important;
-    }
-    @keyframes slideInDown {
-        from {
-            opacity: 0;
-            transform: translateY(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        color: #b8f2d0 !important;
     }
 
-    .css-1d391kg, .css-1lcbmhc {
-        background: var(--glass-bg) !important;
+    @keyframes slideInDown {
+        from { opacity: 0; transform: translateY(-30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Sidebar premium */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, rgba(10, 12, 16, 0.95) 0%, rgba(13, 17, 23, 0.95) 100%) !important;
         backdrop-filter: blur(20px) !important;
         border-right: 1px solid var(--glass-border) !important;
-        box-shadow: var(--shadow-3d) !important;
+        box-shadow: 5px 0 30px rgba(0, 0, 0, 0.3) !important;
     }
 
+    [data-testid="stSidebar"] * {
+        color: var(--texto-primario) !important;
+    }
+
+    /* Títulos con efecto neón */
     h1, h2, h3 {
-        color: var(--text-primary);
-        font-weight: 700;
+        background: var(--gradiente-verde);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
+        font-weight: 800;
         letter-spacing: -0.02em;
-        text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
+        text-shadow: 0 2px 10px rgba(82, 183, 136, 0.3);
         position: relative;
         display: inline-block;
-        font-family: 'Inter', system-ui, sans-serif;
     }
 
     h1::after, h2::after {
@@ -178,177 +197,126 @@ st.markdown("""
         position: absolute;
         bottom: -10px;
         left: 0;
-        width: 100%;
+        width: 60px;
         height: 3px;
-        background: var(--success-gradient);
+        background: var(--gradiente-verde);
         border-radius: 3px;
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.3s ease;
+        transition: width 0.3s ease;
     }
 
     h1:hover::after, h2:hover::after {
-        transform: scaleX(1);
+        width: 100%;
     }
 
     .subtitle-script {
-        color: var(--text-secondary);
-        margin-top: -10px;
-        font-family: 'Pacifico', 'Dancing Script', 'Brush Script MT', cursive;
-        font-size: 1.1rem;
+        background: var(--gradiente-dorado);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
+        font-family: 'Inter', cursive;
+        font-size: 1rem;
+        font-weight: 500;
         letter-spacing: 0.5px;
-        font-weight: normal;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    .student-search-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 2rem;
-        margin: 1.5rem 0;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-    .student-search-card:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(0, 102, 255, 0.3);
-    }
-    .student-name {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--accent-color);
-        margin-bottom: 0.5rem;
-        text-shadow: 0 0 10px rgba(0,255,204,0.3);
-        text-transform: uppercase;
-    }
-    .student-ru {
-        font-size: 1.3rem;
-        color: var(--text-secondary);
-        margin-bottom: 1.5rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-    }
-    .qr-container {
-        display: flex;
-        justify-content: center;
-        margin: 1.5rem 0;
-    }
-    .qr-container img {
-        border-radius: 16px;
-        box-shadow: var(--shadow-3d);
-        transition: transform 0.3s ease;
-        max-width: 100%;
-        height: auto;
-    }
-    .qr-container img:hover {
-        transform: scale(1.02);
-    }
-    .download-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin-top: 1.5rem;
-    }
-    .info-card, .student-info, .stDataFrame {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 16px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    /* Tarjetas premium */
+    .info-card, .student-info, .stDataFrame, .student-search-card, .student-detail-card, .password-modal {
+        background: var(--fondo-card) !important;
+        backdrop-filter: blur(20px) !important;
+        border-radius: 28px !important;
+        border: 1px solid var(--glass-border) !important;
+        box-shadow: var(--shadow-premium) !important;
+        transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
         position: relative;
         overflow: hidden;
     }
 
-    .info-card::before, .student-info::before, .stDataFrame::before {
+    .info-card:hover, .student-info:hover, .stDataFrame:hover, .student-search-card:hover {
+        transform: translateY(-8px) scale(1.01);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(82, 183, 136, 0.5);
+    }
+
+    /* Efecto de brillo en tarjetas */
+    .info-card::before, .student-info::before, .student-search-card::before {
         content: '';
         position: absolute;
         top: -50%;
         left: -50%;
         width: 200%;
         height: 200%;
-        background: radial-gradient(circle, rgba(0,102,255,0.1) 0%, rgba(0,102,255,0) 70%);
+        background: radial-gradient(circle, rgba(82, 183, 136, 0.1) 0%, transparent 70%);
         transform: rotate(30deg);
         transition: all 0.5s ease;
         opacity: 0;
         pointer-events: none;
     }
 
-    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
+    .info-card:hover::before, .student-info:hover::before, .student-search-card:hover::before {
         opacity: 1;
-        animation: shine 3s infinite;
+        animation: shine 2s infinite;
     }
 
     @keyframes shine {
-        0% { transform: rotate(30deg) translate(-10%, -10%); }
-        100% { transform: rotate(30deg) translate(10%, 10%); }
+        0% { transform: rotate(30deg) translate(-10%, -10%); opacity: 0; }
+        50% { opacity: 0.5; }
+        100% { transform: rotate(30deg) translate(10%, 10%); opacity: 0; }
     }
 
-    .info-card:hover, .student-info:hover, .stDataFrame:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(0, 102, 255, 0.3);
-    }
-
+    /* Menú horizontal premium */
     div.row-widget.stRadio > div {
         display: flex;
         flex-direction: row;
         justify-content: center;
-        gap: 0.75rem;
-        background: var(--glass-bg);
+        gap: 0.5rem;
+        background: var(--fondo-card);
         backdrop-filter: blur(20px);
         padding: 0.5rem;
         border-radius: 60px;
-        box-shadow: var(--shadow-3d);
+        box-shadow: var(--shadow-premium);
         margin-bottom: 2rem;
         border: 1px solid var(--glass-border);
+        flex-wrap: wrap;
     }
 
     div.row-widget.stRadio > div label {
         background: transparent;
-        color: var(--text-secondary);
+        color: var(--texto-secundario);
         font-weight: 500;
         padding: 0.6rem 1.2rem;
         border-radius: 40px;
         transition: all 0.3s ease;
         cursor: pointer;
-        font-size: 0.9rem;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 0.85rem;
     }
 
     div.row-widget.stRadio > div label:hover {
-        background: rgba(0, 102, 255, 0.2);
-        color: var(--accent-color);
+        background: rgba(82, 183, 136, 0.2);
+        color: var(--verde-menta);
         transform: translateY(-2px);
     }
 
     div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
-        background: var(--success-gradient);
-        color: var(--badge-color);
-        box-shadow: var(--shadow-3d);
-        font-weight: 600;
+        background: var(--gradiente-verde);
+        color: #0a0c10;
+        box-shadow: var(--shadow-neon-verde);
+        font-weight: 700;
     }
 
+    /* Botones premium con gradientes */
     .stButton button {
-        background: var(--primary-color);
-        color: white;
+        background: var(--gradiente-verde);
+        color: #0a0c10;
         border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
+        border-radius: 16px;
+        padding: 0.7rem 1.8rem;
+        font-weight: 700;
         font-size: 0.9rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         position: relative;
         overflow: hidden;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
-        font-family: 'Inter', system-ui, sans-serif;
+        box-shadow: 0 4px 15px rgba(45, 106, 79, 0.3);
+        cursor: pointer;
     }
 
     .stButton button::before {
@@ -358,8 +326,8 @@ st.markdown("""
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.7s;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: left 0.5s;
     }
 
     .stButton button:hover::before {
@@ -367,284 +335,208 @@ st.markdown("""
     }
 
     .stButton button:hover {
-        background: var(--primary-hover);
         transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 8px 25px rgba(82, 183, 136, 0.4);
     }
 
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: var(--input-bg) !important;
+    /* Inputs premium */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stTextArea textarea {
+        background: rgba(13, 17, 23, 0.8) !important;
         border: 1px solid var(--glass-border) !important;
-        border-radius: 12px !important;
-        color: var(--text-primary) !important;
-        padding: 0.75rem 1rem !important;
+        border-radius: 16px !important;
+        color: var(--texto-primario) !important;
+        padding: 0.8rem 1rem !important;
         backdrop-filter: blur(5px) !important;
-        font-family: 'Inter', system-ui, sans-serif;
+        transition: all 0.3s ease !important;
     }
 
-    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus {
-        background: var(--input-bg-focus) !important;
-        border-color: var(--primary-color) !important;
-        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2) !important;
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus, .stTextArea textarea:focus {
+        border-color: var(--verde-esmeralda) !important;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.2) !important;
         transform: scale(1.01);
     }
 
-    .stDataFrame {
-        padding: 0;
-        overflow: hidden;
-    }
-
+    /* Tablas premium */
     .stDataFrame table {
         width: 100%;
         border-collapse: collapse;
-        color: var(--text-primary);
-        font-family: 'Inter', system-ui, sans-serif;
     }
 
     .stDataFrame thead tr th {
-        background: var(--table-header-bg) !important;
-        color: white !important;
-        font-weight: 600;
-        padding: 1rem 1rem !important;
-        border: none !important;
-        font-size: 0.9rem;
+        background: var(--gradiente-verde) !important;
+        color: #0a0c10 !important;
+        font-weight: 700;
+        padding: 1rem !important;
+        font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
 
     .stDataFrame tbody tr {
         transition: all 0.3s ease;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(64, 145, 108, 0.1);
     }
 
     .stDataFrame tbody tr:hover {
-        background: var(--table-row-hover);
+        background: rgba(82, 183, 136, 0.1) !important;
         transform: translateX(5px);
     }
 
     .stDataFrame tbody td {
-        padding: 0.75rem 1rem !important;
-        border: none !important;
+        padding: 0.8rem 1rem !important;
+        color: var(--texto-secundario) !important;
     }
 
-    .stAlert {
-        background: var(--glass-bg) !important;
-        backdrop-filter: blur(20px) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: 16px !important;
-        color: var(--text-primary) !important;
-        padding: 1rem !important;
-        box-shadow: var(--shadow-3d) !important;
-        font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: 70vh !important;
-        object-fit: cover;
-        border-radius: 16px;
-        border: 2px solid var(--primary-color);
-        box-shadow: var(--shadow-3d);
-    }
-
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-    }
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary-color);
-        border-radius: 4px;
-    }
-
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
-        animation: fadeInUp 0.5s ease-out;
-    }
-    
-    .qr-info {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: var(--accent-color);
-        text-align: center;
-        margin-bottom: 0.5rem;
-        letter-spacing: 0.5px;
-        text-shadow: 0 0 8px rgba(0,255,204,0.3);
-        text-transform: uppercase;
-    }
-    .qr-ru {
-        font-size: 1.1rem;
-        color: var(--text-secondary);
-        text-align: center;
-        margin-bottom: 1rem;
-        text-transform: uppercase;
-    }
-    
-    /* Estilos para la pantalla flotante de contraseña */
-    .password-modal {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 2rem;
-        margin: 2rem auto;
-        max-width: 500px;
-        text-align: center;
-        animation: fadeInUp 0.4s ease-out;
-    }
-    .password-modal h3 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-    }
-    .password-modal input {
-        width: 100%;
-        background: var(--input-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 12px;
-        padding: 0.75rem;
-        color: var(--text-primary);
-        margin-bottom: 1rem;
-    }
-    .password-modal button {
-        background: var(--primary-color);
-        border: none;
-        border-radius: 12px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: white;
-    }
-    .password-modal button:hover {
-        background: var(--primary-hover);
-        transform: translateY(-2px);
-    }
-    .password-error {
-        color: #ff6b6b;
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-    }
-
-    /* Estilo para tarjeta de información del estudiante */
-    .student-detail-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(12px);
-        border-radius: 20px;
-        border: 1px solid var(--glass-border);
-        padding: 1rem;
-        margin: 1rem 0;
-        text-align: center;
-        box-shadow: var(--shadow-3d);
-    }
-    .student-detail-card h4 {
-        margin: 0 0 0.5rem 0;
-        color: var(--accent-color);
-    }
-    .student-detail-card p {
-        margin: 0.2rem 0;
-        color: var(--text-primary);
-    }
-
-    /* Dashboard compacto - tres tarjetas */
+    /* Dashboard de tres tarjetas premium */
     .dashboard-compact {
         display: flex;
-        gap: 0.8rem;
-        margin-bottom: 1.2rem;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
         flex-wrap: wrap;
     }
+
     .dashboard-card {
         flex: 1;
-        min-width: 100px;
-        background: var(--glass-bg);
-        backdrop-filter: blur(8px);
-        border-radius: 20px;
-        padding: 0.6rem 0.8rem;
+        min-width: 120px;
+        background: var(--fondo-card);
+        backdrop-filter: blur(12px);
+        border-radius: 24px;
+        padding: 1rem;
         text-align: center;
         border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
         transition: all 0.3s ease;
-    }
-    .dashboard-card:hover {
-        transform: translateY(-3px);
-        border-color: rgba(0,255,204,0.3);
-    }
-    .dashboard-card .title {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: var(--text-secondary);
-        margin-bottom: 0.2rem;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-    }
-    .dashboard-card .value {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        line-height: 1.2;
-    }
-    .dashboard-card .percentage {
-        font-size: 0.65rem;
-        color: var(--text-secondary);
-        margin-top: 0.2rem;
-    }
-    .progress-bar-bg {
-        background: rgba(255,255,255,0.15);
-        border-radius: 20px;
-        height: 5px;
-        width: 100%;
-        margin-top: 0.5rem;
+        position: relative;
         overflow: hidden;
     }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-neon-verde);
+    }
+
+    .dashboard-card .title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-card .value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .dashboard-card .percentage {
+        font-size: 0.7rem;
+        margin-top: 0.3rem;
+    }
+
+    .progress-bar-bg {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        height: 6px;
+        width: 100%;
+        margin-top: 0.8rem;
+        overflow: hidden;
+    }
+
     .progress-bar-fill {
         height: 100%;
         border-radius: 20px;
         transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
     }
+
     .green-card .progress-bar-fill {
-        background: linear-gradient(90deg, #00cc88, #00ffaa);
-        box-shadow: 0 0 6px #00ffaa;
+        background: linear-gradient(90deg, var(--verde-plomo), var(--turquesa));
+        box-shadow: 0 0 8px var(--turquesa);
     }
-    .orange-card .progress-bar-fill {
-        background: linear-gradient(90deg, #ff884d, #ffaa66);
-        box-shadow: 0 0 6px #ffaa66;
+    .green-card .title, .green-card .value, .green-card .percentage { color: var(--verde-menta); }
+
+    .purple-card .progress-bar-fill {
+        background: linear-gradient(90deg, var(--purpura), var(--purpura-claro));
+        box-shadow: 0 0 8px var(--purpura-claro);
     }
-    .blue-card .progress-bar-fill {
-        background: linear-gradient(90deg, #3399ff, #66ccff);
-        box-shadow: 0 0 6px #66ccff;
+    .purple-card .title, .purple-card .value, .purple-card .percentage { color: #c77dff; }
+
+    .gold-card .progress-bar-fill {
+        background: linear-gradient(90deg, var(--dorado), var(--dorado-suave));
+        box-shadow: 0 0 8px var(--dorado);
     }
-    .green-card {
-        background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
-        border-left: 3px solid #00ffaa;
+    .gold-card .title, .gold-card .value, .gold-card .percentage { color: var(--dorado-suave); }
+
+    .green-card { border-left: 3px solid var(--verde-esmeralda); }
+    .purple-card { border-left: 3px solid var(--purpura); }
+    .gold-card { border-left: 3px solid var(--dorado); }
+
+    /* QR y contenedores */
+    .qr-container img {
+        border-radius: 24px;
+        box-shadow: var(--shadow-premium);
+        transition: all 0.3s ease;
+        max-width: 100%;
+        height: auto;
     }
-    .orange-card {
-        background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
-        border-left: 3px solid #ffaa66;
+
+    .qr-container img:hover {
+        transform: scale(1.02);
+        box-shadow: var(--shadow-neon-verde);
     }
-    .blue-card {
-        background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
-        border-left: 3px solid #66ccff;
+
+    .qr-info, .student-name {
+        background: var(--gradiente-verde);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    @media (max-width: 600px) {
-        .dashboard-card .value {
-            font-size: 1.1rem;
-        }
-        .dashboard-card .title {
-            font-size: 0.65rem;
-        }
-        .dashboard-card {
-            padding: 0.5rem 0.6rem;
-        }
+
+    .qr-ru, .student-ru {
+        color: var(--texto-secundario);
+        font-weight: 500;
+    }
+
+    /* Cámara */
+    div[data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: 60vh !important;
+        object-fit: cover;
+        border-radius: 24px;
+        border: 2px solid var(--verde-esmeralda);
+        box-shadow: var(--shadow-premium);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(13, 17, 23, 0.8); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--gradiente-verde); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gradiente-purpura); }
+
+    /* Animaciones */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .stAlert, .stButton, .stDataFrame, .info-card, .student-info, .student-search-card {
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .dashboard-card .value { font-size: 1.4rem; }
+        .dashboard-card { min-width: 90px; padding: 0.7rem; }
+        div.row-widget.stRadio > div label { padding: 0.4rem 0.8rem; font-size: 0.7rem; }
+        .stButton button { padding: 0.5rem 1rem; font-size: 0.8rem; }
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS
+# PARTÍCULAS ANIMADAS DE FONDO
 # ------------------------------------------------------------
 st.markdown("""
 <script>
@@ -656,32 +548,34 @@ st.markdown("""
         container.style.width = '100%';
         container.style.height = '100%';
         container.style.pointerEvents = 'none';
-        container.style.zIndex = '-1';
+        container.style.zIndex = '0';
         document.body.appendChild(container);
         
-        const particleCount = 80;
-        for (let i = 0; i < particleCount; i++) {
+        const colors = ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2', '#7b2cbf', '#9d4edd', '#ffd60a'];
+        
+        for (let i = 0; i < 60; i++) {
             const particle = document.createElement('div');
             particle.style.position = 'absolute';
-            particle.style.width = (Math.random() * 3 + 2) + 'px';
+            particle.style.width = (Math.random() * 4 + 2) + 'px';
             particle.style.height = particle.style.width;
-            particle.style.background = Math.random() > 0.66 ? '#00ffcc' : '#0066ff';
+            particle.style.background = colors[Math.floor(Math.random() * colors.length)];
             particle.style.borderRadius = '50%';
             particle.style.left = Math.random() * 100 + '%';
             particle.style.top = Math.random() * 100 + '%';
-            particle.style.animation = `float ${Math.random() * 5 + 5}s infinite ease-in-out`;
-            particle.style.animationDelay = Math.random() * 8 + 's';
-            particle.style.opacity = '0.6';
+            particle.style.animation = `float ${Math.random() * 8 + 6}s infinite ease-in-out`;
+            particle.style.animationDelay = Math.random() * 10 + 's';
+            particle.style.opacity = Math.random() * 0.4 + 0.2;
+            particle.style.filter = 'blur(1px)';
             container.appendChild(particle);
         }
     }
     const style = document.createElement('style');
     style.textContent = `
         @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
-            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
-            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
-            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(15px, -20px) rotate(45deg); }
+            50% { transform: translate(-10px, -35px) rotate(90deg); }
+            75% { transform: translate(20px, -15px) rotate(135deg); }
         }
     `;
     document.head.appendChild(style);
@@ -690,14 +584,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# SIDEBAR
+# SIDEBAR PREMIUM
 # ------------------------------------------------------------
 with st.sidebar:
-    st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align: center; padding: 1rem 0;">
+        <div style="width: 60px; height: 60px; margin: 0 auto 1rem auto; background: var(--gradiente-verde); border-radius: 20px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 2rem;">✨</span>
+        </div>
+        <h3 style="font-size: 1.2rem;">Sistema Premium</h3>
+        <p style="color: var(--texto-secundario); font-size: 0.8rem;">Asistencia Inteligente</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("### 📂 Desarrollado por")
+    st.markdown('<p style="color: var(--verde-menta); font-weight: 600;">Josué</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--texto-secundario); font-size: 0.7rem;">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# TÍTULO CON LOGO
+# TÍTULO PRINCIPAL
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
 
@@ -705,14 +610,14 @@ with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
         if os.path.exists(logo_path):
-            st.image(logo_path, width=100)
+            st.image(logo_path, width=80)
         else:
-            st.write("")
+            st.markdown('<div style="width: 60px; height: 60px; background: var(--gradiente-verde); border-radius: 18px; display: flex; align-items: center; justify-content: center;"><span style="font-size: 2rem;">🎓</span></div>', unsafe_allow_html=True)
     with col_texto:
         st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
             <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
-            <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
+            <p class="subtitle-script">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -730,7 +635,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN PREMIUM)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -744,12 +649,15 @@ def crear_tarjeta_estudiante(estudiante):
     qr = qr.resize((qr_size, qr_size), Image.LANCZOS)
 
     card_size = 1000
-    background = Image.new('RGB', (card_size, card_size), color=(10, 20, 40))
+    background = Image.new('RGB', (card_size, card_size), color=(10, 12, 16))
+    
+    # Gradiente premium verde
     gradient = Image.new('RGBA', (card_size, card_size), (0, 0, 0, 0))
     draw_grad = ImageDraw.Draw(gradient)
     for y in range(card_size):
-        blue_intensity = int(60 * (1 - y / card_size))
-        draw_grad.rectangle([0, y, card_size, y+1], fill=(0, 0, blue_intensity, 180))
+        green_intensity = int(80 * (1 - y / card_size))
+        purple_intensity = int(40 * (y / card_size))
+        draw_grad.rectangle([0, y, card_size, y+1], fill=(45, 106, 79, green_intensity))
     background = Image.alpha_composite(background.convert('RGBA'), gradient).convert('RGB')
     
     draw = ImageDraw.Draw(background)
@@ -786,7 +694,8 @@ def crear_tarjeta_estudiante(estudiante):
         name_font = ImageFont.load_default()
         footer_font = ImageFont.load_default()
 
-    border_color = (0, 102, 255)
+    # Borde dorado
+    border_color = (255, 214, 10)
     border_width = 8
     draw.rectangle([0, 0, card_size-1, card_size-1], outline=border_color, width=border_width)
 
@@ -796,15 +705,15 @@ def crear_tarjeta_estudiante(estudiante):
     title_x = (card_size - title_width) // 2
     title_y = 15
     draw.text((title_x+3, title_y+3), title_text, fill=(0,0,0,128), font=title_font)
-    draw.text((title_x, title_y), title_text, fill=(255,255,255), font=title_font)
+    draw.text((title_x, title_y), title_text, fill=(82, 183, 136), font=title_font)
 
     ru_text = f"RU: {ru}"
     bbox = draw.textbbox((0,0), ru_text, font=ru_font)
     ru_width = bbox[2] - bbox[0]
     ru_x = (card_size - ru_width) // 2
-    ru_y = title_y + 20
+    ru_y = title_y + 100
     draw.text((ru_x+2, ru_y+2), ru_text, fill=(0,0,0,128), font=ru_font)
-    draw.text((ru_x, ru_y), ru_text, fill=(255,255,200), font=ru_font)
+    draw.text((ru_x, ru_y), ru_text, fill=(255, 218, 10), font=ru_font)
 
     max_width = card_size - 60
     words = nombre_completo.split()
@@ -825,19 +734,19 @@ def crear_tarjeta_estudiante(estudiante):
     if not lines:
         lines = [nombre_completo]
 
-    line_spacing = 10
+    line_spacing = 85
     total_height = len(lines) * line_spacing
-    start_y = ru_y + 30
+    start_y = ru_y + 80
     for i, line in enumerate(lines):
         bbox = draw.textbbox((0,0), line, font=name_font)
         line_width = bbox[2] - bbox[0]
         x = (card_size - line_width) // 2
         y = start_y + i * line_spacing
         draw.text((x+2, y+2), line, fill=(0,0,0,128), font=name_font)
-        draw.text((x, y), line, fill=(355,355,355), font=name_font)
+        draw.text((x, y), line, fill=(200, 230, 220), font=name_font)
 
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height -15
+    qr_y = start_y + total_height - 40
     background.paste(qr, (qr_x, qr_y))
 
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
@@ -849,7 +758,7 @@ def crear_tarjeta_estudiante(estudiante):
         x = (card_size - line_width) // 2
         y = footer_y + i * 36
         draw.text((x+2, y+2), line, fill=(0,0,0,128), font=footer_font)
-        draw.text((x, y), line, fill=(220, 220, 255), font=footer_font)
+        draw.text((x, y), line, fill=(180, 200, 190), font=footer_font)
 
     img_bytes = io.BytesIO()
     background.save(img_bytes, format='PNG')
@@ -900,9 +809,9 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                             col_img1, col_img2, col_img3 = st.columns([1,2,1])
                             with col_img2:
                                 nombre_upper = f"{nombres} {paterno}".upper()
-                                st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
-                                st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
-                                st.image(img_bytes, width=500, caption="Código QR del estudiante")
+                                st.markdown(f'<div class="qr-info" style="text-align: center; font-size: 1.5rem;">{nombre_upper}</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="qr-ru" style="text-align: center;">RU: {ru}</div>', unsafe_allow_html=True)
+                                st.image(img_bytes, width=400, caption="Código QR del estudiante")
                                 buf = io.BytesIO()
                                 qr_img.save(buf, format="PNG")
                                 buf.seek(0)
@@ -946,15 +855,11 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 qr_base64 = base64.b64encode(qr_buffer.read()).decode()
                 
                 st.markdown(f"""
-                <div class="student-search-card">
-                    <div class="student-name">{nombre_completo}</div>
-                    <div class="student-ru">RU: {ru}</div>
-                    <div class="qr-container">
-                        <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
-                    </div>
-                    <div class="download-buttons">
-                        <div style="display: inline-block;" id="qr-download-btn"></div>
-                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                <div class="student-search-card" style="padding: 2rem; text-align: center;">
+                    <div class="student-name" style="font-size: 1.8rem;">{nombre_completo}</div>
+                    <div class="student-ru" style="font-size: 1.2rem;">RU: {ru}</div>
+                    <div class="qr-container" style="margin: 1.5rem 0;">
+                        <img src="data:image/png;base64,{qr_base64}" width="400" alt="QR Code">
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1083,7 +988,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.selected_student_manual = None
     
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: var(--texto-secundario);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
     foto = st.camera_input("", label_visibility="collapsed")
     if foto is not None:
         img = Image.open(foto)
@@ -1123,15 +1028,16 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
         with st.container():
             st.markdown("""
-            <div class="password-modal">
-                <h3>🔒 Acceso restringido</h3>
-                <p style="color: var(--text-secondary);">Ingrese la contraseña para registrar asistencia manual</p>
+            <div class="password-modal" style="max-width: 450px; margin: 2rem auto; text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+                <h3 style="background: var(--gradiente-purpura); -webkit-background-clip: text; background-clip: text; color: transparent;">Acceso restringido</h3>
+                <p style="color: var(--texto-secundario);">Ingrese la contraseña para registrar asistencia manual</p>
             </div>
             """, unsafe_allow_html=True)
             with st.form(key="password_form"):
@@ -1159,8 +1065,8 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                 estudiante_data = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
                 
                 st.markdown(f"""
-                <div class="student-detail-card">
-                    <h4>📋 Datos del estudiante</h4>
+                <div class="student-detail-card" style="padding: 1.5rem;">
+                    <h4 style="background: var(--gradiente-verde); -webkit-background-clip: text; background-clip: text; color: transparent;">📋 Datos del estudiante</h4>
                     <p><strong>RU:</strong> {estudiante_data['ru']}</p>
                     <p><strong>Nombres:</strong> {estudiante_data['nombres']}</p>
                     <p><strong>Apellido Paterno:</strong> {estudiante_data['apellido_paterno']}</p>
@@ -1203,7 +1109,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (con dashboard de tres tarjetas)
+# VER ASISTENCIA (con dashboard de tres tarjetas premium)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
@@ -1211,17 +1117,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
-    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
-    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
-    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -1229,18 +1132,18 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
-    # Mostrar dashboard con tres tarjetas
+    # Dashboard premium con tres tarjetas coloridas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
-            <div class="title">📋 Total registros</div>
+            <div class="title">📋 Total estudiantes</div>
             <div class="value">{total_estudiantes}</div>
-            <div class="percentage">100% total</div>
+            <div class="percentage">100% del sistema</div>
             <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: 100%;"></div>
             </div>
         </div>
-        <div class="dashboard-card blue-card">
+        <div class="dashboard-card purple-card">
             <div class="title">✅ Ya registrados</div>
             <div class="value">{registrados_hoy}</div>
             <div class="percentage">{porcentaje_registrados:.1f}% del total</div>
@@ -1248,8 +1151,8 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                 <div class="progress-bar-fill" style="width: {porcentaje_registrados}%;"></div>
             </div>
         </div>
-        <div class="dashboard-card orange-card">
-            <div class="title">❌ Faltantes</div>
+        <div class="dashboard-card gold-card">
+            <div class="title">⏳ Faltantes</div>
             <div class="value">{faltantes}</div>
             <div class="percentage">{porcentaje_faltantes:.1f}% sin registrar</div>
             <div class="progress-bar-bg">
@@ -1259,7 +1162,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
@@ -1364,7 +1266,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
-        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -1372,7 +1273,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
-            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
