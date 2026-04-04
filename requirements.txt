@@ -1,10 +1,11 @@
 streamlit
 pandas
 qrcode
-opencv-python-headless   # ya no lo usas para detección, pero puede seguir para otras funciones
+opencv-python-headless
 openpyxl
 numpy
 pytz
 supabase
 pyzbar
 pillow
+plotly
