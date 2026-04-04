@@ -532,6 +532,191 @@ CSS_STYLES = """
         .dashboard-card {
             padding: 0.5rem 0.6rem;
         }
+        /* ============================================
+   TABLA DE LISTA DE ESTUDIANTES - COLORES ELEGANTES
+   ============================================ */
+
+/* Contenedor de la tabla de estudiantes */
+[data-testid="stDataFrame"]:first-of-type table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+/* Encabezados de la tabla de estudiantes */
+[data-testid="stDataFrame"]:first-of-type thead tr th {
+    background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%) !important;
+    color: white !important;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 12px 16px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Columnas específicas de estudiantes con colores diferentes */
+/* Columna RU - Verde esmeralda */
+[data-testid="stDataFrame"]:first-of-type tbody tr td:first-child {
+    background: rgba(45, 106, 79, 0.2) !important;
+    color: #74c69d !important;
+    font-weight: 600;
+    border-left: 3px solid #2d6a4f;
+}
+
+/* Columna Nombres - Azul turquesa */
+[data-testid="stDataFrame"]:first-of-type tbody tr td:nth-child(2) {
+    background: rgba(0, 150, 255, 0.15) !important;
+    color: #7bc5ff !important;
+}
+
+/* Columna Apellido Paterno - Púrpura */
+[data-testid="stDataFrame"]:first-of-type tbody tr td:nth-child(3) {
+    background: rgba(123, 44, 191, 0.15) !important;
+    color: #c77dff !important;
+}
+
+/* Columna Apellido Materno - Dorado suave */
+[data-testid="stDataFrame"]:first-of-type tbody tr td:nth-child(4) {
+    background: rgba(255, 214, 10, 0.12) !important;
+    color: #ffe066 !important;
+}
+
+/* Filas pares e impares con efecto hover */
+[data-testid="stDataFrame"]:first-of-type tbody tr:nth-child(even) td {
+    backdrop-filter: brightness(0.95);
+}
+
+[data-testid="stDataFrame"]:first-of-type tbody tr:hover td {
+    background: rgba(82, 183, 136, 0.25) !important;
+    transform: scale(1.002);
+    transition: all 0.2s ease;
+}
+
+/* ============================================
+   TABLA DE REGISTROS DE ASISTENCIA - COLORES ELEGANTES
+   ============================================ */
+
+/* Contenedor de la tabla de asistencia */
+[data-testid="stDataFrame"]:last-of-type table,
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+/* Encabezados de asistencia */
+[data-testid="stDataFrame"]:last-of-type thead tr th,
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) thead tr th {
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%) !important;
+    color: #e2e8f0 !important;
+    font-weight: 700;
+    padding: 12px 16px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Columna ID/RU - Verde */
+[data-testid="stDataFrame"]:last-of-type tbody tr td:first-child,
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr td:first-child {
+    background: rgba(45, 106, 79, 0.2) !important;
+    color: #74c69d !important;
+    font-weight: 500;
+}
+
+/* Columna Nombres - Azul */
+[data-testid="stDataFrame"]:last-of-type tbody tr td:nth-child(3),
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr td:nth-child(3) {
+    background: rgba(0, 150, 255, 0.12) !important;
+    color: #90e0ff !important;
+}
+
+/* Columna Apellido Paterno - Púrpura */
+[data-testid="stDataFrame"]:last-of-type tbody tr td:nth-child(4),
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr td:nth-child(4) {
+    background: rgba(123, 44, 191, 0.12) !important;
+    color: #c77dff !important;
+}
+
+/* Columna Apellido Materno - Coral */
+[data-testid="stDataFrame"]:last-of-type tbody tr td:nth-child(5),
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr td:nth-child(5) {
+    background: rgba(255, 99, 71, 0.12) !important;
+    color: #ffaa88 !important;
+}
+
+/* Columna Fecha - Dorado */
+[data-testid="stDataFrame"]:last-of-type tbody tr td:nth-child(6),
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr td:nth-child(6) {
+    background: rgba(255, 214, 10, 0.12) !important;
+    color: #ffe066 !important;
+    font-family: monospace;
+    font-weight: 500;
+}
+
+/* Columna Hora - Cian */
+[data-testid="stDataFrame"]:last-of-type tbody tr td:nth-child(7),
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr td:nth-child(7) {
+    background: rgba(0, 255, 200, 0.1) !important;
+    color: #5fffd9 !important;
+    font-family: monospace;
+    font-weight: 600;
+}
+
+/* Columna Estado - Color según el estado */
+[data-testid="stDataFrame"]:last-of-type tbody tr td:last-child,
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr td:last-child {
+    font-weight: 700;
+    text-align: center;
+    border-radius: 20px;
+    margin: 4px;
+}
+
+/* Estados específicos (funciona para ambas tablas) */
+td:contains("Presente"),
+[data-testid="stDataFrame"] tbody tr td:last-child:contains("Presente") {
+    background: rgba(45, 106, 79, 0.3) !important;
+    color: #95d5b2 !important;
+    text-shadow: 0 0 5px rgba(69, 196, 108, 0.3);
+}
+
+td:contains("Tarde"),
+[data-testid="stDataFrame"] tbody tr td:last-child:contains("Tarde") {
+    background: rgba(255, 160, 0, 0.25) !important;
+    color: #ffb347 !important;
+}
+
+td:contains("Permiso"),
+[data-testid="stDataFrame"] tbody tr td:last-child:contains("Permiso") {
+    background: rgba(0, 150, 255, 0.25) !important;
+    color: #66b0ff !important;
+}
+
+td:contains("Ausente"),
+[data-testid="stDataFrame"] tbody tr td:last-child:contains("Ausente") {
+    background: rgba(220, 53, 69, 0.25) !important;
+    color: #ff8a92 !important;
+}
+
+/* Efecto hover en filas de asistencia */
+[data-testid="stDataFrame"]:last-of-type tbody tr:hover td,
+div[data-testid="stDataFrame"]:has(tbody tr td:nth-child(7)) tbody tr:hover td {
+    background: rgba(82, 183, 136, 0.2) !important;
+    transform: scale(1.001);
+    transition: all 0.2s ease;
+}
+
+/* Animación suave al cargar */
+[data-testid="stDataFrame"] tbody tr {
+    transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+}
+
+/* Borde redondeado general para tablas */
+[data-testid="stDataFrame"] {
+    border-radius: 20px !important;
+    overflow: hidden !important;
+}
     }
 </style>
 """
