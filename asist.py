@@ -754,7 +754,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
         if len(asistencia_df) > 0:
-            asistencia_df["descripcion"] = (asistencia_df["RU"] + " - " + 
+            asistencia_df["descripcion"] = (asistencia_df["ru"] + " - " + 
                                            asistencia_df["nombres"] + " " + 
                                            asistencia_df["apellido_paterno"] + " (" + 
                                            asistencia_df["fecha"].astype(str) + " " + 
