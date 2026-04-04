@@ -531,6 +531,179 @@ CSS_STYLES = """
         .dashboard-card {
             padding: 0.5rem 0.6rem;
         }
+
+        
     }
+    /* ============================================
+   TABLA PRINCIPAL - COLORES ELEGANTES PROFESIONALES
+   ============================================ */
+
+/* Estilo general de la tabla */
+.stDataFrame table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Encabezados de la tabla - Gradiente elegante */
+.stDataFrame thead tr th {
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 14px 16px !important;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    text-align: center;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   COLORES POR COLUMNA (Índice, RU, Nombres, Apellidos)
+   ============================================ */
+
+/* Columna Índice (primera columna) - Gradiente metálico */
+.stDataFrame tbody tr td:first-child {
+    background: linear-gradient(135deg, rgba(100, 100, 120, 0.15), rgba(80, 80, 100, 0.08)) !important;
+    color: #b8c6db !important;
+    font-weight: 600;
+    text-align: center;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Columna RU (segunda columna) - Verde esmeralda premium */
+.stDataFrame tbody tr td:nth-child(2) {
+    background: rgba(45, 106, 79, 0.25) !important;
+    color: #74c69d !important;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    font-size: 0.95rem;
+    text-align: center;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Columna Nombres (tercera columna) - Azul zafiro */
+.stDataFrame tbody tr td:nth-child(3) {
+    background: rgba(0, 100, 200, 0.18) !important;
+    color: #7bc5ff !important;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Columna Apellido Paterno (cuarta columna) - Púrpura real */
+.stDataFrame tbody tr td:nth-child(4) {
+    background: rgba(123, 44, 191, 0.18) !important;
+    color: #c77dff !important;
+    font-weight: 600;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Columna Apellido Materno (quinta columna) - Dorado elegante */
+.stDataFrame tbody tr td:nth-child(5) {
+    background: rgba(255, 180, 50, 0.12) !important;
+    color: #ffd966 !important;
+    font-weight: 600;
+}
+
+/* ============================================
+   EFECTOS HOVER Y FILAS ALTERNAS
+   ============================================ */
+
+/* Filas pares - efecto de profundidad */
+.stDataFrame tbody tr:nth-child(even) td {
+    backdrop-filter: brightness(0.95);
+}
+
+/* Filas impares */
+.stDataFrame tbody tr:nth-child(odd) td {
+    backdrop-filter: brightness(1.02);
+}
+
+/* Efecto hover en filas */
+.stDataFrame tbody tr:hover td {
+    background: rgba(82, 183, 136, 0.25) !important;
+    transform: scale(1.001);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+/* Efecto específico hover por columna */
+.stDataFrame tbody tr:hover td:first-child {
+    background: rgba(100, 100, 120, 0.35) !important;
+}
+
+.stDataFrame tbody tr:hover td:nth-child(2) {
+    background: rgba(45, 106, 79, 0.45) !important;
+    text-shadow: 0 0 5px rgba(116, 198, 157, 0.3);
+}
+
+.stDataFrame tbody tr:hover td:nth-child(3) {
+    background: rgba(0, 100, 200, 0.35) !important;
+}
+
+.stDataFrame tbody tr:hover td:nth-child(4) {
+    background: rgba(123, 44, 191, 0.35) !important;
+}
+
+.stDataFrame tbody tr:hover td:nth-child(5) {
+    background: rgba(255, 180, 50, 0.28) !important;
+}
+
+/* ============================================
+   BORDES Y SOMBRAS ELEGANTES
+   ============================================ */
+
+/* Bordes redondeados en celdas */
+.stDataFrame tbody td {
+    padding: 10px 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+/* Sombra interna en la tabla */
+.stDataFrame {
+    background: rgba(15, 25, 35, 0.5) !important;
+    border-radius: 20px !important;
+    backdrop-filter: blur(5px);
+}
+
+/* ============================================
+   ANIMACIÓN DE ENTRADA
+   ============================================ */
+
+@keyframes tableFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stDataFrame {
+    animation: tableFadeIn 0.5s ease-out;
+}
+
+/* ============================================
+   RESPONSIVE PARA MÓVIL
+   ============================================ */
+
+@media (max-width: 768px) {
+    .stDataFrame thead tr th {
+        font-size: 0.7rem;
+        padding: 8px 6px !important;
+    }
+    
+    .stDataFrame tbody td {
+        font-size: 0.75rem;
+        padding: 6px 4px !important;
+    }
+}
 </style>
 """
