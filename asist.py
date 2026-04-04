@@ -727,111 +727,114 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia (sin cambios)
+    # Mostrar tabla de asistencia (con formato de fecha dd-mm-aaaa)
+if len(asistencia_df) > 0:
+    asistencia_mostrar = asistencia_df.copy()
+    asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
+    asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
+    st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("🔍 Verificación de integridad")
+    duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
+    duplicados = duplicados[duplicados['count'] > 1]
+    if len(duplicados) > 0:
+        st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
+        if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
+            try:
+                ids_a_conservar = asistencia_df.groupby(['ru', 'fecha'])['id'].first().tolist()
+                supabase.table("asistencia").delete().not_.in_("id", ids_a_conservar).execute()
+                st.success("✅ Duplicados eliminados correctamente")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Error al limpiar duplicados: {e}")
+    else:
+        st.success("✅ No hay registros duplicados en el sistema")
+
+    st.markdown("---")
+    st.subheader("✏️ Editar estado de registro")
     if len(asistencia_df) > 0:
-        asistencia_mostrar = asistencia_df.copy()
-        asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
-        asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
-        st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
-        
-        st.markdown("---")
-        st.subheader("🔍 Verificación de integridad")
-        duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
-        duplicados = duplicados[duplicados['count'] > 1]
-        if len(duplicados) > 0:
-            st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
-            if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
+        # Asegurar que la fecha se muestre como string en el formato deseado para la descripción
+        asistencia_df_desc = asistencia_df.copy()
+        asistencia_df_desc['fecha_str'] = pd.to_datetime(asistencia_df_desc['fecha']).dt.strftime('%d-%m-%Y')
+        asistencia_df["descripcion"] = (asistencia_df["ru"] + " - " +
+                                        asistencia_df["nombres"] + " " +
+                                        asistencia_df["apellido_paterno"] + " (" +
+                                        asistencia_df_desc['fecha_str'] + " " +
+                                        asistencia_df["hora"] + ")")
+        opciones = asistencia_df["descripcion"].tolist()
+
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            seleccion = st.selectbox("Selecciona un registro", opciones, key="select_asistencia")
+            idx = asistencia_df[asistencia_df["descripcion"] == seleccion].index[0]
+            id_registro = asistencia_df.loc[idx, "id"]
+            estado_actual = asistencia_df.loc[idx, "estado"]
+        with col2:
+            nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"],
+                                        index=["Presente", "Tarde", "Permiso", "Ausente"].index(estado_actual))
+
+        if st.button("🔄 Actualizar estado", use_container_width=True):
+            try:
+                supabase.table("asistencia").update({"estado": nuevo_estado}).eq("id", id_registro).execute()
+                st.success("✅ Estado actualizado correctamente")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Error al actualizar: {e}")
+
+    st.markdown("---")
+    st.subheader("🗑️ Eliminar todo el registro de asistencia")
+    if st.button("⚠️ Eliminar TODOS los registros de asistencia", use_container_width=True):
+        st.session_state.confirmar_eliminar_todo_asistencia = True
+
+    if st.session_state.confirmar_eliminar_todo_asistencia:
+        st.warning("⚠️ ¡Esta acción borrará TODOS los registros de asistencia! No se puede deshacer.")
+        col_confirm1, col_confirm2, _ = st.columns([1, 1, 3])
+        with col_confirm1:
+            if st.button("✅ Sí, eliminar todos", key="confirm_eliminar_todo", use_container_width=True):
                 try:
-                    ids_a_conservar = asistencia_df.groupby(['ru', 'fecha'])['id'].first().tolist()
-                    supabase.table("asistencia").delete().not_.in_("id", ids_a_conservar).execute()
-                    st.success("✅ Duplicados eliminados correctamente")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error al limpiar duplicados: {e}")
-        else:
-            st.success("✅ No hay registros duplicados en el sistema")
-        
-        st.markdown("---")
-        st.subheader("✏️ Editar estado de registro")
-        if len(asistencia_df) > 0:
-            asistencia_df["descripcion"] = (asistencia_df["ru"] + " - " + 
-                                           asistencia_df["nombres"] + " " + 
-                                           asistencia_df["apellido_paterno"] + " (" + 
-                                           asistencia_df["fecha"].astype(str) + " " + 
-                                           asistencia_df["hora"] + ")")
-            opciones = asistencia_df["descripcion"].tolist()
-            
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                seleccion = st.selectbox("Selecciona un registro", opciones, key="select_asistencia")
-                idx = asistencia_df[asistencia_df["descripcion"] == seleccion].index[0]
-                id_registro = asistencia_df.loc[idx, "id"]
-                estado_actual = asistencia_df.loc[idx, "estado"]
-            with col2:
-                nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"], 
-                                            index=["Presente","Tarde","Permiso","Ausente"].index(estado_actual))
-            
-            if st.button("🔄 Actualizar estado", use_container_width=True):
-                try:
-                    supabase.table("asistencia").update({"estado": nuevo_estado}).eq("id", id_registro).execute()
-                    st.success("✅ Estado actualizado correctamente")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error al actualizar: {e}")
-        
-        st.markdown("---")
-        st.subheader("🗑️ Eliminar todo el registro de asistencia")
-        if st.button("⚠️ Eliminar TODOS los registros de asistencia", use_container_width=True):
-            st.session_state.confirmar_eliminar_todo_asistencia = True
-        
-        if st.session_state.confirmar_eliminar_todo_asistencia:
-            st.warning("⚠️ ¡Esta acción borrará TODOS los registros de asistencia! No se puede deshacer.")
-            col_confirm1, col_confirm2, _ = st.columns([1,1,3])
-            with col_confirm1:
-                if st.button("✅ Sí, eliminar todos", key="confirm_eliminar_todo", use_container_width=True):
-                    try:
-                        supabase.table("asistencia").delete().neq("id", 0).execute()
-                        st.success("✅ Todos los registros de asistencia han sido eliminados")
-                        st.session_state.confirmar_eliminar_todo_asistencia = False
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error al eliminar: {e}")
-            with col_confirm2:
-                if st.button("❌ No, cancelar", key="cancel_eliminar_todo", use_container_width=True):
+                    supabase.table("asistencia").delete().neq("id", 0).execute()
+                    st.success("✅ Todos los registros de asistencia han sido eliminados")
                     st.session_state.confirmar_eliminar_todo_asistencia = False
                     st.rerun()
-        
-        st.markdown("---")
-        st.subheader("🗑️ Eliminar registro individual")
-        if len(asistencia_df) > 0:
-            seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
-            idx_elim = asistencia_df[asistencia_df["descripcion"] == seleccion_eliminar].index[0]
-            id_eliminar = asistencia_df.loc[idx_elim, "id"]
-            registro_info = asistencia_df.loc[idx_elim, "descripcion"]
-            
-            if st.button("🗑️ Eliminar este registro", use_container_width=True):
-                st.session_state.confirmar_eliminar_asistencia = id_eliminar
-            
-            if st.session_state.confirmar_eliminar_asistencia:
-                if st.session_state.confirmar_eliminar_asistencia == id_eliminar:
-                    st.warning(f"⚠️ ¿Estás seguro de eliminar el registro **{registro_info}**?")
-                    col_confirm1, col_confirm2, _ = st.columns([1,1,3])
-                    with col_confirm1:
-                        if st.button("✅ Sí, eliminar", key="confirm_eliminar_asist", use_container_width=True):
-                            try:
-                                supabase.table("asistencia").delete().eq("id", id_eliminar).execute()
-                                st.success("✅ Registro eliminado correctamente")
-                                st.session_state.confirmar_eliminar_asistencia = None
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"❌ Error al eliminar: {e}")
-                    with col_confirm2:
-                        if st.button("❌ No, cancelar", key="cancel_eliminar_asist", use_container_width=True):
+                except Exception as e:
+                    st.error(f"❌ Error al eliminar: {e}")
+        with col_confirm2:
+            if st.button("❌ No, cancelar", key="cancel_eliminar_todo", use_container_width=True):
+                st.session_state.confirmar_eliminar_todo_asistencia = False
+                st.rerun()
+
+    st.markdown("---")
+    st.subheader("🗑️ Eliminar registro individual")
+    if len(asistencia_df) > 0:
+        seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
+        idx_elim = asistencia_df[asistencia_df["descripcion"] == seleccion_eliminar].index[0]
+        id_eliminar = asistencia_df.loc[idx_elim, "id"]
+        registro_info = asistencia_df.loc[idx_elim, "descripcion"]
+
+        if st.button("🗑️ Eliminar este registro", use_container_width=True):
+            st.session_state.confirmar_eliminar_asistencia = id_eliminar
+
+        if st.session_state.confirmar_eliminar_asistencia:
+            if st.session_state.confirmar_eliminar_asistencia == id_eliminar:
+                st.warning(f"⚠️ ¿Estás seguro de eliminar el registro **{registro_info}**?")
+                col_confirm1, col_confirm2, _ = st.columns([1, 1, 3])
+                with col_confirm1:
+                    if st.button("✅ Sí, eliminar", key="confirm_eliminar_asist", use_container_width=True):
+                        try:
+                            supabase.table("asistencia").delete().eq("id", id_eliminar).execute()
+                            st.success("✅ Registro eliminado correctamente")
                             st.session_state.confirmar_eliminar_asistencia = None
                             st.rerun()
-        
-        st.markdown("---")
-        st.subheader("⬇️ Descargar asistencia del día")
+                        except Exception as e:
+                            st.error(f"❌ Error al eliminar: {e}")
+                with col_confirm2:
+                    if st.button("❌ No, cancelar", key="cancel_eliminar_asist", use_container_width=True):
+                        st.session_state.confirmar_eliminar_asistencia = None
+                        st.rerun()
+
+    st.markdown("---")
+    st.subheader("⬇️ Descargar asistencia del día")
         # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
