@@ -727,17 +727,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia (sin cambios)
-    if len(asistencia_df) > 0:
-        asistencia_mostrar = asistencia_df.copy()
-        asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
-        asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
-        st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
-        
-        st.markdown("---")
-        st.subheader("🔍 Verificación de integridad")
-        duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
-        duplicados = duplicados[duplicados['count'] > 1]
+    # Mostrar tabla de asistencia (con formato de fecha dd-mm-aaaa)
+if len(asistencia_df) > 0:
+    asistencia_mostrar = asistencia_df.copy()
+    asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
+    asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
+    st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
+    
+    st.markdown("---")
+    st.subheader("🔍 Verificación de integridad")
+    duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
+    duplicados = duplicados[duplicados['count'] > 1]
         if len(duplicados) > 0:
             st.warning(f"⚠️ Se encontraron {len(duplicados)} casos de registros duplicados")
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
