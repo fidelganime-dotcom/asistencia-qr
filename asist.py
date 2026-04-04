@@ -696,29 +696,12 @@ with st.sidebar:
     # Logo más grande en el sidebar
     logo_path = "assets/logo.png"
     if os.path.exists(logo_path):
-        st.image(logo_path, width=150)
+        st.image(logo_path, width=150)  # Tamaño aumentado (antes 100)
     else:
-        st.write("")
+        st.write("")  # Espacio en blanco si no existe el logo
 
     st.markdown("## 📂 Desarrollado por Josué")
     st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
-
-# ------------------------------------------------------------
-# CSS para mover el título arriba del todo
-# ------------------------------------------------------------
-st.markdown("""
-<style>
-    /* Elimina el padding superior del bloque principal */
-    .main .block-container {
-        padding-top: 0rem;
-        padding-bottom: 0rem;
-    }
-    /* Opcional: ajusta el margen del título si aún queda espacio */
-    h1 {
-        margin-top: -0.5rem;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # TÍTULO (sin logo, solo texto)
@@ -729,7 +712,6 @@ st.markdown("""
     <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
 </div>
 """, unsafe_allow_html=True)
-
 # ------------------------------------------------------------
 # MENÚ HORIZONTAL
 # ------------------------------------------------------------
