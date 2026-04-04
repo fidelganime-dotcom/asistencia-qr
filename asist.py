@@ -61,6 +61,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -103,7 +104,7 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 
 # ------------------------------------------------------------
-# ESTILOS CSS (Flat UI Bootstrap Moderno)
+# ESTILOS CSS (con tres tarjetas)
 # ------------------------------------------------------------
 st.markdown("""
 <style>
@@ -123,6 +124,8 @@ st.markdown("""
         --input-bg-focus: rgba(15, 23, 42, 0.8);
         --table-header-bg: linear-gradient(135deg, rgba(0,102,255,0.8) 0%, rgba(0,51,204,0.8) 100%);
         --table-row-hover: rgba(0, 102, 255, 0.1);
+        --badge-bg: var(--success-gradient);
+        --badge-color: #020617;
     }
 
     @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
@@ -132,7 +135,7 @@ st.markdown("""
         font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* Estilo mejorado para mensajes */
+    /* Estilo mejorado para mensajes de éxito */
     .stAlert[data-testid="stAlert"] {
         background: linear-gradient(135deg, rgba(0,102,255,0.15), rgba(0,51,204,0.1)) !important;
         backdrop-filter: blur(12px) !important;
@@ -142,7 +145,6 @@ st.markdown("""
         animation: slideInDown 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) !important;
         color: #e6f7ff !important;
     }
-    
     @keyframes slideInDown {
         from {
             opacity: 0;
@@ -154,7 +156,6 @@ st.markdown("""
         }
     }
 
-    /* Sidebar moderno */
     .css-1d391kg, .css-1lcbmhc {
         background: var(--glass-bg) !important;
         backdrop-filter: blur(20px) !important;
@@ -162,21 +163,144 @@ st.markdown("""
         box-shadow: var(--shadow-3d) !important;
     }
 
-    /* Títulos */
     h1, h2, h3 {
         color: var(--text-primary);
         font-weight: 700;
         letter-spacing: -0.02em;
         text-shadow: 0 2px 10px rgba(0, 102, 255, 0.3);
+        position: relative;
+        display: inline-block;
         font-family: 'Inter', system-ui, sans-serif;
     }
 
-    /* Menú horizontal estilo píldora */
+    h1::after, h2::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: var(--success-gradient);
+        border-radius: 3px;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    h1:hover::after, h2:hover::after {
+        transform: scaleX(1);
+    }
+
+    .subtitle-script {
+        color: var(--text-secondary);
+        margin-top: -10px;
+        font-family: 'Pacifico', 'Dancing Script', 'Brush Script MT', cursive;
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
+        font-weight: normal;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .student-search-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 2rem;
+        margin: 1.5rem 0;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .student-search-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(0, 102, 255, 0.3);
+    }
+    .student-name {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent-color);
+        margin-bottom: 0.5rem;
+        text-shadow: 0 0 10px rgba(0,255,204,0.3);
+        text-transform: uppercase;
+    }
+    .student-ru {
+        font-size: 1.3rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+    .qr-container {
+        display: flex;
+        justify-content: center;
+        margin: 1.5rem 0;
+    }
+    .qr-container img {
+        border-radius: 16px;
+        box-shadow: var(--shadow-3d);
+        transition: transform 0.3s ease;
+        max-width: 100%;
+        height: auto;
+    }
+    .qr-container img:hover {
+        transform: scale(1.02);
+    }
+    .download-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+    }
+    .info-card, .student-info, .stDataFrame {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .info-card::before, .student-info::before, .stDataFrame::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(0,102,255,0.1) 0%, rgba(0,102,255,0) 70%);
+        transform: rotate(30deg);
+        transition: all 0.5s ease;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .info-card:hover::before, .student-info:hover::before, .stDataFrame:hover::before {
+        opacity: 1;
+        animation: shine 3s infinite;
+    }
+
+    @keyframes shine {
+        0% { transform: rotate(30deg) translate(-10%, -10%); }
+        100% { transform: rotate(30deg) translate(10%, 10%); }
+    }
+
+    .info-card:hover, .student-info:hover, .stDataFrame:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(0, 102, 255, 0.3);
+    }
+
     div.row-widget.stRadio > div {
         display: flex;
         flex-direction: row;
         justify-content: center;
-        gap: 0.5rem;
+        gap: 0.75rem;
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
         padding: 0.5rem;
@@ -184,7 +308,6 @@ st.markdown("""
         box-shadow: var(--shadow-3d);
         margin-bottom: 2rem;
         border: 1px solid var(--glass-border);
-        flex-wrap: wrap;
     }
 
     div.row-widget.stRadio > div label {
@@ -207,27 +330,25 @@ st.markdown("""
 
     div.row-widget.stRadio > div label[data-testid="stRadioLabel"]:has(input:checked) {
         background: var(--success-gradient);
-        color: #020617;
+        color: var(--badge-color);
         box-shadow: var(--shadow-3d);
         font-weight: 600;
     }
 
-    /* Botones Flat UI */
     .stButton button {
         background: var(--primary-color);
         color: white;
         border: none;
         border-radius: 12px;
-        padding: 0.7rem 1.5rem;
+        padding: 0.6rem 1.5rem;
         font-weight: 600;
         font-size: 0.9rem;
         transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         position: relative;
         overflow: hidden;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+        border-bottom: 3px solid rgba(0, 0, 0, 0.2);
         font-family: 'Inter', system-ui, sans-serif;
-        width: 100%;
     }
 
     .stButton button::before {
@@ -247,12 +368,11 @@ st.markdown("""
 
     .stButton button:hover {
         background: var(--primary-hover);
-        transform: translateY(-2px);
+        transform: translateY(-3px) scale(1.02);
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     }
 
-    /* Inputs modernos */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stTextInput textarea {
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
         background: var(--input-bg) !important;
         border: 1px solid var(--glass-border) !important;
         border-radius: 12px !important;
@@ -269,30 +389,9 @@ st.markdown("""
         transform: scale(1.01);
     }
 
-    /* Tarjetas con efecto glass */
-    .info-card, .student-info, .stDataFrame, div[data-testid="stForm"] {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 16px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .info-card:hover, .student-info:hover, .stDataFrame:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(0, 102, 255, 0.3);
-    }
-
-    /* Tablas modernas */
     .stDataFrame {
         padding: 0;
-        overflow-x: auto;
+        overflow: hidden;
     }
 
     .stDataFrame table {
@@ -306,9 +405,9 @@ st.markdown("""
         background: var(--table-header-bg) !important;
         color: white !important;
         font-weight: 600;
-        padding: 1rem !important;
+        padding: 1rem 1rem !important;
         border: none !important;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -328,136 +427,64 @@ st.markdown("""
         border: none !important;
     }
 
-    /* Dashboard de 3 tarjetas */
-    .dashboard-compact {
-        display: flex;
-        gap: 0.8rem;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
+    .stAlert {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 16px !important;
+        color: var(--text-primary) !important;
+        padding: 1rem !important;
+        box-shadow: var(--shadow-3d) !important;
+        font-family: 'Inter', system-ui, sans-serif;
     }
-    
-    .dashboard-card {
-        flex: 1;
-        min-width: 100px;
-        background: var(--glass-bg);
-        backdrop-filter: blur(8px);
-        border-radius: 20px;
-        padding: 0.8rem 1rem;
-        text-align: center;
-        border: 1px solid var(--glass-border);
+
+    div[data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: 70vh !important;
+        object-fit: cover;
+        border-radius: 16px;
+        border: 2px solid var(--primary-color);
         box-shadow: var(--shadow-3d);
-        transition: all 0.3s ease;
+    }
+
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 4px;
+    }
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
+        animation: fadeInUp 0.5s ease-out;
     }
     
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-        border-color: rgba(0,255,204,0.3);
-    }
-    
-    .dashboard-card .title {
-        font-size: 0.75rem;
+    .qr-info {
+        font-size: 1.3rem;
         font-weight: 600;
-        color: var(--text-secondary);
-        margin-bottom: 0.3rem;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-    }
-    
-    .dashboard-card .value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        line-height: 1.2;
-    }
-    
-    .dashboard-card .percentage {
-        font-size: 0.7rem;
-        color: var(--text-secondary);
-        margin-top: 0.3rem;
-    }
-    
-    .progress-bar-bg {
-        background: rgba(255,255,255,0.15);
-        border-radius: 20px;
-        height: 6px;
-        width: 100%;
-        margin-top: 0.6rem;
-        overflow: hidden;
-    }
-    
-    .progress-bar-fill {
-        height: 100%;
-        border-radius: 20px;
-        transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-    }
-    
-    .green-card .progress-bar-fill {
-        background: linear-gradient(90deg, #00cc88, #00ffaa);
-        box-shadow: 0 0 6px #00ffaa;
-    }
-    
-    .orange-card .progress-bar-fill {
-        background: linear-gradient(90deg, #ff884d, #ffaa66);
-        box-shadow: 0 0 6px #ffaa66;
-    }
-    
-    .blue-card .progress-bar-fill {
-        background: linear-gradient(90deg, #3399ff, #66ccff);
-        box-shadow: 0 0 6px #66ccff;
-    }
-    
-    .green-card {
-        background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
-        border-left: 3px solid #00ffaa;
-    }
-    
-    .orange-card {
-        background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
-        border-left: 3px solid #ffaa66;
-    }
-    
-    .blue-card {
-        background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
-        border-left: 3px solid #66ccff;
-    }
-
-    /* Tarjeta de estudiante */
-    .student-search-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        border: 1px solid var(--glass-border);
-        box-shadow: var(--shadow-3d);
-        padding: 2rem;
-        margin: 1.5rem 0;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-    
-    .student-search-card:hover {
-        transform: translateY(-5px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(0, 102, 255, 0.3);
-    }
-    
-    .student-name {
-        font-size: 1.8rem;
-        font-weight: 700;
         color: var(--accent-color);
+        text-align: center;
         margin-bottom: 0.5rem;
-        text-shadow: 0 0 10px rgba(0,255,204,0.3);
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 8px rgba(0,255,204,0.3);
+        text-transform: uppercase;
+    }
+    .qr-ru {
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        text-align: center;
+        margin-bottom: 1rem;
         text-transform: uppercase;
     }
     
-    .student-ru {
-        font-size: 1.2rem;
-        color: var(--text-secondary);
-        margin-bottom: 1.5rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-    }
-
-    /* Modal de contraseña */
+    /* Estilos para la pantalla flotante de contraseña */
     .password-modal {
         background: var(--glass-bg);
         backdrop-filter: blur(20px);
@@ -470,83 +497,147 @@ st.markdown("""
         text-align: center;
         animation: fadeInUp 0.4s ease-out;
     }
-    
-    /* Cámara */
-    div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: auto !important;
-        border-radius: 16px;
-        border: 2px solid var(--primary-color);
+    .password-modal h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+    .password-modal input {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 0.75rem;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+    .password-modal button {
+        background: var(--primary-color);
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: white;
+    }
+    .password-modal button:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+    }
+    .password-error {
+        color: #ff6b6b;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* Estilo para tarjeta de información del estudiante */
+    .student-detail-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+        padding: 1rem;
+        margin: 1rem 0;
+        text-align: center;
         box-shadow: var(--shadow-3d);
     }
-
-    /* Scrollbar personalizada */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+    .student-detail-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--accent-color);
     }
-    
-    ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: var(--primary-color);
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--primary-hover);
+    .student-detail-card p {
+        margin: 0.2rem 0;
+        color: var(--text-primary);
     }
 
-    /* Animaciones */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    /* Dashboard compacto - tres tarjetas */
+    .dashboard-compact {
+        display: flex;
+        gap: 0.8rem;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
     }
-    
-    @keyframes float {
-        0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
-        25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
-        50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
-        75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
+    .dashboard-card {
+        flex: 1;
+        min-width: 100px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(8px);
+        border-radius: 20px;
+        padding: 0.6rem 0.8rem;
+        text-align: center;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-3d);
+        transition: all 0.3s ease;
     }
-    
-    .stAlert, .stButton, .stDataFrame, .info-card, .student-info {
-        animation: fadeInUp 0.5s ease-out;
+    .dashboard-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(0,255,204,0.3);
     }
-
-    /* Responsive para móvil */
+    .dashboard-card .title {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    .dashboard-card .value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    .dashboard-card .percentage {
+        font-size: 0.65rem;
+        color: var(--text-secondary);
+        margin-top: 0.2rem;
+    }
+    .progress-bar-bg {
+        background: rgba(255,255,255,0.15);
+        border-radius: 20px;
+        height: 5px;
+        width: 100%;
+        margin-top: 0.5rem;
+        overflow: hidden;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 20px;
+        transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    }
+    .green-card .progress-bar-fill {
+        background: linear-gradient(90deg, #00cc88, #00ffaa);
+        box-shadow: 0 0 6px #00ffaa;
+    }
+    .orange-card .progress-bar-fill {
+        background: linear-gradient(90deg, #ff884d, #ffaa66);
+        box-shadow: 0 0 6px #ffaa66;
+    }
+    .blue-card .progress-bar-fill {
+        background: linear-gradient(90deg, #3399ff, #66ccff);
+        box-shadow: 0 0 6px #66ccff;
+    }
+    .green-card {
+        background: radial-gradient(circle at 30% 40%, rgba(0,200,120,0.1), rgba(0,100,80,0.1));
+        border-left: 3px solid #00ffaa;
+    }
+    .orange-card {
+        background: radial-gradient(circle at 30% 40%, rgba(255,140,0,0.1), rgba(200,80,0,0.1));
+        border-left: 3px solid #ffaa66;
+    }
+    .blue-card {
+        background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
+        border-left: 3px solid #66ccff;
+    }
     @media (max-width: 600px) {
         .dashboard-card .value {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
         }
-        
         .dashboard-card .title {
             font-size: 0.65rem;
         }
-        
         .dashboard-card {
-            padding: 0.6rem 0.8rem;
-        }
-        
-        div.row-widget.stRadio > div label {
-            padding: 0.5rem 0.8rem;
-            font-size: 0.75rem;
-        }
-        
-        .student-name {
-            font-size: 1.3rem;
-        }
-        
-        .student-ru {
-            font-size: 0.9rem;
-        }
-        
-        .stButton button {
-            padding: 0.6rem 1rem;
-            font-size: 0.85rem;
+            padding: 0.5rem 0.6rem;
         }
     }
 </style>
@@ -568,7 +659,7 @@ st.markdown("""
         container.style.zIndex = '-1';
         document.body.appendChild(container);
         
-        const particleCount = 60;
+        const particleCount = 80;
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
             particle.style.position = 'absolute';
@@ -580,17 +671,17 @@ st.markdown("""
             particle.style.top = Math.random() * 100 + '%';
             particle.style.animation = `float ${Math.random() * 5 + 5}s infinite ease-in-out`;
             particle.style.animationDelay = Math.random() * 8 + 's';
-            particle.style.opacity = '0.4';
+            particle.style.opacity = '0.6';
             container.appendChild(particle);
         }
     }
     const style = document.createElement('style');
     style.textContent = `
         @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.4; }
-            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.6; }
-            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 0.8; }
-            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.6; }
+            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
+            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
+            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
+            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
         }
     `;
     document.head.appendChild(style);
@@ -614,14 +705,14 @@ with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
         if os.path.exists(logo_path):
-            st.image(logo_path, width=80)
+            st.image(logo_path, width=100)
         else:
             st.write("")
     with col_texto:
         st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-            <h1 style="margin: 0; line-height: 1.2; font-size: 1.8rem;">INGENIERÍA DE SISTEMAS</h1>
-            <p class="subtitle-script" style="margin: 0; line-height: 1.2; font-size: 0.9rem;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
+            <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
+            <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -639,7 +730,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -811,7 +902,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                                 nombre_upper = f"{nombres} {paterno}".upper()
                                 st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
                                 st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
-                                st.image(img_bytes, width=300, caption="Código QR del estudiante")
+                                st.image(img_bytes, width=500, caption="Código QR del estudiante")
                                 buf = io.BytesIO()
                                 qr_img.save(buf, format="PNG")
                                 buf.seek(0)
@@ -859,7 +950,11 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="student-name">{nombre_completo}</div>
                     <div class="student-ru">RU: {ru}</div>
                     <div class="qr-container">
-                        <img src="data:image/png;base64,{qr_base64}" width="250" alt="QR Code">
+                        <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
+                    </div>
+                    <div class="download-buttons">
+                        <div style="display: inline-block;" id="qr-download-btn"></div>
+                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -877,7 +972,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 with col_btn2:
                     tarjeta_img = crear_tarjeta_estudiante(estudiante_data)
                     st.download_button(
-                        label="📇 Descargar Tarjeta",
+                        label="📇 Descargar Tarjeta Ejecutiva",
                         data=tarjeta_img,
                         file_name=f"tarjeta_{ru}.png",
                         mime="image/png",
@@ -981,7 +1076,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
@@ -1028,7 +1123,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -1116,14 +1211,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
+    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
+    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
+    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -1131,18 +1229,19 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
+    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
-            <div class="title">📋 Total estudiantes</div>
+            <div class="title">📋 Total registros</div>
             <div class="value">{total_estudiantes}</div>
-            <div class="percentage">Registrados</div>
+            <div class="percentage">100% total</div>
             <div class="progress-bar-bg">
                 <div class="progress-bar-fill" style="width: 100%;"></div>
             </div>
         </div>
         <div class="dashboard-card blue-card">
-            <div class="title">✅ Asistencia hoy</div>
+            <div class="title">✅ Ya registrados</div>
             <div class="value">{registrados_hoy}</div>
             <div class="percentage">{porcentaje_registrados:.1f}% del total</div>
             <div class="progress-bar-bg">
@@ -1160,6 +1259,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
+    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
@@ -1264,6 +1364,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -1271,6 +1372,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
+            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
