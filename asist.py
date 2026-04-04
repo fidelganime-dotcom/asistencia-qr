@@ -1364,6 +1364,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -1371,10 +1372,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
-            archivo_descarga = f"asistencia_{hoy_str}.xlsx"
-            asistencia_hoy.to_excel(archivo_descarga, index=False)
-            with open(archivo_descarga, "rb") as file:
-                st.download_button("📥 Descargar Excel del día", data=file, file_name=archivo_descarga, use_container_width=True)
+            # Nombre del archivo con formato día-mes-año
+            nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
+            asistencia_hoy.to_excel(nombre_archivo, index=False)
+            with open(nombre_archivo, "rb") as file:
+                st.download_button("📥 Descargar Excel del día", data=file, file_name=nombre_archivo, use_container_width=True)
         else:
             st.info("📭 No hay registros para el día de hoy")
     else:
