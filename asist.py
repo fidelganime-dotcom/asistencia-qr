@@ -756,10 +756,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     """, unsafe_allow_html=True)
     
     if len(asistencia_df) > 0:
-        asistencia_mostrar = asistencia_df.copy()
-        asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
-        asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
-        st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
+    asistencia_mostrar = asistencia_df.copy()
+    # Convertir fecha a formato dd-mm-aaaa (04-04-2026)
+    asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
+    asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
+    st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
         
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
