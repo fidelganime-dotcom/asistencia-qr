@@ -717,14 +717,15 @@ with st.container():
         """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# MENÚ HORIZONTAL
+# MENÚ HORIZONTAL (agregamos la nueva opción)
 # ------------------------------------------------------------
 opciones_menu = [
     "📝 Registrar estudiante",
     "📋 Lista estudiantes",
     "📸 Escanear QR",
     "✍️ Registrar asistencia manual",
-    "📊 Ver asistencia"
+    "📊 Ver asistencia",
+    "📅 Asistencia por fecha"   # NUEVO MÓDULO
 ]
 menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio")
 st.session_state.menu_actual = menu
@@ -1382,3 +1383,108 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.info("📭 No hay registros para el día de hoy")
     else:
         st.info("📭 No hay registros de asistencia en el sistema")
+
+# ------------------------------------------------------------
+# NUEVO MÓDULO: ASISTENCIA POR FECHA
+# ------------------------------------------------------------
+elif st.session_state.menu_actual == "📅 Asistencia por fecha":
+    st.session_state.manual_auth = False
+    st.session_state.selected_student_manual = None
+    
+    st.subheader("📅 Asistencia por fecha específica")
+    st.markdown('<p style="color: var(--text-secondary);">Selecciona una fecha para ver los asistentes y exportar el reporte</p>', unsafe_allow_html=True)
+    
+    # Selector de fecha
+    fecha_seleccionada = st.date_input(
+        "📆 Selecciona la fecha",
+        value=datetime.now(ZONA_HORARIA).date(),
+        key="fecha_consulta"
+    )
+    
+    # Leer toda la asistencia
+    asistencia_df = leer_asistencia()
+    
+    if len(asistencia_df) > 0:
+        # Convertir la columna fecha a date para comparar
+        asistencia_df['fecha_date'] = pd.to_datetime(asistencia_df['fecha']).dt.date
+        
+        # Filtrar por la fecha seleccionada
+        asistentes_fecha = asistencia_df[asistencia_df['fecha_date'] == fecha_seleccionada].copy()
+        
+        if len(asistentes_fecha) > 0:
+            # Mostrar resumen
+            st.markdown(f"### 📌 Registros del {fecha_seleccionada.strftime('%d/%m/%Y')}")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("👥 Total asistentes", len(asistentes_fecha))
+            with col2:
+                # Contar por estado
+                conteo_estados = asistentes_fecha['estado'].value_counts().to_dict()
+                st.metric("📊 Estados", ", ".join([f"{k}: {v}" for k, v in conteo_estados.items()]))
+            
+            # Mostrar tabla (sin columnas auxiliares)
+            tabla_mostrar = asistentes_fecha.drop(columns=['id', 'fecha_date'], errors='ignore')
+            # Ordenar por hora
+            tabla_mostrar = tabla_mostrar.sort_values('hora')
+            st.dataframe(tabla_mostrar, use_container_width=True)
+            
+            # Botón para exportar a Excel SOLO esta fecha
+            archivo_excel = f"asistencia_{fecha_seleccionada.strftime('%Y%m%d')}.xlsx"
+            # Convertir fecha a formato dd-mm-aaaa para el Excel
+            tabla_export = tabla_mostrar.copy()
+            tabla_export['fecha'] = pd.to_datetime(tabla_export['fecha']).dt.strftime('%d-%m-%Y')
+            tabla_export.to_excel(archivo_excel, index=False)
+            with open(archivo_excel, "rb") as f:
+                st.download_button(
+                    label="📥 Descargar Excel de esta fecha",
+                    data=f,
+                    file_name=archivo_excel,
+                    use_container_width=True
+                )
+        else:
+            st.info(f"📭 No hay registros de asistencia para el {fecha_seleccionada.strftime('%d/%m/%Y')}")
+        
+        # Sección para exportar semana completa (opcional)
+        st.markdown("---")
+        st.subheader("📆 Exportar semana completa (lunes a domingo)")
+        st.markdown('<p style="color: var(--text-secondary);">Genera un archivo Excel con una hoja por día para el rango de fechas seleccionado.</p>', unsafe_allow_html=True)
+        
+        col_fecha1, col_fecha2 = st.columns(2)
+        with col_fecha1:
+            fecha_inicio = st.date_input("Fecha de inicio (lunes)", value=datetime.now(ZONA_HORARIA).date(), key="semana_inicio")
+        with col_fecha2:
+            # Calcular domingo de esa semana (lunes+6 días)
+            dias_a_sumar = 6 - fecha_inicio.weekday()  # weekday: lunes=0, domingo=6
+            fecha_fin = fecha_inicio + pd.Timedelta(days=dias_a_sumar)
+            st.write(f"📅 Hasta: **{fecha_fin.strftime('%d/%m/%Y')}** (domingo)")
+        
+        if st.button("📊 Generar Excel por días", use_container_width=True):
+            asistencia_df = leer_asistencia()
+            asistencia_df['fecha_date'] = pd.to_datetime(asistencia_df['fecha']).dt.date
+            # Filtrar por rango
+            semana_df = asistencia_df[(asistencia_df['fecha_date'] >= fecha_inicio) & 
+                                      (asistencia_df['fecha_date'] <= fecha_fin)]
+            
+            if len(semana_df) > 0:
+                # Crear un Excel con múltiples hojas
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    for fecha, grupo in semana_df.groupby('fecha_date'):
+                        # Nombre de hoja: día abreviado y día (ej. Lun_2804)
+                        nombre_hoja = fecha.strftime('%a_%d%m')
+                        grupo_limpio = grupo.drop(columns=['id', 'fecha_date'], errors='ignore')
+                        grupo_limpio['fecha'] = pd.to_datetime(grupo_limpio['fecha']).dt.strftime('%d-%m-%Y')
+                        grupo_limpio = grupo_limpio.sort_values('hora')
+                        grupo_limpio.to_excel(writer, sheet_name=nombre_hoja, index=False)
+                output.seek(0)
+                st.download_button(
+                    label="📥 Descargar Excel (una hoja por día)",
+                    data=output,
+                    file_name=f"asistencia_semana_{fecha_inicio.strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            else:
+                st.warning("⚠️ No hay registros de asistencia en el rango de fechas seleccionado.")
+    else:
+        st.info("📭 No hay registros de asistencia en el sistema.")
