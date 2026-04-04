@@ -228,7 +228,7 @@ CSS_STYLES = """
     }
 
     .stButton button {
-        background: linear-gradient(135deg, #1e3a8a, #1e40af, #2563eb);
+        background: linear-gradient(135deg, #020617, #0f172a, #1e1b4b);
         color: white;
         border: none;
         border-radius: 12px;
