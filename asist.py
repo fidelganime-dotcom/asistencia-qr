@@ -61,7 +61,6 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -308,6 +307,7 @@ st.markdown("""
         box-shadow: var(--shadow-3d);
         margin-bottom: 2rem;
         border: 1px solid var(--glass-border);
+        flex-wrap: wrap;
     }
 
     div.row-widget.stRadio > div label {
@@ -318,7 +318,7 @@ st.markdown("""
         border-radius: 40px;
         transition: all 0.3s ease;
         cursor: pointer;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-family: 'Inter', system-ui, sans-serif;
     }
 
@@ -349,6 +349,7 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         border-bottom: 3px solid rgba(0, 0, 0, 0.2);
         font-family: 'Inter', system-ui, sans-serif;
+        width: 100%;
     }
 
     .stButton button::before {
@@ -391,7 +392,7 @@ st.markdown("""
 
     .stDataFrame {
         padding: 0;
-        overflow: hidden;
+        overflow-x: auto;
     }
 
     .stDataFrame table {
@@ -405,9 +406,9 @@ st.markdown("""
         background: var(--table-header-bg) !important;
         color: white !important;
         font-weight: 600;
-        padding: 1rem 1rem !important;
+        padding: 1rem 0.8rem !important;
         border: none !important;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -423,8 +424,9 @@ st.markdown("""
     }
 
     .stDataFrame tbody td {
-        padding: 0.75rem 1rem !important;
+        padding: 0.75rem 0.8rem !important;
         border: none !important;
+        font-size: 0.85rem;
     }
 
     .stAlert {
@@ -440,7 +442,8 @@ st.markdown("""
 
     div[data-testid="stCameraInput"] video {
         width: 100% !important;
-        height: 70vh !important;
+        height: auto !important;
+        max-height: 60vh !important;
         object-fit: cover;
         border-radius: 16px;
         border: 2px solid var(--primary-color);
@@ -448,14 +451,16 @@ st.markdown("""
     }
 
     ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
+        height: 6px;
     }
     ::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
     }
     ::-webkit-scrollbar-thumb {
         background: var(--primary-color);
-        border-radius: 4px;
+        border-radius: 3px;
     }
 
     @keyframes fadeInUp {
@@ -629,7 +634,9 @@ st.markdown("""
         background: radial-gradient(circle at 30% 40%, rgba(0,150,255,0.1), rgba(0,100,200,0.1));
         border-left: 3px solid #66ccff;
     }
-    @media (max-width: 600px) {
+    
+    /* Responsive */
+    @media (max-width: 768px) {
         .dashboard-card .value {
             font-size: 1.1rem;
         }
@@ -638,6 +645,38 @@ st.markdown("""
         }
         .dashboard-card {
             padding: 0.5rem 0.6rem;
+        }
+        div.row-widget.stRadio > div label {
+            padding: 0.5rem 0.8rem;
+            font-size: 0.75rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+        }
+        .subtitle-script {
+            font-size: 0.85rem;
+        }
+        .student-name {
+            font-size: 1.3rem;
+        }
+        .student-ru {
+            font-size: 1rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .dashboard-card .value {
+            font-size: 0.9rem;
+        }
+        .dashboard-card .title {
+            font-size: 0.55rem;
+        }
+        div.row-widget.stRadio > div {
+            gap: 0.4rem;
+        }
+        div.row-widget.stRadio > div label {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.7rem;
         }
     }
 </style>
@@ -659,7 +698,7 @@ st.markdown("""
         container.style.zIndex = '-1';
         document.body.appendChild(container);
         
-        const particleCount = 80;
+        const particleCount = 60;
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
             particle.style.position = 'absolute';
@@ -671,17 +710,17 @@ st.markdown("""
             particle.style.top = Math.random() * 100 + '%';
             particle.style.animation = `float ${Math.random() * 5 + 5}s infinite ease-in-out`;
             particle.style.animationDelay = Math.random() * 8 + 's';
-            particle.style.opacity = '0.6';
+            particle.style.opacity = '0.4';
             container.appendChild(particle);
         }
     }
     const style = document.createElement('style');
     style.textContent = `
         @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
-            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
-            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
-            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
+            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.4; }
+            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.6; }
+            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 0.8; }
+            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.6; }
         }
     `;
     document.head.appendChild(style);
@@ -705,27 +744,26 @@ with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
         if os.path.exists(logo_path):
-            st.image(logo_path, width=100)
+            st.image(logo_path, width=80)
         else:
             st.write("")
     with col_texto:
         st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-            <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
+            <h1 style="margin: 0; line-height: 1.2; font-size: clamp(1.2rem, 5vw, 2rem);">INGENIERÍA DE SISTEMAS</h1>
             <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
         </div>
         """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# MENÚ HORIZONTAL (agregamos la nueva opción)
+# MENÚ HORIZONTAL
 # ------------------------------------------------------------
 opciones_menu = [
     "📝 Registrar estudiante",
     "📋 Lista estudiantes",
     "📸 Escanear QR",
     "✍️ Registrar asistencia manual",
-    "📊 Ver asistencia",
-    "📅 Asistencia por fecha"   # NUEVO MÓDULO
+    "📊 Ver asistencia"
 ]
 menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio")
 st.session_state.menu_actual = menu
@@ -903,7 +941,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                                 nombre_upper = f"{nombres} {paterno}".upper()
                                 st.markdown(f'<div class="qr-info">{nombre_upper}</div>', unsafe_allow_html=True)
                                 st.markdown(f'<div class="qr-ru">RU: {ru}</div>', unsafe_allow_html=True)
-                                st.image(img_bytes, width=500, caption="Código QR del estudiante")
+                                st.image(img_bytes, width=300, caption="Código QR del estudiante")
                                 buf = io.BytesIO()
                                 qr_img.save(buf, format="PNG")
                                 buf.seek(0)
@@ -951,16 +989,12 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="student-name">{nombre_completo}</div>
                     <div class="student-ru">RU: {ru}</div>
                     <div class="qr-container">
-                        <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
-                    </div>
-                    <div class="download-buttons">
-                        <div style="display: inline-block;" id="qr-download-btn"></div>
-                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                        <img src="data:image/png;base64,{qr_base64}" width="300" alt="QR Code">
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
+                col_btn1, col_btn2 = st.columns(2)
                 with col_btn1:
                     st.download_button(
                         label="📥 Descargar QR",
@@ -980,8 +1014,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                         key="download_tarjeta_search",
                         use_container_width=True
                     )
-                with col_btn3:
-                    st.write("")
             else:
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
@@ -1212,17 +1244,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
-    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
-    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
-    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -1230,7 +1259,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
-    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
@@ -1260,7 +1288,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = asistencia_mostrar['fecha'].astype(str)
@@ -1365,7 +1392,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
-        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -1373,7 +1399,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
-            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
@@ -1383,108 +1408,3 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.info("📭 No hay registros para el día de hoy")
     else:
         st.info("📭 No hay registros de asistencia en el sistema")
-
-# ------------------------------------------------------------
-# NUEVO MÓDULO: ASISTENCIA POR FECHA
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "📅 Asistencia por fecha":
-    st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None
-    
-    st.subheader("📅 Asistencia por fecha específica")
-    st.markdown('<p style="color: var(--text-secondary);">Selecciona una fecha para ver los asistentes y exportar el reporte</p>', unsafe_allow_html=True)
-    
-    # Selector de fecha
-    fecha_seleccionada = st.date_input(
-        "📆 Selecciona la fecha",
-        value=datetime.now(ZONA_HORARIA).date(),
-        key="fecha_consulta"
-    )
-    
-    # Leer toda la asistencia
-    asistencia_df = leer_asistencia()
-    
-    if len(asistencia_df) > 0:
-        # Convertir la columna fecha a date para comparar
-        asistencia_df['fecha_date'] = pd.to_datetime(asistencia_df['fecha']).dt.date
-        
-        # Filtrar por la fecha seleccionada
-        asistentes_fecha = asistencia_df[asistencia_df['fecha_date'] == fecha_seleccionada].copy()
-        
-        if len(asistentes_fecha) > 0:
-            # Mostrar resumen
-            st.markdown(f"### 📌 Registros del {fecha_seleccionada.strftime('%d/%m/%Y')}")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("👥 Total asistentes", len(asistentes_fecha))
-            with col2:
-                # Contar por estado
-                conteo_estados = asistentes_fecha['estado'].value_counts().to_dict()
-                st.metric("📊 Estados", ", ".join([f"{k}: {v}" for k, v in conteo_estados.items()]))
-            
-            # Mostrar tabla (sin columnas auxiliares)
-            tabla_mostrar = asistentes_fecha.drop(columns=['id', 'fecha_date'], errors='ignore')
-            # Ordenar por hora
-            tabla_mostrar = tabla_mostrar.sort_values('hora')
-            st.dataframe(tabla_mostrar, use_container_width=True)
-            
-            # Botón para exportar a Excel SOLO esta fecha
-            archivo_excel = f"asistencia_{fecha_seleccionada.strftime('%Y%m%d')}.xlsx"
-            # Convertir fecha a formato dd-mm-aaaa para el Excel
-            tabla_export = tabla_mostrar.copy()
-            tabla_export['fecha'] = pd.to_datetime(tabla_export['fecha']).dt.strftime('%d-%m-%Y')
-            tabla_export.to_excel(archivo_excel, index=False)
-            with open(archivo_excel, "rb") as f:
-                st.download_button(
-                    label="📥 Descargar Excel de esta fecha",
-                    data=f,
-                    file_name=archivo_excel,
-                    use_container_width=True
-                )
-        else:
-            st.info(f"📭 No hay registros de asistencia para el {fecha_seleccionada.strftime('%d/%m/%Y')}")
-        
-        # Sección para exportar semana completa (opcional)
-        st.markdown("---")
-        st.subheader("📆 Exportar semana completa (lunes a domingo)")
-        st.markdown('<p style="color: var(--text-secondary);">Genera un archivo Excel con una hoja por día para el rango de fechas seleccionado.</p>', unsafe_allow_html=True)
-        
-        col_fecha1, col_fecha2 = st.columns(2)
-        with col_fecha1:
-            fecha_inicio = st.date_input("Fecha de inicio (lunes)", value=datetime.now(ZONA_HORARIA).date(), key="semana_inicio")
-        with col_fecha2:
-            # Calcular domingo de esa semana (lunes+6 días)
-            dias_a_sumar = 6 - fecha_inicio.weekday()  # weekday: lunes=0, domingo=6
-            fecha_fin = fecha_inicio + pd.Timedelta(days=dias_a_sumar)
-            st.write(f"📅 Hasta: **{fecha_fin.strftime('%d/%m/%Y')}** (domingo)")
-        
-        if st.button("📊 Generar Excel por días", use_container_width=True):
-            asistencia_df = leer_asistencia()
-            asistencia_df['fecha_date'] = pd.to_datetime(asistencia_df['fecha']).dt.date
-            # Filtrar por rango
-            semana_df = asistencia_df[(asistencia_df['fecha_date'] >= fecha_inicio) & 
-                                      (asistencia_df['fecha_date'] <= fecha_fin)]
-            
-            if len(semana_df) > 0:
-                # Crear un Excel con múltiples hojas
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    for fecha, grupo in semana_df.groupby('fecha_date'):
-                        # Nombre de hoja: día abreviado y día (ej. Lun_2804)
-                        nombre_hoja = fecha.strftime('%a_%d%m')
-                        grupo_limpio = grupo.drop(columns=['id', 'fecha_date'], errors='ignore')
-                        grupo_limpio['fecha'] = pd.to_datetime(grupo_limpio['fecha']).dt.strftime('%d-%m-%Y')
-                        grupo_limpio = grupo_limpio.sort_values('hora')
-                        grupo_limpio.to_excel(writer, sheet_name=nombre_hoja, index=False)
-                output.seek(0)
-                st.download_button(
-                    label="📥 Descargar Excel (una hoja por día)",
-                    data=output,
-                    file_name=f"asistencia_semana_{fecha_inicio.strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-            else:
-                st.warning("⚠️ No hay registros de asistencia en el rango de fechas seleccionado.")
-    else:
-        st.info("📭 No hay registros de asistencia en el sistema.")
