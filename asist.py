@@ -94,69 +94,6 @@ st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", ini
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# JAVASCRIPT PARA ACCESO AUTOMÁTICO A LA CÁMARA TRASERA
-# ------------------------------------------------------------
-st.markdown("""
-<script>
-// Función para solicitar permiso de cámara automáticamente al cargar la página
-async function autoRequestCamera() {
-    try {
-        // Solicitar permiso de cámara inmediatamente
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: { exact: "environment" } }  // Forzar cámara trasera
-        });
-        
-        // Detener el stream inmediatamente después de obtener el permiso
-        // Esto solo sirve para que el navegador guarde el permiso permanentemente
-        stream.getTracks().forEach(track => track.stop());
-        
-        console.log("Permiso de cámara otorgado automáticamente");
-    } catch (err) {
-        console.log("Error al solicitar permiso de cámara:", err);
-        // Si falla con cámara trasera, intentar con cualquier cámara
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            stream.getTracks().forEach(track => track.stop());
-            console.log("Permiso de cámara otorgado (cámara predeterminada)");
-        } catch (err2) {
-            console.log("Usuario denegó el permiso de cámara");
-        }
-    }
-}
-
-// Ejecutar inmediatamente cuando la página carga
-autoRequestCamera();
-
-// También ejecutar cuando el usuario navega a la sección de escáner
-const observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-            // Verificar si la sección de escáner está activa
-            const scannerSection = document.querySelector('[data-testid="stMarkdownContainer"]');
-            if (scannerSection && scannerSection.innerText.includes('Escanear QR')) {
-                autoRequestCamera();
-            }
-        }
-    });
-});
-
-observer.observe(document.body, { attributes: true, childList: true, subtree: true });
-</script>
-
-<style>
-    /* Ocultar el mensaje de permisos del navegador con un enfoque mejor */
-    @media (max-width: 768px) {
-        /* En móviles, el mensaje de permisos aparece pero se maneja automáticamente */
-    }
-    
-    /* Estilo para el componente de cámara - asegurar que use cámara trasera */
-    video {
-        transform: scaleX(-1); /* Corregir espejo si es necesario */
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ------------------------------------------------------------
 # INICIALIZAR SESSION STATE
 # ------------------------------------------------------------
 if "menu_actual" not in st.session_state:
@@ -607,163 +544,51 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (MEJORADO - CÁMARA AUTOMÁTICA SIN MENSAJE MOLESTO)
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">La cámara se abrirá automáticamente - solo acerca el código QR</p>', unsafe_allow_html=True)
-    
-    # JavaScript para abrir la cámara trasera automáticamente
-    st.markdown("""
-    <div id="qr-scanner-container">
-        <video id="qr-video" autoplay playsinline style="width: 100%; max-width: 600px; border-radius: 10px; margin: 0 auto; display: block;"></video>
-        <canvas id="qr-canvas" style="display: none;"></canvas>
-        <div id="qr-result" style="text-align: center; margin-top: 10px; font-weight: bold;"></div>
-    </div>
-    
-    <script>
-    (function() {
-        const video = document.getElementById('qr-video');
-        const canvas = document.getElementById('qr-canvas');
-        const resultDiv = document.getElementById('qr-result');
-        let scanning = true;
-        let stream = null;
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    foto = st.camera_input("", label_visibility="collapsed")
+    if foto is not None:
+        img = Image.open(foto)
+        decoded_objects = decode(img)
         
-        // Función para iniciar la cámara TRASERA automáticamente
-        async function startCamera() {
-            try {
-                // Intentar primero con cámara trasera
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { exact: "environment" } }
-                });
-                video.srcObject = stream;
-                await video.play();
-                startScanning();
-            } catch (err) {
-                console.log("Cámara trasera no disponible, intentando con cualquier cámara");
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    video.srcObject = stream;
-                    await video.play();
-                    startScanning();
-                } catch (err2) {
-                    resultDiv.innerHTML = '❌ No se pudo acceder a la cámara. Por favor, verifica los permisos.';
-                    resultDiv.style.color = 'red';
-                }
-            }
-        }
-        
-        function startScanning() {
-            const context = canvas.getContext('2d');
-            
-            function scanFrame() {
-                if (!scanning || !video.videoWidth) {
-                    requestAnimationFrame(scanFrame);
-                    return;
-                }
-                
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, canvas.width, canvas.height);
-                
-                if (code) {
-                    scanning = false;
-                    resultDiv.innerHTML = '✅ QR detectado: ' + code.data;
-                    resultDiv.style.color = '#00ff00';
-                    
-                    // Enviar el resultado a Streamlit
-                    const event = new CustomEvent('streamlit:qr', { detail: code.data });
-                    window.dispatchEvent(event);
-                    
-                    // Detener el escaneo después de detectar
-                    setTimeout(() => {
-                        scanning = true;
-                        resultDiv.innerHTML = '🔍 Escaneando...';
-                        resultDiv.style.color = '#aaa';
-                    }, 2000);
-                }
-                
-                requestAnimationFrame(scanFrame);
-            }
-            
-            scanFrame();
-        }
-        
-        // Cargar la librería jsQR
-        if (typeof jsQR === 'undefined') {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-            script.onload = startCamera;
-            document.head.appendChild(script);
-        } else {
-            startCamera();
-        }
-        
-        // Limpiar al cerrar
-        window.addEventListener('beforeunload', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-        });
-    })();
-    
-    // Escuchar resultados de QR y enviar a Streamlit
-    window.addEventListener('streamlit:qr', (e) => {
-        const ru = e.detail;
-        // Crear un input oculto con el valor
-        let input = document.createElement('input');
-        input.type = 'hidden';
-        input.id = 'qr-data';
-        input.value = ru;
-        document.body.appendChild(input);
-        
-        // Disparar evento para Streamlit
-        const changeEvent = new Event('change', { bubbles: true });
-        input.dispatchEvent(changeEvent);
-    });
-    </script>
-    """, unsafe_allow_html=True)
-    
-    # Capturar el resultado del QR desde JavaScript
-    qr_data = st.text_input("", key="qr_data_input", label_visibility="collapsed", placeholder="QR detectado automáticamente")
-    
-    if qr_data:
-        ru = qr_data
-        estudiantes = leer_estudiantes()
-        estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-        if len(estudiante) > 0:
-            nombres = estudiante.iloc[0]["nombres"]
-            paterno = estudiante.iloc[0]["apellido_paterno"]
-            materno = estudiante.iloc[0]["apellido_materno"]
-            fecha, hora = obtener_fecha_hora_exacta()
-            tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-            if not tiene_registro:
-                try:
-                    supabase.table("asistencia").insert({
-                        "ru": ru,
-                        "nombres": nombres,
-                        "apellido_paterno": paterno,
-                        "apellido_materno": materno,
-                        "fecha": fecha.isoformat(),
-                        "hora": hora,
-                        "estado": "Presente"
-                    }).execute()
-                    st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                    st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
-                    # Limpiar el input después de procesar
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error al guardar asistencia: {e}")
+        if decoded_objects:
+            data = decoded_objects[0].data.decode('utf-8')
+            ru = data
+            estudiantes = leer_estudiantes()
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+            if len(estudiante) > 0:
+                nombres = estudiante.iloc[0]["nombres"]
+                paterno = estudiante.iloc[0]["apellido_paterno"]
+                materno = estudiante.iloc[0]["apellido_materno"]
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                if not tiene_registro:
+                    try:
+                        supabase.table("asistencia").insert({
+                            "ru": ru,
+                            "nombres": nombres,
+                            "apellido_paterno": paterno,
+                            "apellido_materno": materno,
+                            "fecha": fecha.isoformat(),
+                            "hora": hora,
+                            "estado": "Presente"
+                        }).execute()
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar asistencia: {e}")
+                else:
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
             else:
-                st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
+                st.error("❌ Estudiante no encontrado en la base de datos")
         else:
-            st.error("❌ Estudiante no encontrado en la base de datos")
+            st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
