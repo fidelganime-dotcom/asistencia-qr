@@ -11,6 +11,8 @@ import base64
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
 from pyzbar.pyzbar import decode
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, WebRtcMode
+import av
 
 # Importar estilos CSS desde styles.py
 from styles import CSS_STYLES
@@ -83,9 +85,39 @@ def verificar_registro_duplicado(ru, fecha):
         return False, None
 
 # ------------------------------------------------------------
+# VIDEO PROCESSOR PARA CÁMARA TRASERA (RÁPIDO)
+# ------------------------------------------------------------
+class QRVideoProcessor(VideoProcessorBase):
+    def __init__(self):
+        self.qr_detected = None
+        self.last_qr = None
+        self.processing = False
+        
+    def recv(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        
+        # Decodificar QR en cada frame
+        decoded_objects = decode(img)
+        
+        if decoded_objects and not self.processing:
+            for obj in decoded_objects:
+                qr_data = obj.data.decode('utf-8')
+                if qr_data != self.last_qr:
+                    self.qr_detected = qr_data
+                    self.last_qr = qr_data
+                    self.processing = True
+                    break
+        
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+# ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
+
+# ------------------------------------------------------------
+# APLICAR ESTILOS CSS
+# ------------------------------------------------------------
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
@@ -105,13 +137,13 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
-if "qr_image_data" not in st.session_state:
-    st.session_state.qr_image_data = None
-if "qr_processed" not in st.session_state:
-    st.session_state.qr_processed = False
+if "auto_scan" not in st.session_state:
+    st.session_state.auto_scan = True
+if "last_scanned_qr" not in st.session_state:
+    st.session_state.last_scanned_qr = None
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS (igual que antes)
+# PARTÍCULAS ANIMADAS
 # ------------------------------------------------------------
 st.markdown("""
 <script>
@@ -167,6 +199,7 @@ with st.sidebar:
 # TÍTULO CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
+
 with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
@@ -196,7 +229,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (sin cambios)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -323,7 +356,7 @@ def crear_tarjeta_estudiante(estudiante):
     return img_bytes
 
 # ------------------------------------------------------------
-# REGISTRAR ESTUDIANTE (sin cambios)
+# REGISTRAR ESTUDIANTE
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.session_state.manual_auth = False
@@ -377,7 +410,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         st.error(f"❌ Error al guardar estudiante: {e}")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES (sin cambios)
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.session_state.manual_auth = False
@@ -418,6 +451,10 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="qr-container">
                         <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
                     </div>
+                    <div class="download-buttons">
+                        <div style="display: inline-block;" id="qr-download-btn"></div>
+                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -449,6 +486,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             st.warning("⚠️ Por favor ingrese un RU para buscar")
         
         st.markdown("---")
+        
         st.subheader("✏️ Gestionar estudiante")
         
         estudiantes_display = estudiantes.copy()
@@ -526,6 +564,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     st.rerun()
         
         st.markdown("---")
+        
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
             archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -536,34 +575,80 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (CÁMARA TRASERA CON UN SOLO BOTÓN - COMPONENTE QUE DEVUELVE IMAGEN)
+# ESCANEAR QR (OPTIMIZADO - CÁMARA TRASERA RÁPIDA)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
-    st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">La cámara trasera se abrirá automáticamente. Apunta al código QR y pulsa <strong>"Tomar foto"</strong> para registrar asistencia al instante.</p>', unsafe_allow_html=True)
-
-    # Función para procesar la imagen devuelta por el componente
-    def procesar_qr(image_base64):
-        if image_base64:
-            try:
-                # Decodificar base64 a imagen
-                img_data = base64.b64decode(image_base64.split(",")[1])
-                img = Image.open(io.BytesIO(img_data))
-                objetos_qr = decode(img)
-                if objetos_qr:
-                    ru = objetos_qr[0].data.decode('utf-8')
-                    estudiantes = leer_estudiantes()
-                    estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-                    if len(estudiante) > 0:
-                        nombres = estudiante.iloc[0]["nombres"]
-                        paterno = estudiante.iloc[0]["apellido_paterno"]
-                        materno = estudiante.iloc[0]["apellido_materno"]
-                        fecha, hora = obtener_fecha_hora_exacta()
-                        tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-                        if not tiene_registro:
+    st.subheader("📸 Escanear QR - Cámara Trasera")
+    st.markdown('<p style="color: var(--text-secondary);">📱 La cámara se abrirá automáticamente. ¡Solo acerca el QR y se registrará solo!</p>', unsafe_allow_html=True)
+    
+    # CSS para mejor visualización
+    st.markdown("""
+    <style>
+        .scan-status {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .scan-success {
+            background: linear-gradient(135deg, #00b09b, #96c93d);
+            color: white;
+        }
+        .scan-warning {
+            background: linear-gradient(135deg, #f12711, #f5af19);
+            color: white;
+        }
+        .scan-info {
+            background: linear-gradient(135deg, #2193b0, #6dd5ed);
+            color: white;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Contenedor para la cámara
+    camera_placeholder = st.empty()
+    
+    with camera_placeholder.container():
+        # Configuración para cámara trasera (facingMode: "environment")
+        ctx = webrtc_streamer(
+            key="qr-scanner",
+            mode=WebRtcMode.SENDRECV,
+            video_processor_factory=QRVideoProcessor,
+            media_stream_constraints={
+                "video": {
+                    "facingMode": "environment",  # "environment" = cámara trasera
+                    "width": {"ideal": 1280},
+                    "height": {"ideal": 720},
+                },
+                "audio": False,
+            },
+            async_processing=True,
+        )
+        
+        # Estado del escaneo
+        if ctx.video_processor:
+            qr_data = ctx.video_processor.qr_detected
+            
+            if qr_data and qr_data != st.session_state.last_scanned_qr:
+                st.session_state.last_scanned_qr = qr_data
+                ru = qr_data
+                
+                # Buscar estudiante
+                estudiantes = leer_estudiantes()
+                estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+                
+                if len(estudiante) > 0:
+                    nombres = estudiante.iloc[0]["nombres"]
+                    paterno = estudiante.iloc[0]["apellido_paterno"]
+                    materno = estudiante.iloc[0]["apellido_materno"]
+                    fecha, hora = obtener_fecha_hora_exacta()
+                    tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                    
+                    if not tiene_registro:
+                        try:
                             supabase.table("asistencia").insert({
                                 "ru": ru,
                                 "nombres": nombres,
@@ -574,227 +659,70 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                                 "estado": "Presente"
                             }).execute()
                             st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                            st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
-                        else:
-                            st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
+                            
+                            # Mostrar mensaje de éxito
+                            st.markdown(f"""
+                            <div class="scan-status scan-success">
+                                <h3>✅ ¡ASISTENCIA REGISTRADA!</h3>
+                                <p><strong>{nombres} {paterno}</strong></p>
+                                <p>Hora: {hora}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Reset processor para permitir nuevo escaneo
+                            ctx.video_processor.qr_detected = None
+                            ctx.video_processor.processing = False
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error al guardar asistencia: {e}")
                     else:
-                        st.error("❌ Estudiante no encontrado en la base de datos")
+                        st.markdown(f"""
+                        <div class="scan-status scan-warning">
+                            <h3>⚠️ REGISTRO DUPLICADO</h3>
+                            <p><strong>{nombres} {paterno}</strong></p>
+                            <p>Ya registró hoy a las {registro_existente['hora']}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Reset processor
+                        ctx.video_processor.qr_detected = None
+                        ctx.video_processor.processing = False
                 else:
-                    st.warning("⚠️ No se detectó ningún código QR en la imagen. Intenta de nuevo.")
-            except Exception as e:
-                st.error(f"Error al procesar la imagen: {e}")
-        else:
-            st.info("Toma una foto primero.")
-
-    # HTML/JS que captura y envía la imagen a Streamlit
-    camera_html = """
-    <div id="camera-container" style="text-align: center;">
-        <video id="video" autoplay playsinline style="width:100%; max-width:600px; border-radius:12px; background:#000;"></video>
-        <canvas id="canvas" style="display:none;"></canvas>
-        <div style="margin-top: 20px;">
-            <button id="capture-btn" style="background:#0066ff; color:white; border:none; padding:12px 28px; border-radius:30px; font-size:18px; cursor:pointer; font-weight:bold;">📸 Tomar foto</button>
-        </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/@streamlit/streamlit-component-lib"></script>
-    <script>
-        (function() {
-            const video = document.getElementById('video');
-            const canvas = document.getElementById('canvas');
-            const captureBtn = document.getElementById('capture-btn');
-            
-            // Solicitar cámara trasera
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } })
-                .then(function(stream) {
-                    video.srcObject = stream;
-                    video.play();
-                })
-                .catch(function(err) {
-                    console.error("Cámara trasera no disponible: ", err);
-                    // Fallback a cualquier cámara
-                    navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function(stream) {
-                        video.srcObject = stream;
-                        video.play();
-                    })
-                    .catch(function(err2) {
-                        console.error("No se pudo acceder a la cámara: ", err2);
-                        alert("No se pudo acceder a la cámara. Verifica los permisos.");
-                    });
-                });
-            } else {
-                alert("Tu navegador no soporta acceso a la cámara.");
-            }
-            
-            captureBtn.addEventListener('click', function() {
-                const context = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = canvas.toDataURL('image/jpeg', 0.9);
-                // Enviar la imagen a Streamlit usando Streamlit.setComponentValue
-                if (window.Streamlit) {
-                    window.Streamlit.setComponentValue(imageData);
-                } else {
-                    // Fallback: enviar mediante postMessage si la librería no está cargada
-                    window.parent.postMessage({
-                        type: "streamlit:setComponentValue",
-                        value: imageData
-                    }, "*");
-                }
-            });
-        })();
-    </script>
-    """
+                    st.markdown(f"""
+                    <div class="scan-status scan-warning">
+                        <h3>❌ ESTUDIANTE NO ENCONTRADO</h3>
+                        <p>RU: {ru}</p>
+                        <p>Por favor, registre al estudiante primero</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Reset processor
+                    ctx.video_processor.qr_detected = None
+                    ctx.video_processor.processing = False
     
-    # Usar un componente personalizado que recibe la imagen
-    image_data = st.components.v1.html(camera_html, height=450, scrolling=False)
-    # Nota: st.components.v1.html no devuelve valor. En su lugar, usamos un callback con eventos.
-    # Mejor usamos un placeholder y un botón de Streamlit que lea desde session_state.
-    # Pero como necesitamos recibir el dato del componente, la forma correcta es usar un componente personalizado real.
-    # Sin embargo, Streamlit no permite recibir datos directamente desde st.components.v1.html.
-    # Para solucionar, usaremos un iframe que envía mensajes y un script en Streamlit que escucha.
-    # Pero eso es complejo. Vamos a simplificar: usaremos un botón "Tomar foto" que guarda la imagen en session_state a través de un input hidden, pero ya vimos que falla.
+    # Botón para reiniciar escaneo
+    if st.button("🔄 Reiniciar escáner", use_container_width=True):
+        st.session_state.last_scanned_qr = None
+        st.rerun()
     
-    # En su lugar, usaremos un truco: un campo de texto oculto que se actualiza vía JavaScript y un botón de Streamlit que lo lee.
-    # Aunque anteriormente no funcionó, ahora lo haremos de manera más robusta: el HTML actualiza un textarea y Streamlit lo captura con st.text_input.
-    
-    # Reimplementamos con un textarea que recibe la imagen y un botón de Streamlit que la procesa.
-    # Esto es simple y funciona.
-
-# Como la solución anterior era frágil, voy a reescribir la sección de escaneo usando el método confiable:
-# Un textarea que recibe la imagen desde JavaScript y un botón "Registrar" en Streamlit.
-# Pero el usuario pidió un solo botón. Podemos hacer que JavaScript haga clic automáticamente en el botón de Streamlit después de cargar la imagen.
-
-# Voy a proporcionar una versión final y simplificada que SÍ funciona y es fácil de entender.
-
-# Por favor, usa el siguiente código completo que reemplaza la sección de escaneo:
-
-# (Nota: he eliminado la parte anterior y pongo la versión definitiva)
-
-# ------------------------------------------------------------
-# ESCANEAR QR - VERSIÓN DEFINITIVA (CON CAMARA TRASERA Y UN SOLO BOTÓN)
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "📸 Escanear QR":
-    st.session_state.manual_auth = False
-    st.session_state.selected_student_manual = None
-    
-    st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">La cámara trasera se abrirá automáticamente. Apunta al código QR y pulsa <strong>"Tomar foto"</strong> para registrar asistencia al instante.</p>', unsafe_allow_html=True)
-
-    # Campo oculto para almacenar la imagen capturada
-    if "photo_base64" not in st.session_state:
-        st.session_state.photo_base64 = ""
-    
-    # Mostrar la cámara personalizada
-    camera_html = """
-    <div style="text-align: center;">
-        <video id="video" autoplay playsinline style="width:100%; max-width:600px; border-radius:12px; background:#000;"></video>
-        <canvas id="canvas" style="display:none;"></canvas>
-        <div style="margin-top: 20px;">
-            <button id="capture-btn" style="background:#0066ff; color:white; border:none; padding:12px 28px; border-radius:30px; font-size:18px; cursor:pointer; font-weight:bold;">📸 Tomar foto</button>
-        </div>
-        <input type="hidden" id="photo-data" value="">
-    </div>
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const captureBtn = document.getElementById('capture-btn');
-        const hiddenInput = document.getElementById('photo-data');
+    # Instrucciones
+    with st.expander("📖 Instrucciones de uso"):
+        st.markdown("""
+        ### 🎯 Cómo usar el escáner QR:
+        1. **Espera** a que la cámara se active automáticamente (usará la cámara trasera)
+        2. **Acerca** el código QR a la cámara
+        3. **Automáticamente** se registrará la asistencia
+        4. Verás un mensaje de confirmación
         
-        // Solicitar cámara trasera
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } })
-            .then(function(stream) {
-                video.srcObject = stream;
-                video.play();
-            })
-            .catch(function(err) {
-                console.error("Cámara trasera no disponible: ", err);
-                navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function(stream) {
-                    video.srcObject = stream;
-                    video.play();
-                })
-                .catch(function(err2) {
-                    console.error("No se pudo acceder a la cámara: ", err2);
-                    alert("No se pudo acceder a la cámara. Verifica los permisos.");
-                });
-            });
-        } else {
-            alert("Tu navegador no soporta acceso a la cámara.");
-        }
-        
-        captureBtn.addEventListener('click', function() {
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = canvas.toDataURL('image/jpeg', 0.9);
-            hiddenInput.value = imageData;
-            // Activar el botón "Registrar" de Streamlit (lo creamos más abajo)
-            const streamlitButton = document.querySelector('button[data-testid="baseButton-secondary"]');
-            if (streamlitButton) {
-                streamlitButton.click();
-            } else {
-                alert("Foto capturada. Presiona 'Registrar' para confirmar.");
-            }
-        });
-    </script>
-    """
-    st.components.v1.html(camera_html, height=450)
-    
-    # Botón de Streamlit que usa la imagen almacenada en el campo oculto
-    # Para que el botón aparezca, lo ponemos aquí. El JS anterior intentará hacer clic automáticamente.
-    # Si no funciona, el usuario puede hacer clic manual.
-    
-    # Usamos un formulario para que al hacer clic se procese la imagen
-    with st.form(key="registro_form"):
-        # Campo invisible que se actualizará con la imagen
-        imagen = st.text_input("", key="photo_base64", label_visibility="collapsed", placeholder="")
-        submitted = st.form_submit_button("✅ Registrar asistencia", use_container_width=True)
-    
-    if submitted and st.session_state.photo_base64:
-        try:
-            img_data = base64.b64decode(st.session_state.photo_base64.split(",")[1])
-            img = Image.open(io.BytesIO(img_data))
-            objetos_qr = decode(img)
-            if objetos_qr:
-                ru = objetos_qr[0].data.decode('utf-8')
-                estudiantes = leer_estudiantes()
-                estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-                if len(estudiante) > 0:
-                    nombres = estudiante.iloc[0]["nombres"]
-                    paterno = estudiante.iloc[0]["apellido_paterno"]
-                    materno = estudiante.iloc[0]["apellido_materno"]
-                    fecha, hora = obtener_fecha_hora_exacta()
-                    tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-                    if not tiene_registro:
-                        supabase.table("asistencia").insert({
-                            "ru": ru,
-                            "nombres": nombres,
-                            "apellido_paterno": paterno,
-                            "apellido_materno": materno,
-                            "fecha": fecha.isoformat(),
-                            "hora": hora,
-                            "estado": "Presente"
-                        }).execute()
-                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
-                        st.session_state.photo_base64 = ""  # Limpiar
-                        st.rerun()
-                    else:
-                        st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
-                else:
-                    st.error("❌ Estudiante no encontrado")
-            else:
-                st.warning("⚠️ No se detectó ningún código QR")
-        except Exception as e:
-            st.error(f"Error: {e}")
-    elif submitted and not st.session_state.photo_base64:
-        st.info("Primero toma una foto con el botón 'Tomar foto'.")
+        ### 💡 Consejos:
+        - Mantén el QR bien iluminado
+        - Enfoca bien el código
+        - Espera 2 segundos entre escaneos
+        - Si no funciona, presiona "Reiniciar escáner"
+        """)
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (sin cambios relevantes)
+# REGISTRO MANUAL
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -874,7 +802,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (sin cambios)
+# VER ASISTENCIA
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
