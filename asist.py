@@ -65,7 +65,6 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto-incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -113,6 +112,11 @@ if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
 if "qr_ru_escaneado" not in st.session_state:
     st.session_state.qr_ru_escaneado = None
+# NUEVO: para el scanner QR funcional
+if "qr_resultado_ru" not in st.session_state:
+    st.session_state.qr_resultado_ru = ""
+if "qr_procesando" not in st.session_state:
+    st.session_state.qr_procesando = False
 
 # ------------------------------------------------------------
 # PARTÍCULAS ANIMADAS
@@ -423,10 +427,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="qr-container">
                         <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
                     </div>
-                    <div class="download-buttons">
-                        <div style="display: inline-block;" id="qr-download-btn"></div>
-                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
-                    </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -547,12 +547,10 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR — VERSIÓN ULTRARRÁPIDA CON HTML5-QRCODE
-# - Usa la biblioteca Html5QrcodeScanner que escanea fotogramas
-#   cada 100ms aproximadamente (tiempo real).
-# - Detecta automática y continuamente cualquier QR presente.
-# - Cuando lo encuentra, envía el RU a Streamlit mediante query_params.
-# - No requiere botón, todo en tiempo real (milisegundos).
+# ESCANEAR QR — SOLUCIÓN ROBUSTA CON CAMPO DE TEXTO OCULTO
+# El componente HTML escanea el QR y escribe el RU en un
+# st.text_input mediante JavaScript. Al detectar un cambio
+# Streamlit re-ejecuta y procesa el registro.
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
@@ -560,54 +558,69 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 
     st.subheader("📸 Escanear QR (detección automática en tiempo real)")
 
-    # ── Procesar RU enviado por el componente JS ──────────────
-    params = st.query_params
-    ru_from_js = params.get("qr_ru", None)
+    # ── Campo oculto que recibe el RU desde el scanner JS ──
+    # Usamos un text_input con label oculta. El JS buscará
+    # este input por su aria-label y escribirá el valor.
+    ru_input = st.text_input(
+        "RU escaneado (no editar manualmente)",
+        key="qr_input_hidden",
+        label_visibility="collapsed",
+        placeholder="Aquí aparecerá el RU escaneado automáticamente..."
+    )
 
-    if ru_from_js and ru_from_js != st.session_state.get("qr_ru_escaneado"):
-        st.session_state.qr_ru_escaneado = ru_from_js
+    # ── Botón para procesar el RU recibido ──
+    # El JS hará click automáticamente en este botón tras escribir el RU.
+    procesar = st.button("✅ Procesar QR escaneado", key="btn_procesar_qr", use_container_width=False)
 
-        estudiantes_df = leer_estudiantes()
-        estudiante_fila = estudiantes_df[estudiantes_df["ru"].astype(str) == ru_from_js]
+    # ── Lógica de procesamiento ──
+    if procesar and ru_input and ru_input.strip():
+        ru_detectado = ru_input.strip()
 
-        if len(estudiante_fila) > 0:
-            nombres = estudiante_fila.iloc[0]["nombres"]
-            paterno = estudiante_fila.iloc[0]["apellido_paterno"]
-            materno = estudiante_fila.iloc[0]["apellido_materno"]
-            fecha, hora = obtener_fecha_hora_exacta()
-            tiene_registro, registro_existente = verificar_registro_duplicado(ru_from_js, fecha)
+        # Evitar procesar el mismo RU dos veces seguidas sin nueva lectura
+        if ru_detectado != st.session_state.qr_ru_escaneado:
+            st.session_state.qr_ru_escaneado = ru_detectado
 
-            if not tiene_registro:
-                try:
-                    supabase.table("asistencia").insert({
-                        "ru": ru_from_js,
-                        "nombres": nombres,
-                        "apellido_paterno": paterno,
-                        "apellido_materno": materno,
-                        "fecha": fecha.isoformat(),
-                        "hora": hora,
-                        "estado": "Presente"
-                    }).execute()
-                    st.success(
-                        f"✅ **Asistencia registrada**\n\n"
-                        f"👤 {nombres} {paterno} {materno}\n\n"
-                        f"🕐 {hora}  |  📅 {fecha.strftime('%d/%m/%Y')}"
+            estudiantes_df = leer_estudiantes()
+            estudiante_fila = estudiantes_df[estudiantes_df["ru"].astype(str) == ru_detectado]
+
+            if len(estudiante_fila) > 0:
+                nombres  = estudiante_fila.iloc[0]["nombres"]
+                paterno  = estudiante_fila.iloc[0]["apellido_paterno"]
+                materno  = estudiante_fila.iloc[0]["apellido_materno"]
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru_detectado, fecha)
+
+                if not tiene_registro:
+                    try:
+                        supabase.table("asistencia").insert({
+                            "ru": ru_detectado,
+                            "nombres": nombres,
+                            "apellido_paterno": paterno,
+                            "apellido_materno": materno,
+                            "fecha": fecha.isoformat(),
+                            "hora": hora,
+                            "estado": "Presente"
+                        }).execute()
+                        st.success(
+                            f"✅ **Asistencia registrada**\n\n"
+                            f"👤 {nombres} {paterno} {materno}\n\n"
+                            f"🕐 {hora}  |  📅 {fecha.strftime('%d/%m/%Y')}"
+                        )
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar asistencia: {e}")
+                else:
+                    hora_prev = registro_existente['hora']
+                    st.warning(
+                        f"⚠️ **{nombres} {paterno}** ya registró asistencia hoy\n\n"
+                        f"🕐 Registrado a las **{hora_prev}**"
                     )
-                except Exception as e:
-                    st.error(f"❌ Error al guardar asistencia: {e}")
             else:
-                hora_prev = registro_existente['hora']
-                st.warning(
-                    f"⚠️ **{nombres} {paterno}** ya registró asistencia hoy\n\n"
-                    f"🕐 Registrado a las **{hora_prev}**"
-                )
+                st.error(f"❌ RU **{ru_detectado}** no encontrado en la base de datos")
         else:
-            st.error(f"❌ RU **{ru_from_js}** no encontrado en la base de datos")
+            st.info("ℹ️ Este RU ya fue procesado. Escanea el siguiente estudiante.")
 
-        # Limpiar query param para poder escanear el siguiente estudiante
-        st.query_params.clear()
-
-    # ── Componente HTML: Html5QrcodeScanner (rápido y confiable) ──
+    # ── Componente HTML: Scanner que escribe en el input de Streamlit ──
     scanner_html = """
 <!DOCTYPE html>
 <html>
@@ -634,92 +647,155 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
   #status {
     width: 100%;
     max-width: 500px;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.75);
     backdrop-filter: blur(8px);
     color: #bbd9ff;
     font-size: 14px;
     font-weight: 500;
     text-align: center;
-    padding: 8px 16px;
+    padding: 10px 16px;
     border-radius: 40px;
-    margin-top: 8px;
+    margin-top: 4px;
+    transition: background 0.3s;
   }
-  /* Ajustes para mejorar el encuadre */
-  video {
-    border-radius: 16px;
-  }
-  /* Ocultar el botón de "Start" que a veces aparece, pero no es necesario */
-  #reader__dashboard_section_csr span {
-    display: none;
-  }
+  #status.success { background: rgba(0,180,80,0.85); color: #fff; }
+  #status.warning { background: rgba(200,140,0,0.85); color: #fff; }
+  #status.error   { background: rgba(200,30,30,0.85);  color: #fff; }
+  video { border-radius: 16px; }
 </style>
-<!-- Cargar la biblioteca html5-qrcode (minificada) -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
 
 <div id="reader"></div>
-<div id="status">🔍 Iniciando cámara trasera y escaneo continuo...</div>
+<div id="status">🔍 Iniciando cámara trasera...</div>
 
 <script>
+  // ── Helpers ─────────────────────────────────────────────
+  function setStatus(msg, type) {
+    const s = document.getElementById('status');
+    s.textContent = msg;
+    s.className = type || '';
+  }
+
+  // Encuentra el input de Streamlit que tiene el placeholder específico
+  // y devuelve el elemento <input> nativo dentro del componente padre.
+  function findStreamlitInput() {
+    // Buscamos en el documento padre (fuera del iframe)
+    try {
+      const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+      for (const inp of inputs) {
+        if (inp.placeholder && inp.placeholder.includes('Aquí aparecerá el RU')) {
+          return inp;
+        }
+      }
+    } catch(e) { console.warn('No se pudo acceder al DOM padre:', e); }
+    return null;
+  }
+
+  // Encuentra el botón "Procesar QR escaneado" en el padre
+  function findStreamlitButton() {
+    try {
+      const buttons = window.parent.document.querySelectorAll('button[kind="secondary"], button');
+      for (const btn of buttons) {
+        if (btn.textContent && btn.textContent.includes('Procesar QR escaneado')) {
+          return btn;
+        }
+      }
+    } catch(e) { console.warn('No se pudo acceder al DOM padre:', e); }
+    return null;
+  }
+
+  // Simula escritura humana en un input de React/Streamlit
+  function simulateInput(inputEl, value) {
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+      window.parent.HTMLInputElement.prototype, 'value'
+    ).set;
+    nativeInputValueSetter.call(inputEl, value);
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // ── Variables de control ────────────────────────────────
   let html5QrCode = null;
-  let isScanning = true;
-  let lastDetected = null;  // Evita enviar el mismo código repetidas veces
+  let lastDetected = null;
+  let cooldownActive = false;   // Evita disparos múltiples del mismo QR
 
-  function onScanSuccess(decodedText, decodedResult) {
-    if (!isScanning) return;
-
-    // Evitar múltiples envíos del mismo código
+  // ── Callback principal ──────────────────────────────────
+  function onScanSuccess(decodedText) {
+    if (cooldownActive) return;
     if (lastDetected === decodedText) return;
+
+    cooldownActive = true;
     lastDetected = decodedText;
 
-    // Detener el escáner para no seguir detectando mientras se recarga la página
-    if (html5QrCode) {
-      html5QrCode.stop().catch(err => console.warn("Error al detener escáner:", err));
-      isScanning = false;
+    setStatus('✅ QR detectado: ' + decodedText + ' → escribiendo RU...', 'success');
+
+    // 1) Escribir el RU en el input de Streamlit
+    const inputEl = findStreamlitInput();
+    if (inputEl) {
+      simulateInput(inputEl, decodedText);
+
+      // 2) Hacer click en el botón "Procesar" después de un breve delay
+      //    para que Streamlit registre el cambio del input.
+      setTimeout(() => {
+        const btn = findStreamlitButton();
+        if (btn) {
+          btn.click();
+          setStatus('🚀 Enviado a Streamlit. Registrando asistencia...', 'success');
+        } else {
+          setStatus('⚠️ Botón no encontrado. Reintentando...', 'warning');
+          // Reintento tras 500ms más
+          setTimeout(() => {
+            const btn2 = findStreamlitButton();
+            if (btn2) {
+              btn2.click();
+              setStatus('🚀 Enviado (reintento). Procesando...', 'success');
+            } else {
+              setStatus('❌ No se encontró el botón de Streamlit. Recarga la página.', 'error');
+            }
+          }, 500);
+        }
+      }, 600);
+
+    } else {
+      setStatus('❌ Input de Streamlit no encontrado. Asegúrate de estar en la pestaña correcta.', 'error');
     }
 
-    const statusDiv = document.getElementById('status');
-    statusDiv.textContent = '✅ QR detectado: ' + decodedText + ' → registrando asistencia...';
-
-    // Enviar el RU a Streamlit mediante parámetro en la URL
-    const url = new URL(window.parent.location.href);
-    url.searchParams.set('qr_ru', decodedText);
-    window.parent.location.href = url.toString();
+    // Reanudar el scanner después de 4 segundos para el siguiente estudiante
+    setTimeout(() => {
+      cooldownActive = false;
+      lastDetected = null;
+      setStatus('✅ Listo para escanear el siguiente QR...', '');
+    }, 4000);
   }
 
   function onScanError(errorMessage) {
-    // Los errores normales (por ejemplo, no se encuentra QR) no se muestran al usuario
-    // para no saturar la consola. Solo se maneja el éxito.
-    // console.warn(errorMessage);
+    // Errores normales (QR no detectado en el frame) — silenciados
   }
 
-  // Configuración: usar cámara trasera (environment) y alta resolución
+  // ── Iniciar scanner ─────────────────────────────────────
   const config = {
-    fps: 30,                    // Fotogramas por segundo (más que suficiente)
-    qrbox: { width: 250, height: 250 },  // Región de escaneo cuadrada
+    fps: 30,
+    qrbox: { width: 260, height: 260 },
     aspectRatio: 1.0,
     rememberLastUsedCamera: true,
-    supportedScanTypes: [
-      Html5QrcodeScanType.SCAN_TYPE_CAMERA
-    ]
+    supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
   };
 
-  // Inicializar el escáner
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
-    { facingMode: "environment" },  // Fuerza cámara trasera
+    { facingMode: "environment" },
     config,
     onScanSuccess,
     onScanError
   ).then(() => {
-    document.getElementById('status').textContent = '✅ Cámara lista – escaneando códigos QR automáticamente...';
+    setStatus('✅ Cámara lista — apunta un código QR para registrar asistencia');
   }).catch(err => {
-    console.error("Error al iniciar la cámara:", err);
-    document.getElementById('status').textContent = '❌ No se pudo acceder a la cámara. Verifica los permisos y que tu dispositivo tenga cámara trasera.';
+    console.error("Error al iniciar cámara:", err);
+    setStatus('❌ No se pudo acceder a la cámara. Verifica los permisos.', 'error');
   });
 
-  // Opcional: limpieza al salir (si la página se recarga, se detiene solo)
   window.addEventListener('beforeunload', () => {
     if (html5QrCode && html5QrCode.isScanning) {
       html5QrCode.stop().catch(e => console.warn(e));
@@ -730,7 +806,17 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 </html>
 """
 
-    components.html(scanner_html, height=550, scrolling=False)
+    components.html(scanner_html, height=580, scrolling=False)
+
+    # Instrucciones de uso
+    st.markdown("""
+    ---
+    **📌 Instrucciones:**
+    1. Permite el acceso a la cámara cuando el navegador lo solicite.
+    2. Apunta la cámara al código QR del estudiante.
+    3. La asistencia se registra automáticamente al detectar el QR.
+    4. Espera 4 segundos antes de escanear el siguiente.
+    """)
 
 # ------------------------------------------------------------
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
@@ -821,17 +907,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
-    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
-    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
-    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -839,7 +922,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
-    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
@@ -869,7 +951,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
@@ -946,6 +1027,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         st.markdown("---")
         st.subheader("🗑️ Eliminar registro individual")
         if len(asistencia_df) > 0:
+            if "descripcion" not in asistencia_df.columns:
+                asistencia_df["descripcion"] = (asistencia_df["ru"] + " - " + 
+                                               asistencia_df["nombres"] + " " + 
+                                               asistencia_df["apellido_paterno"] + " (" + 
+                                               asistencia_df["fecha"].astype(str) + " " + 
+                                               asistencia_df["hora"] + ")")
+                opciones = asistencia_df["descripcion"].tolist()
+            
             seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
             idx_elim = asistencia_df[asistencia_df["descripcion"] == seleccion_eliminar].index[0]
             id_eliminar = asistencia_df.loc[idx_elim, "id"]
@@ -974,7 +1063,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
-        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -982,7 +1070,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
-            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
