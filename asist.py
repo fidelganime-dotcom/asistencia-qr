@@ -110,6 +110,8 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
+if "qr_image_data" not in st.session_state:
+    st.session_state.qr_image_data = None
 
 # ------------------------------------------------------------
 # PARTÍCULAS ANIMADAS
@@ -544,51 +546,120 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (MEJORADO CON pyzbar)
+# ESCANEAR QR (CÁMARA TRASERA USANDO st.components.v1.html)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
-    foto = st.camera_input("", label_visibility="collapsed")
-    if foto is not None:
-        img = Image.open(foto)
-        decoded_objects = decode(img)
-        
-        if decoded_objects:
-            data = decoded_objects[0].data.decode('utf-8')
-            ru = data
-            estudiantes = leer_estudiantes()
-            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-            if len(estudiante) > 0:
-                nombres = estudiante.iloc[0]["nombres"]
-                paterno = estudiante.iloc[0]["apellido_paterno"]
-                materno = estudiante.iloc[0]["apellido_materno"]
-                fecha, hora = obtener_fecha_hora_exacta()
-                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-                if not tiene_registro:
-                    try:
-                        supabase.table("asistencia").insert({
-                            "ru": ru,
-                            "nombres": nombres,
-                            "apellido_paterno": paterno,
-                            "apellido_materno": materno,
-                            "fecha": fecha.isoformat(),
-                            "hora": hora,
-                            "estado": "Presente"
-                        }).execute()
-                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
-                    except Exception as e:
-                        st.error(f"❌ Error al guardar asistencia: {e}")
+    st.markdown('<p style="color: var(--text-secondary);">La cámara trasera se abrirá automáticamente. Toca el QR y presiona "Capturar".</p>', unsafe_allow_html=True)
+
+    # Componente HTML para la cámara
+    camera_html = """
+    <div id="camera-wrapper" style="text-align: center;">
+        <video id="video" autoplay playsinline style="width:100%; max-width:600px; border-radius:12px; background:#000;"></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div style="margin-top: 15px;">
+            <button id="capture-btn" style="background:#0066ff; color:white; border:none; padding:12px 24px; border-radius:30px; font-size:18px; cursor:pointer;">📷 Tomar foto</button>
+        </div>
+    </div>
+    <script>
+        (function() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const captureBtn = document.getElementById('capture-btn');
+            
+            // Solicitar cámara trasera
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } })
+                .then(function(stream) {
+                    video.srcObject = stream;
+                    video.play();
+                })
+                .catch(function(err) {
+                    console.error("Cámara trasera no disponible: ", err);
+                    // Fallback: cualquier cámara
+                    navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(stream) {
+                        video.srcObject = stream;
+                        video.play();
+                    })
+                    .catch(function(err2) {
+                        console.error("No se pudo acceder a la cámara: ", err2);
+                        alert("No se pudo acceder a la cámara. Verifica los permisos.");
+                    });
+                });
+            } else {
+                alert("Tu navegador no soporta acceso a la cámara.");
+            }
+            
+            // Capturar y enviar la imagen a Streamlit
+            captureBtn.addEventListener('click', function() {
+                const context = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL('image/jpeg', 0.9);
+                // Enviar la imagen a Streamlit usando un evento personalizado
+                const event = new CustomEvent('streamlit:setComponentValue', {
+                    detail: { value: imageData }
+                });
+                window.dispatchEvent(event);
+                alert("Foto capturada. Ahora presiona 'Procesar QR' en el botón de abajo.");
+            });
+        })();
+    </script>
+    """
+    
+    # Mostrar el componente de cámara
+    camera_component = st.components.v1.html(camera_html, height=500)
+    
+    # Botón separado para procesar la imagen (porque el componente no puede enviar directamente a Python)
+    # En lugar de un botón, usamos un campo de texto oculto que se actualiza con la imagen
+    qr_image_base64 = st.text_input("Imagen capturada (base64)", key="qr_image_base64", label_visibility="collapsed", placeholder="La imagen aparecerá aquí después de capturar")
+    
+    # Botón para escanear
+    if st.button("🔍 Procesar QR", use_container_width=True):
+        if qr_image_base64 and qr_image_base64.startswith("data:image"):
+            try:
+                # Decodificar base64 a imagen
+                img_data = base64.b64decode(qr_image_base64.split(",")[1])
+                img = Image.open(io.BytesIO(img_data))
+                # Decodificar QR
+                decoded_objects = decode(img)
+                if decoded_objects:
+                    ru = decoded_objects[0].data.decode('utf-8')
+                    estudiantes = leer_estudiantes()
+                    estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+                    if len(estudiante) > 0:
+                        nombres = estudiante.iloc[0]["nombres"]
+                        paterno = estudiante.iloc[0]["apellido_paterno"]
+                        materno = estudiante.iloc[0]["apellido_materno"]
+                        fecha, hora = obtener_fecha_hora_exacta()
+                        tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                        if not tiene_registro:
+                            supabase.table("asistencia").insert({
+                                "ru": ru,
+                                "nombres": nombres,
+                                "apellido_paterno": paterno,
+                                "apellido_materno": materno,
+                                "fecha": fecha.isoformat(),
+                                "hora": hora,
+                                "estado": "Presente"
+                            }).execute()
+                            st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                            st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                        else:
+                            st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
+                    else:
+                        st.error("❌ Estudiante no encontrado en la base de datos")
                 else:
-                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
-            else:
-                st.error("❌ Estudiante no encontrado en la base de datos")
+                    st.warning("⚠️ No se detectó ningún código QR en la imagen")
+            except Exception as e:
+                st.error(f"Error al procesar la imagen: {e}")
         else:
-            st.warning("⚠️ No se detectó ningún código QR en la imagen")
+            st.info("Primero captura una foto usando el botón 'Tomar foto' de la cámara.")
 
 # ------------------------------------------------------------
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
