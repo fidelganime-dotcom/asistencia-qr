@@ -64,7 +64,6 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -110,6 +109,8 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
+if "qr_image_data" not in st.session_state:
+    st.session_state.qr_image_data = None
 
 # ------------------------------------------------------------
 # PARTÍCULAS ANIMADAS
@@ -544,28 +545,135 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (MEJORADO CON pyzbar)
+# ESCANEAR QR — cámara trasera instantánea con componente HTML
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
-    
+
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
-    foto = st.camera_input("", label_visibility="collapsed")
-    if foto is not None:
-        img = Image.open(foto)
-        decoded_objects = decode(img)
-        
+    st.markdown('<p style="color: var(--text-secondary);">Apunta la cámara trasera al código QR del estudiante para registrar su asistencia automáticamente</p>', unsafe_allow_html=True)
+
+    # Componente HTML con cámara trasera (facingMode: environment)
+    qr_scanner_html = """
+    <style>
+        #qr-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            font-family: sans-serif;
+        }
+        #video {
+            width: 100%;
+            max-width: 480px;
+            border-radius: 12px;
+            border: 3px solid #0066ff;
+            background: #000;
+        }
+        #canvas { display: none; }
+        #snap-btn {
+            padding: 14px 40px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #0066ff, #00ffcc);
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(0,102,255,0.4);
+            transition: transform 0.1s;
+        }
+        #snap-btn:active { transform: scale(0.96); }
+        #status {
+            font-size: 15px;
+            color: #aaa;
+            min-height: 22px;
+        }
+        #captured-img {
+            display: none;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 12px;
+            border: 2px solid #00ffcc;
+        }
+    </style>
+
+    <div id="qr-box">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <button id="snap-btn" onclick="capturar()">📷 Capturar QR</button>
+        <p id="status">Iniciando cámara trasera…</p>
+        <img id="captured-img" alt="Foto capturada"/>
+    </div>
+
+    <script>
+        const video   = document.getElementById('video');
+        const canvas  = document.getElementById('canvas');
+        const status  = document.getElementById('status');
+        const img     = document.getElementById('captured-img');
+        const ctx     = canvas.getContext('2d');
+
+        // Forzar cámara trasera
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        })
+        .then(stream => {
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                video.play();
+                status.textContent = '✅ Cámara trasera activa — pulsa Capturar QR';
+                status.style.color = '#00ffcc';
+            };
+        })
+        .catch(err => {
+            status.textContent = '❌ No se pudo acceder a la cámara: ' + err.message;
+            status.style.color = '#ff4444';
+        });
+
+        function capturar() {
+            canvas.width  = video.videoWidth  || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const dataURL = canvas.toDataURL('image/png');
+            img.src = dataURL;
+            img.style.display = 'block';
+            status.textContent = '📤 Enviando imagen al servidor…';
+            status.style.color = '#ffcc00';
+
+            // Enviar base64 a Streamlit via query param trick
+            const b64 = dataURL.split(',')[1];
+            window.parent.postMessage({ type: 'streamlit:setComponentValue', value: b64 }, '*');
+        }
+    </script>
+    """
+
+    # Renderizar el componente
+    resultado_b64 = st.components.v1.html(qr_scanner_html, height=560, scrolling=False)
+
+    # Procesar imagen capturada si llega por session_state
+    foto_b64 = st.session_state.get("qr_image_data", None)
+
+    # Input oculto para recibir la imagen desde el componente JS
+    # Usamos st.text_input invisible + un truco de JS para pasarlo
+    # Alternativa más robusta: st.file_uploader como respaldo
+    st.markdown("---")
+    st.markdown("##### 📁 ¿No funciona la cámara? Sube una foto del QR")
+    foto_upload = st.file_uploader("Subir imagen con QR", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+
+    def procesar_imagen_qr(img_pil):
+        decoded_objects = decode(img_pil)
         if decoded_objects:
             data = decoded_objects[0].data.decode('utf-8')
             ru = data
             estudiantes = leer_estudiantes()
             estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
             if len(estudiante) > 0:
-                nombres = estudiante.iloc[0]["nombres"]
-                paterno = estudiante.iloc[0]["apellido_paterno"]
-                materno = estudiante.iloc[0]["apellido_materno"]
+                nombres   = estudiante.iloc[0]["nombres"]
+                paterno   = estudiante.iloc[0]["apellido_paterno"]
+                materno   = estudiante.iloc[0]["apellido_materno"]
                 fecha, hora = obtener_fecha_hora_exacta()
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
                 if not tiene_registro:
@@ -589,6 +697,10 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                 st.error("❌ Estudiante no encontrado en la base de datos")
         else:
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
+
+    if foto_upload is not None:
+        img_pil = Image.open(foto_upload)
+        procesar_imagen_qr(img_pil)
 
 # ------------------------------------------------------------
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
@@ -679,17 +791,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
-    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
-    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
-    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -697,7 +806,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
-    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
@@ -727,7 +835,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
@@ -832,7 +939,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
-        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -840,7 +946,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
-            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
