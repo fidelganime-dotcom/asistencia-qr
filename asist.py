@@ -64,6 +64,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -86,6 +87,10 @@ def verificar_registro_duplicado(ru, fecha):
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
+
+# ------------------------------------------------------------
+# APLICAR ESTILOS CSS (importados desde styles.py)
+# ------------------------------------------------------------
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
@@ -105,8 +110,6 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
-if "photo_base64" not in st.session_state:
-    st.session_state.photo_base64 = ""
 
 # ------------------------------------------------------------
 # PARTÍCULAS ANIMADAS
@@ -165,6 +168,7 @@ with st.sidebar:
 # TÍTULO CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
+
 with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
@@ -194,7 +198,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (sin cambios)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -321,7 +325,7 @@ def crear_tarjeta_estudiante(estudiante):
     return img_bytes
 
 # ------------------------------------------------------------
-# REGISTRAR ESTUDIANTE (sin cambios)
+# REGISTRAR ESTUDIANTE
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.session_state.manual_auth = False
@@ -375,7 +379,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                         st.error(f"❌ Error al guardar estudiante: {e}")
 
 # ------------------------------------------------------------
-# LISTA ESTUDIANTES (sin cambios)
+# LISTA ESTUDIANTES
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.session_state.manual_auth = False
@@ -416,6 +420,10 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="qr-container">
                         <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
                     </div>
+                    <div class="download-buttons">
+                        <div style="display: inline-block;" id="qr-download-btn"></div>
+                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -447,6 +455,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
             st.warning("⚠️ Por favor ingrese un RU para buscar")
         
         st.markdown("---")
+        
         st.subheader("✏️ Gestionar estudiante")
         
         estudiantes_display = estudiantes.copy()
@@ -524,6 +533,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     st.rerun()
         
         st.markdown("---")
+        
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
             archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -534,51 +544,32 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR - VERSIÓN CON BOTÓN ESTABLE
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">La cámara trasera se abrirá automáticamente. Apunta al código QR y pulsa <strong>"Tomar foto"</strong>. La asistencia se registrará al instante.</p>', unsafe_allow_html=True)
-
-    # Contenedor para el componente de la cámara (se renderiza una sola vez)
-    camera_placeholder = st.empty()
-    
-    # Formulario que contiene el campo oculto y el botón de envío (oculto)
-    with st.form(key="qr_capture_form"):
-        # Campo oculto que JavaScript llenará con la imagen
-        imagen_data = st.text_input("", key="hidden_image_capture", label_visibility="collapsed", placeholder="")
-        # Botón de submit que se disparará automáticamente desde JS (lo ocultamos con CSS)
-        submitted = st.form_submit_button("Registrar", type="primary", use_container_width=False)
-        # Ocultar el botón visualmente
-        st.markdown("""
-        <style>
-            div[data-testid="stForm"] button[type="submit"] {
-                display: none;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    # Procesar cuando se haya enviado el formulario con una imagen
-    if submitted and imagen_data:
-        try:
-            # Decodificar base64
-            img_bytes = base64.b64decode(imagen_data.split(",")[1])
-            img = Image.open(io.BytesIO(img_bytes))
-            objetos_qr = decode(img)
-            if objetos_qr:
-                ru = objetos_qr[0].data.decode('utf-8')
-                estudiantes = leer_estudiantes()
-                estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-                if len(estudiante) > 0:
-                    nombres = estudiante.iloc[0]["nombres"]
-                    paterno = estudiante.iloc[0]["apellido_paterno"]
-                    materno = estudiante.iloc[0]["apellido_materno"]
-                    fecha, hora = obtener_fecha_hora_exacta()
-                    tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-                    if not tiene_registro:
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    foto = st.camera_input("", label_visibility="collapsed")
+    if foto is not None:
+        img = Image.open(foto)
+        decoded_objects = decode(img)
+        
+        if decoded_objects:
+            data = decoded_objects[0].data.decode('utf-8')
+            ru = data
+            estudiantes = leer_estudiantes()
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+            if len(estudiante) > 0:
+                nombres = estudiante.iloc[0]["nombres"]
+                paterno = estudiante.iloc[0]["apellido_paterno"]
+                materno = estudiante.iloc[0]["apellido_materno"]
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                if not tiene_registro:
+                    try:
                         supabase.table("asistencia").insert({
                             "ru": ru,
                             "nombres": nombres,
@@ -588,99 +579,19 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
                             "hora": hora,
                             "estado": "Presente"
                         }).execute()
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
                         st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
-                        # Limpiar el campo para evitar reprocesar
-                        st.session_state.hidden_image_capture = ""
-                        st.rerun()
-                    else:
-                        st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar asistencia: {e}")
                 else:
-                    st.error("❌ Estudiante no encontrado en la base de datos")
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
             else:
-                st.warning("⚠️ No se detectó ningún código QR. Asegúrate de que el QR esté bien enfocado.")
-        except Exception as e:
-            st.error(f"Error al procesar la imagen: {e}")
-    elif submitted and not imagen_data:
-        st.info("Toma una foto usando el botón 'Tomar foto'.")
-
-    # Componente HTML con la cámara y el botón "Tomar foto"
-    camera_html = """
-    <div id="camera-container" style="text-align: center;">
-        <video id="video" autoplay playsinline style="width:100%; max-width:600px; border-radius:12px; background:#000;"></video>
-        <canvas id="canvas" style="display:none;"></canvas>
-        <div style="margin-top: 20px;">
-            <button id="capture-btn" style="background:#0066ff; color:white; border:none; padding:12px 28px; border-radius:30px; font-size:18px; cursor:pointer; font-weight:bold;">📸 Tomar foto</button>
-        </div>
-    </div>
-    <script>
-        (function() {
-            const video = document.getElementById('video');
-            const canvas = document.getElementById('canvas');
-            const captureBtn = document.getElementById('capture-btn');
-            
-            // Solicitar cámara trasera
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } })
-                .then(function(stream) {
-                    video.srcObject = stream;
-                    video.play();
-                })
-                .catch(function(err) {
-                    console.error("Cámara trasera no disponible: ", err);
-                    // Fallback a cualquier cámara
-                    navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function(stream) {
-                        video.srcObject = stream;
-                        video.play();
-                    })
-                    .catch(function(err2) {
-                        console.error("No se pudo acceder a la cámara: ", err2);
-                        alert("No se pudo acceder a la cámara. Verifica los permisos.");
-                    });
-                });
-            } else {
-                alert("Tu navegador no soporta acceso a la cámara.");
-            }
-            
-            // Al hacer clic en "Tomar foto", capturar y enviar al campo oculto de Streamlit
-            captureBtn.addEventListener('click', function() {
-                const context = canvas.getContext('2d');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = canvas.toDataURL('image/jpeg', 0.9);
-                
-                // Buscar el campo de texto oculto dentro del formulario de Streamlit
-                const hiddenField = window.parent.document.querySelector('input[name="hidden_image_capture"]');
-                if (hiddenField) {
-                    hiddenField.value = imageData;
-                    // Disparar evento change para que Streamlit lo detecte
-                    hiddenField.dispatchEvent(new Event('change', { bubbles: true }));
-                    // Hacer clic en el botón de submit del formulario (está oculto visualmente)
-                    const form = hiddenField.closest('form');
-                    if (form) {
-                        const submitBtn = form.querySelector('button[type="submit"]');
-                        if (submitBtn) {
-                            submitBtn.click();
-                        } else {
-                            alert("Error: no se encontró el botón de enviar.");
-                        }
-                    } else {
-                        alert("Error: no se encontró el formulario.");
-                    }
-                } else {
-                    alert("Error: no se encontró el campo oculto en el formulario.");
-                }
-            });
-        })();
-    </script>
-    """
-    
-    # Mostrar la cámara dentro del placeholder (se mantiene estable)
-    camera_placeholder.components.v1.html(camera_html, height=450)
+                st.error("❌ Estudiante no encontrado en la base de datos")
+        else:
+            st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (sin cambios)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -760,7 +671,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (sin cambios)
+# VER ASISTENCIA (con dashboard de tres tarjetas)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
@@ -768,14 +679,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
+    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
+    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
+    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -783,10 +697,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
+    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
-            <div class="title">📋 Total estudiantes</div>
+            <div class="title">📋 Total registros</div>
             <div class="value">{total_estudiantes}</div>
             <div class="percentage">100% total</div>
             <div class="progress-bar-bg">
@@ -794,7 +709,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             </div>
         </div>
         <div class="dashboard-card blue-card">
-            <div class="title">✅ Ya registrados hoy</div>
+            <div class="title">✅ Ya registrados</div>
             <div class="value">{registrados_hoy}</div>
             <div class="percentage">{porcentaje_registrados:.1f}% del total</div>
             <div class="progress-bar-bg">
@@ -802,7 +717,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             </div>
         </div>
         <div class="dashboard-card orange-card">
-            <div class="title">❌ Faltantes hoy</div>
+            <div class="title">❌ Faltantes</div>
             <div class="value">{faltantes}</div>
             <div class="percentage">{porcentaje_faltantes:.1f}% sin registrar</div>
             <div class="progress-bar-bg">
@@ -812,6 +727,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
+    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
@@ -916,6 +832,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -923,6 +840,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
+            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
