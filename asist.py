@@ -3,18 +3,12 @@ import pandas as pd
 import qrcode
 from datetime import datetime
 import os
-import cv2
-import numpy as np
-import pytz
 import io
 import base64
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
-from pyzbar.pyzbar import decode
+import pytz
 import streamlit.components.v1 as components
-
-# Importar estilos CSS desde styles.py
-from styles import CSS_STYLES
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE SUPABASE
@@ -29,7 +23,7 @@ except Exception as e:
     st.stop()
 
 # ------------------------------------------------------------
-# CONFIGURACIÓN DE ZONA HORARIA
+# ZONA HORARIA
 # ------------------------------------------------------------
 ZONA_HORARIA = pytz.timezone('America/La_Paz')
 
@@ -65,7 +59,6 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto-incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -85,13 +78,112 @@ def verificar_registro_duplicado(ru, fecha):
         return False, None
 
 # ------------------------------------------------------------
+# ESTILOS CSS INTEGRADOS
+# ------------------------------------------------------------
+CSS_STYLES = """
+<style>
+    .stApp {
+        background: linear-gradient(135deg, #0a0f1e 0%, #0a1a2f 100%);
+        color: #ffffff;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+    .subtitle-script {
+        font-size: 1.2rem;
+        color: #88aaff;
+        font-style: italic;
+    }
+    .dashboard-compact {
+        display: flex;
+        gap: 20px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+    .dashboard-card {
+        flex: 1;
+        background: rgba(20, 30, 55, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid rgba(0,102,255,0.3);
+        transition: transform 0.3s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+    .green-card .title { color: #00ffaa; }
+    .blue-card .title { color: #0088ff; }
+    .orange-card .title { color: #ffaa44; }
+    .dashboard-card .value {
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .progress-bar-bg {
+        background: #1e2a3a;
+        border-radius: 10px;
+        height: 10px;
+        margin-top: 15px;
+    }
+    .progress-bar-fill {
+        background: linear-gradient(90deg, #00ffcc, #0088ff);
+        height: 10px;
+        border-radius: 10px;
+        width: 0%;
+    }
+    .student-search-card {
+        background: rgba(20,30,55,0.6);
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    .student-name {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #ffffff;
+    }
+    .student-ru {
+        font-size: 1.2rem;
+        color: #aaccff;
+    }
+    .stButton button {
+        background: linear-gradient(135deg, #0066ff, #00aaff);
+        border: none;
+        border-radius: 30px;
+        padding: 10px 25px;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    .stButton button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 15px rgba(0,102,255,0.5);
+    }
+    .password-modal {
+        background: rgba(20,30,55,0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        border: 1px solid #0066ff;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    .student-detail-card {
+        background: rgba(20,30,55,0.5);
+        border-radius: 15px;
+        padding: 20px;
+        margin: 15px 0;
+    }
+</style>
+"""
+
+# ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
-
-# ------------------------------------------------------------
-# APLICAR ESTILOS CSS (importados desde styles.py)
-# ------------------------------------------------------------
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
@@ -111,13 +203,13 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
-if "qr_ru_escaneado" not in st.session_state:
-    st.session_state.qr_ru_escaneado = None
-if "registro_procesado" not in st.session_state:
-    st.session_state.registro_procesado = False
+if "qr_ru_procesado" not in st.session_state:
+    st.session_state.qr_ru_procesado = None
+if "mensaje_escaneo" not in st.session_state:
+    st.session_state.mensaje_escaneo = None
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS
+# PARTÍCULAS ANIMADAS (fondo)
 # ------------------------------------------------------------
 st.markdown("""
 <script>
@@ -132,7 +224,7 @@ st.markdown("""
         container.style.zIndex = '-1';
         document.body.appendChild(container);
         
-        const particleCount = 80;
+        const particleCount = 50;
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
             particle.style.position = 'absolute';
@@ -144,17 +236,17 @@ st.markdown("""
             particle.style.top = Math.random() * 100 + '%';
             particle.style.animation = `float ${Math.random() * 5 + 5}s infinite ease-in-out`;
             particle.style.animationDelay = Math.random() * 8 + 's';
-            particle.style.opacity = '0.6';
+            particle.style.opacity = '0.4';
             container.appendChild(particle);
         }
     }
     const style = document.createElement('style');
     style.textContent = `
         @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
-            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.8; }
-            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 1; }
-            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.8; }
+            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.4; }
+            25% { transform: translate(10px, -15px) rotate(45deg); opacity: 0.6; }
+            50% { transform: translate(-5px, -25px) rotate(90deg); opacity: 0.8; }
+            75% { transform: translate(15px, -10px) rotate(135deg); opacity: 0.6; }
         }
     `;
     document.head.appendChild(style);
@@ -167,25 +259,24 @@ st.markdown("""
 # ------------------------------------------------------------
 with st.sidebar:
     st.markdown("## 📂 Desarrollado por Josué")
-    st.markdown('<p style="color: var(--text-secondary);">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #aaccff;">Base de datos en la nube con PostgreSQL</p>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# TÍTULO CON LOGO
+# TÍTULO CON LOGO (opcional)
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
-
 with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
         if os.path.exists(logo_path):
-            st.image(logo_path, width=100)
+            st.image(logo_path, width=80)
         else:
             st.write("")
     with col_texto:
         st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
             <h1 style="margin: 0; line-height: 1.2;">INGENIERÍA DE SISTEMAS</h1>
-            <p class="subtitle-script" style="margin: 0; line-height: 1.2;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
+            <p class="subtitle-script" style="margin: 0;">Lógica, Programación e Inteligencia; ¡Sistemas Somos Excelencia!</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -203,7 +294,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (TARJETA EJECUTIVA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -423,11 +514,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="student-name">{nombre_completo}</div>
                     <div class="student-ru">RU: {ru}</div>
                     <div class="qr-container">
-                        <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
-                    </div>
-                    <div class="download-buttons">
-                        <div style="display: inline-block;" id="qr-download-btn"></div>
-                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                        <img src="data:image/png;base64,{qr_base64}" width="300" alt="QR Code">
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -538,7 +625,6 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     st.rerun()
         
         st.markdown("---")
-        
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
             archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -549,7 +635,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR — VERSIÓN CORREGIDA CON REGISTRO CONFIABLE
+# ESCANEAR QR — VERSIÓN DEFINITIVA (RÁPIDA Y CON REGISTRO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
@@ -557,18 +643,13 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 
     st.subheader("📸 Escanear QR (detección automática en tiempo real)")
 
-    # ── Procesar RU enviado por el componente JS ──────────────
+    # Procesar QR detectado desde query_params
     params = st.query_params
     ru_from_js = params.get("qr_ru", None)
-    procesado_flag = params.get("procesado", None)
 
-    # Solo procesar si hay un RU nuevo y no ha sido procesado
-    if ru_from_js and ru_from_js != st.session_state.get("qr_ru_escaneado"):
-        st.session_state.qr_ru_escaneado = ru_from_js
-        st.session_state.registro_procesado = False
+    if ru_from_js and ru_from_js != st.session_state.get("qr_ru_procesado"):
+        st.session_state.qr_ru_procesado = ru_from_js
 
-    # Procesar el registro de asistencia
-    if ru_from_js and not st.session_state.registro_procesado:
         estudiantes_df = leer_estudiantes()
         estudiante_fila = estudiantes_df[estudiantes_df["ru"].astype(str) == ru_from_js]
 
@@ -581,50 +662,56 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 
             if not tiene_registro:
                 try:
-                    # Insertar en Supabase
-                    resultado = supabase.table("asistencia").insert({
-                        "ru": ru_from_js,
-                        "nombres": nombres,
-                        "apellido_paterno": paterno,
-                        "apellido_materno": materno,
+                    # Insertar en Supabase con tipos explícitos
+                    data = {
+                        "ru": str(ru_from_js),
+                        "nombres": str(nombres),
+                        "apellido_paterno": str(paterno),
+                        "apellido_materno": str(materno),
                         "fecha": fecha.isoformat(),
-                        "hora": hora,
+                        "hora": str(hora),
                         "estado": "Presente"
-                    }).execute()
-                    
-                    # Verificar que se insertó correctamente
-                    if resultado.data:
-                        st.session_state.registro_procesado = True
-                        st.success(
-                            f"✅ **Asistencia registrada exitosamente**\n\n"
-                            f"👤 {nombres} {paterno} {materno}\n\n"
-                            f"🕐 {hora}  |  📅 {fecha.strftime('%d/%m/%Y')}"
-                        )
-                    else:
-                        st.error("❌ Error: No se pudo confirmar el registro en la base de datos")
+                    }
+                    supabase.table("asistencia").insert(data).execute()
+                    st.session_state.mensaje_escaneo = {
+                        "tipo": "success",
+                        "texto": f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}"
+                    }
                 except Exception as e:
-                    st.error(f"❌ Error al guardar asistencia: {str(e)}")
+                    st.session_state.mensaje_escaneo = {
+                        "tipo": "error",
+                        "texto": f"❌ Error al guardar: {str(e)}"
+                    }
             else:
-                hora_prev = registro_existente['hora']
-                estado_prev = registro_existente['estado']
-                st.session_state.registro_procesado = True
-                st.warning(
-                    f"⚠️ **{nombres} {paterno}** ya registró asistencia hoy\n\n"
-                    f"🕐 Registrado a las **{hora_prev}** (Estado: {estado_prev})"
-                )
+                st.session_state.mensaje_escaneo = {
+                    "tipo": "warning",
+                    "texto": f"⚠️ {nombres} {paterno} ya registró hoy a las {registro_existente['hora']}"
+                }
         else:
-            st.session_state.registro_procesado = True
-            st.error(f"❌ RU **{ru_from_js}** no encontrado en la base de datos")
+            st.session_state.mensaje_escaneo = {
+                "tipo": "error",
+                "texto": f"❌ RU {ru_from_js} no encontrado en la base de datos"
+            }
 
-    # Limpiar query params si es necesario (después de un tiempo o con un botón)
-    if ru_from_js and st.session_state.registro_procesado:
-        if st.button("🔄 Escanear otro QR", key="reset_scanner", use_container_width=True):
-            st.session_state.qr_ru_escaneado = None
-            st.session_state.registro_procesado = False
-            st.query_params.clear()
+        # Limpiar parámetro URL para no reprocesar
+        st.query_params.clear()
+        st.rerun()
+
+    # Mostrar mensaje de resultado
+    if st.session_state.mensaje_escaneo:
+        msg = st.session_state.mensaje_escaneo
+        if msg["tipo"] == "success":
+            st.success(msg["texto"])
+        elif msg["tipo"] == "warning":
+            st.warning(msg["texto"])
+        else:
+            st.error(msg["texto"])
+        if st.button("📷 Escanear otro código", use_container_width=True):
+            st.session_state.mensaje_escaneo = None
+            st.session_state.qr_ru_procesado = None
             st.rerun()
 
-    # ── Componente HTML: Html5QrcodeScanner mejorado ──
+    # Componente HTML del escáner (html5-qrcode)
     scanner_html = """
 <!DOCTYPE html>
 <html>
@@ -632,109 +719,48 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: transparent;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    padding: 8px;
-    gap: 12px;
-  }
-  #reader {
-    width: 100%;
-    max-width: 500px;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 0 28px rgba(0,102,255,0.5);
-  }
-  #status {
-    width: 100%;
-    max-width: 500px;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(8px);
-    color: #bbd9ff;
-    font-size: 14px;
-    font-weight: 500;
-    text-align: center;
-    padding: 8px 16px;
-    border-radius: 40px;
-    margin-top: 8px;
-  }
-  video {
-    border-radius: 16px;
-  }
+  body { background: transparent; display: flex; flex-direction: column; align-items: center; padding: 8px; gap: 12px; }
+  #reader { width: 100%; max-width: 500px; border-radius: 20px; overflow: hidden; box-shadow: 0 0 28px rgba(0,102,255,0.5); }
+  #status { width: 100%; max-width: 500px; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); color: #bbd9ff; font-size: 14px; text-align: center; padding: 8px 16px; border-radius: 40px; }
+  video { border-radius: 16px; }
 </style>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
-
 <div id="reader"></div>
-<div id="status">🔍 Iniciando cámara trasera y escaneo continuo...</div>
-
+<div id="status">🔍 Iniciando cámara trasera...</div>
 <script>
   let html5QrCode = null;
   let isScanning = true;
   let lastDetected = null;
-
-  function onScanSuccess(decodedText, decodedResult) {
+  function onScanSuccess(decodedText) {
     if (!isScanning) return;
     if (lastDetected === decodedText) return;
     lastDetected = decodedText;
-    
-    // Detener el escáner
-    if (html5QrCode && html5QrCode.isScanning) {
-      html5QrCode.stop().catch(err => console.warn("Error al detener:", err));
+    if (html5QrCode) {
+      html5QrCode.stop().catch(e => console.warn(e));
       isScanning = false;
     }
-
-    const statusDiv = document.getElementById('status');
-    statusDiv.innerHTML = '✅ QR detectado: ' + decodedText + '<br>🔄 Registrando asistencia...';
-    
-    // Enviar el RU a Streamlit
+    document.getElementById('status').textContent = '✅ QR detectado: ' + decodedText + ' → registrando...';
     const url = new URL(window.parent.location.href);
     url.searchParams.set('qr_ru', decodedText);
     window.parent.location.href = url.toString();
   }
-
-  function onScanError(errorMessage) {
-    // Silenciar errores normales de escaneo
-  }
-
-  const config = {
-    fps: 30,
-    qrbox: { width: 250, height: 250 },
-    aspectRatio: 1.0,
-    rememberLastUsedCamera: true
-  };
-
+  function onScanError(err) { /* ignorar errores comunes */ }
+  const config = { fps: 30, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0, rememberLastUsedCamera: true };
   html5QrCode = new Html5Qrcode("reader");
-  html5QrCode.start(
-    { facingMode: "environment" },
-    config,
-    onScanSuccess,
-    onScanError
-  ).then(() => {
-    document.getElementById('status').innerHTML = '✅ Cámara lista – escaneando códigos QR...<br>📱 Acerca el código QR a la cámara';
-  }).catch(err => {
-    console.error("Error al iniciar cámara:", err);
-    document.getElementById('status').innerHTML = '❌ No se pudo acceder a la cámara.<br>Verifica los permisos y que tu dispositivo tenga cámara.';
-  });
-
-  window.addEventListener('beforeunload', () => {
-    if (html5QrCode && html5QrCode.isScanning) {
-      html5QrCode.stop().catch(e => console.warn(e));
-    }
-  });
+  html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanError)
+    .then(() => document.getElementById('status').textContent = '✅ Cámara lista – escaneando...')
+    .catch(err => document.getElementById('status').textContent = '❌ Error al iniciar cámara: ' + err);
+  window.addEventListener('beforeunload', () => { if (html5QrCode && html5QrCode.isScanning) html5QrCode.stop().catch(e => {}); });
 </script>
 </body>
 </html>
 """
-
     components.html(scanner_html, height=550, scrolling=False)
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
+# REGISTRO MANUAL (CON CONTRASEÑA)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -814,7 +840,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (con dashboard de tres tarjetas)
+# VER ASISTENCIA (CON DASHBOARD DE TARJETAS)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
@@ -822,17 +848,14 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
-    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
-    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
-    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -840,16 +863,12 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
-    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
-            <div class="title">📋 Total registros</div>
+            <div class="title">📋 Total estudiantes</div>
             <div class="value">{total_estudiantes}</div>
             <div class="percentage">100% total</div>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" style="width: 100%;"></div>
-            </div>
         </div>
         <div class="dashboard-card blue-card">
             <div class="title">✅ Ya registrados</div>
@@ -870,7 +889,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
@@ -975,15 +993,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
-        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
-        columnas_a_eliminar = ["id", "descripcion"]
-        for col in columnas_a_eliminar:
-            if col in asistencia_hoy.columns:
-                asistencia_hoy = asistencia_hoy.drop(columns=[col])
+        if "id" in asistencia_hoy.columns:
+            asistencia_hoy = asistencia_hoy.drop(columns=["id"])
         if len(asistencia_hoy) > 0:
-            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
