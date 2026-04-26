@@ -11,8 +11,6 @@ import base64
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
 from pyzbar.pyzbar import decode
-from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, WebRtcMode
-import av
 
 # Importar estilos CSS desde styles.py
 from styles import CSS_STYLES
@@ -66,6 +64,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -85,38 +84,12 @@ def verificar_registro_duplicado(ru, fecha):
         return False, None
 
 # ------------------------------------------------------------
-# VIDEO PROCESSOR PARA CÁMARA TRASERA (RÁPIDO)
-# ------------------------------------------------------------
-class QRVideoProcessor(VideoProcessorBase):
-    def __init__(self):
-        self.qr_detected = None
-        self.last_qr = None
-        self.processing = False
-        
-    def recv(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        
-        # Decodificar QR en cada frame
-        decoded_objects = decode(img)
-        
-        if decoded_objects and not self.processing:
-            for obj in decoded_objects:
-                qr_data = obj.data.decode('utf-8')
-                if qr_data != self.last_qr:
-                    self.qr_detected = qr_data
-                    self.last_qr = qr_data
-                    self.processing = True
-                    break
-        
-        return av.VideoFrame.from_ndarray(img, format="bgr24")
-
-# ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# APLICAR ESTILOS CSS
+# APLICAR ESTILOS CSS (importados desde styles.py)
 # ------------------------------------------------------------
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
@@ -137,10 +110,6 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
-if "auto_scan" not in st.session_state:
-    st.session_state.auto_scan = True
-if "last_scanned_qr" not in st.session_state:
-    st.session_state.last_scanned_qr = None
 
 # ------------------------------------------------------------
 # PARTÍCULAS ANIMADAS
@@ -229,7 +198,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -575,154 +544,54 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR (OPTIMIZADO - CÁMARA TRASERA RÁPIDA)
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
     
-    st.subheader("📸 Escanear QR - Cámara Trasera")
-    st.markdown('<p style="color: var(--text-secondary);">📱 La cámara se abrirá automáticamente. ¡Solo acerca el QR y se registrará solo!</p>', unsafe_allow_html=True)
-    
-    # CSS para mejor visualización
-    st.markdown("""
-    <style>
-        .scan-status {
-            text-align: center;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 10px 0;
-        }
-        .scan-success {
-            background: linear-gradient(135deg, #00b09b, #96c93d);
-            color: white;
-        }
-        .scan-warning {
-            background: linear-gradient(135deg, #f12711, #f5af19);
-            color: white;
-        }
-        .scan-info {
-            background: linear-gradient(135deg, #2193b0, #6dd5ed);
-            color: white;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Contenedor para la cámara
-    camera_placeholder = st.empty()
-    
-    with camera_placeholder.container():
-        # Configuración para cámara trasera (facingMode: "environment")
-        ctx = webrtc_streamer(
-            key="qr-scanner",
-            mode=WebRtcMode.SENDRECV,
-            video_processor_factory=QRVideoProcessor,
-            media_stream_constraints={
-                "video": {
-                    "facingMode": "environment",  # "environment" = cámara trasera
-                    "width": {"ideal": 1280},
-                    "height": {"ideal": 720},
-                },
-                "audio": False,
-            },
-            async_processing=True,
-        )
+    st.subheader("📸 Escanear QR")
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    foto = st.camera_input("", label_visibility="collapsed")
+    if foto is not None:
+        img = Image.open(foto)
+        decoded_objects = decode(img)
         
-        # Estado del escaneo
-        if ctx.video_processor:
-            qr_data = ctx.video_processor.qr_detected
-            
-            if qr_data and qr_data != st.session_state.last_scanned_qr:
-                st.session_state.last_scanned_qr = qr_data
-                ru = qr_data
-                
-                # Buscar estudiante
-                estudiantes = leer_estudiantes()
-                estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-                
-                if len(estudiante) > 0:
-                    nombres = estudiante.iloc[0]["nombres"]
-                    paterno = estudiante.iloc[0]["apellido_paterno"]
-                    materno = estudiante.iloc[0]["apellido_materno"]
-                    fecha, hora = obtener_fecha_hora_exacta()
-                    tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-                    
-                    if not tiene_registro:
-                        try:
-                            supabase.table("asistencia").insert({
-                                "ru": ru,
-                                "nombres": nombres,
-                                "apellido_paterno": paterno,
-                                "apellido_materno": materno,
-                                "fecha": fecha.isoformat(),
-                                "hora": hora,
-                                "estado": "Presente"
-                            }).execute()
-                            st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                            
-                            # Mostrar mensaje de éxito
-                            st.markdown(f"""
-                            <div class="scan-status scan-success">
-                                <h3>✅ ¡ASISTENCIA REGISTRADA!</h3>
-                                <p><strong>{nombres} {paterno}</strong></p>
-                                <p>Hora: {hora}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # Reset processor para permitir nuevo escaneo
-                            ctx.video_processor.qr_detected = None
-                            ctx.video_processor.processing = False
-                            
-                        except Exception as e:
-                            st.error(f"❌ Error al guardar asistencia: {e}")
-                    else:
-                        st.markdown(f"""
-                        <div class="scan-status scan-warning">
-                            <h3>⚠️ REGISTRO DUPLICADO</h3>
-                            <p><strong>{nombres} {paterno}</strong></p>
-                            <p>Ya registró hoy a las {registro_existente['hora']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Reset processor
-                        ctx.video_processor.qr_detected = None
-                        ctx.video_processor.processing = False
+        if decoded_objects:
+            data = decoded_objects[0].data.decode('utf-8')
+            ru = data
+            estudiantes = leer_estudiantes()
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+            if len(estudiante) > 0:
+                nombres = estudiante.iloc[0]["nombres"]
+                paterno = estudiante.iloc[0]["apellido_paterno"]
+                materno = estudiante.iloc[0]["apellido_materno"]
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                if not tiene_registro:
+                    try:
+                        supabase.table("asistencia").insert({
+                            "ru": ru,
+                            "nombres": nombres,
+                            "apellido_paterno": paterno,
+                            "apellido_materno": materno,
+                            "fecha": fecha.isoformat(),
+                            "hora": hora,
+                            "estado": "Presente"
+                        }).execute()
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar asistencia: {e}")
                 else:
-                    st.markdown(f"""
-                    <div class="scan-status scan-warning">
-                        <h3>❌ ESTUDIANTE NO ENCONTRADO</h3>
-                        <p>RU: {ru}</p>
-                        <p>Por favor, registre al estudiante primero</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Reset processor
-                    ctx.video_processor.qr_detected = None
-                    ctx.video_processor.processing = False
-    
-    # Botón para reiniciar escaneo
-    if st.button("🔄 Reiniciar escáner", use_container_width=True):
-        st.session_state.last_scanned_qr = None
-        st.rerun()
-    
-    # Instrucciones
-    with st.expander("📖 Instrucciones de uso"):
-        st.markdown("""
-        ### 🎯 Cómo usar el escáner QR:
-        1. **Espera** a que la cámara se active automáticamente (usará la cámara trasera)
-        2. **Acerca** el código QR a la cámara
-        3. **Automáticamente** se registrará la asistencia
-        4. Verás un mensaje de confirmación
-        
-        ### 💡 Consejos:
-        - Mantén el QR bien iluminado
-        - Enfoca bien el código
-        - Espera 2 segundos entre escaneos
-        - Si no funciona, presiona "Reiniciar escáner"
-        """)
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
+            else:
+                st.error("❌ Estudiante no encontrado en la base de datos")
+        else:
+            st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -802,7 +671,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA
+# VER ASISTENCIA (con dashboard de tres tarjetas)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
@@ -810,14 +679,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
+    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
+    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
+    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -825,6 +697,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
+    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
@@ -854,6 +727,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
+    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
@@ -958,6 +832,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -965,6 +840,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
+            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
