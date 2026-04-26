@@ -1,37 +1,19 @@
 import streamlit as st
 import pandas as pd
 import qrcode
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
+import cv2
+import numpy as np
+import pytz
 import io
 import base64
-import math
-import pytz
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
 from pyzbar.pyzbar import decode
 
-# ------------------------------------------------------------
-# ESTILOS CSS (integrados para que no dependa de styles.py)
-# ------------------------------------------------------------
-CSS_STYLES = """
-<style>
-    .subtitle-script { font-size: 1.2rem; color: #ccc; }
-    .student-search-card { background: #1e2a3a; padding: 20px; border-radius: 10px; text-align: center; }
-    .student-name { font-size: 1.5rem; font-weight: bold; }
-    .student-ru { font-size: 1rem; color: #aaa; }
-    .dashboard-compact { display: flex; gap: 20px; flex-wrap: wrap; }
-    .dashboard-card { flex: 1; background: #1e2a3a; padding: 15px; border-radius: 10px; text-align: center; }
-    .progress-bar-bg { background: #2d3748; border-radius: 10px; height: 8px; margin-top: 10px; }
-    .progress-bar-fill { background: #00cc66; height: 8px; border-radius: 10px; }
-    .green-card .progress-bar-fill { background: #00cc66; }
-    .blue-card .progress-bar-fill { background: #3399ff; }
-    .orange-card .progress-bar-fill { background: #ff9933; }
-    .student-detail-card { background: #1e2a3a; padding: 15px; border-radius: 8px; margin: 10px 0; }
-    .qr-info { font-size: 1.2rem; font-weight: bold; text-align: center; margin-top: 10px; }
-    .qr-ru { font-size: 1rem; text-align: center; color: #aaa; margin-bottom: 10px; }
-</style>
-"""
+# Importar estilos CSS desde styles.py
+from styles import CSS_STYLES
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE SUPABASE
@@ -46,7 +28,7 @@ except Exception as e:
     st.stop()
 
 # ------------------------------------------------------------
-# ZONA HORARIA
+# CONFIGURACIÓN DE ZONA HORARIA
 # ------------------------------------------------------------
 ZONA_HORARIA = pytz.timezone('America/La_Paz')
 
@@ -82,6 +64,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -101,22 +84,13 @@ def verificar_registro_duplicado(ru, fecha):
         return False, None
 
 # ------------------------------------------------------------
-# DISTANCIA HAVERSINE (metros)
-# ------------------------------------------------------------
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000  # Radio terrestre en metros
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    delta_phi = math.radians(lat2 - lat1)
-    delta_lambda = math.radians(lon2 - lon1)
-    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
-
-# ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
+
+# ------------------------------------------------------------
+# APLICAR ESTILOS CSS (importados desde styles.py)
+# ------------------------------------------------------------
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
@@ -136,152 +110,9 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
-# Nuevas variables para QR dinámico
-if "aula_lat" not in st.session_state:
-    st.session_state.aula_lat = None
-if "aula_lon" not in st.session_state:
-    st.session_state.aula_lon = None
-if "qr_token" not in st.session_state:
-    st.session_state.qr_token = None
-if "qr_token_expiry" not in st.session_state:
-    st.session_state.qr_token_expiry = None
-if "app_base_url" not in st.session_state:
-    st.session_state.app_base_url = ""
 
 # ------------------------------------------------------------
-# MANEJO DE PARÁMETROS PARA QR (ESTUDIANTE)
-# ------------------------------------------------------------
-query_params = st.query_params
-if "qr_mode" in query_params and query_params["qr_mode"] == "register":
-    # Modo estudiante: mostrar formulario de registro con geolocalización
-    st.subheader("📱 Registro de asistencia mediante QR")
-    st.markdown("Escanea el QR y completa tus datos para confirmar tu asistencia.")
-    
-    token = query_params.get("token", "")
-    if not token or token != st.session_state.qr_token:
-        st.error("❌ El enlace QR no es válido o ha expirado.")
-        if st.button("Volver al inicio"):
-            st.query_params.clear()
-            st.rerun()
-        st.stop()
-    
-    if st.session_state.qr_token_expiry and datetime.now() > st.session_state.qr_token_expiry:
-        st.error("❌ El código QR ha expirado. Solicita uno nuevo.")
-        if st.button("Volver al inicio"):
-            st.query_params.clear()
-            st.rerun()
-        st.stop()
-    
-    if st.session_state.aula_lat is None or st.session_state.aula_lon is None:
-        st.error("⚠️ El profesor aún no ha fijado la ubicación del aula.")
-        if st.button("Volver al inicio"):
-            st.query_params.clear()
-            st.rerun()
-        st.stop()
-    
-    estudiantes = leer_estudiantes()
-    if len(estudiantes) == 0:
-        st.warning("No hay estudiantes registrados. Contacta al profesor.")
-        st.stop()
-    
-    estudiantes["nombre_completo"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
-    opciones = estudiantes["nombre_completo"].tolist()
-    
-    with st.form(key="qr_reg_form"):
-        seleccionado = st.selectbox("👤 Selecciona tu nombre", opciones)
-        ru_seleccionado = seleccionado.split(" - ")[0]
-        estudiante_data = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
-        
-        st.markdown("### 📍 Validación de ubicación")
-        st.markdown("Debes estar dentro del aula (máximo 5 metros del profesor).")
-        lat_input = st.text_input("Latitud", placeholder="Se obtendrá automáticamente", key="qr_lat")
-        lon_input = st.text_input("Longitud", placeholder="Se obtendrá automáticamente", key="qr_lon")
-        
-        # Botón para obtener ubicación vía JavaScript
-        st.markdown("""
-        <div id="geo-status" style="margin:10px 0; padding:10px; background:#1e2a3a; border-radius:8px;">
-            ⏳ Presiona el botón para obtener tu ubicación.
-        </div>
-        <button id="btnGeo" style="background:#0066ff; color:white; padding:8px 16px; border:none; border-radius:5px; cursor:pointer;">🌍 Obtener ubicación</button>
-        <script>
-        function obtenerUbicacion() {
-            if (!navigator.geolocation) {
-                document.getElementById('geo-status').innerHTML = '❌ Tu navegador no soporta geolocalización.';
-                return;
-            }
-            document.getElementById('geo-status').innerHTML = '🔄 Obteniendo ubicación...';
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    // Rellenar los campos de Streamlit
-                    const latField = window.parent.document.querySelector('input[aria-label="Latitud"]');
-                    const lonField = window.parent.document.querySelector('input[aria-label="Longitud"]');
-                    if (latField && lonField) {
-                        latField.value = lat;
-                        latField.dispatchEvent(new Event('input', { bubbles: true }));
-                        lonField.value = lon;
-                        lonField.dispatchEvent(new Event('input', { bubbles: true }));
-                        document.getElementById('geo-status').innerHTML = `✅ Ubicación obtenida: ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
-                    } else {
-                        document.getElementById('geo-status').innerHTML = '❌ No se encontraron los campos. Intenta de nuevo.';
-                    }
-                },
-                (error) => {
-                    document.getElementById('geo-status').innerHTML = '❌ Error al obtener ubicación: ' + error.message;
-                }
-            );
-        }
-        document.getElementById('btnGeo').addEventListener('click', obtenerUbicacion);
-        </script>
-        """, unsafe_allow_html=True)
-        
-        submitted = st.form_submit_button("✅ Confirmar asistencia")
-    
-    if submitted:
-        if not lat_input or not lon_input:
-            st.error("❌ Primero obtén tu ubicación presionando 'Obtener ubicación'.")
-        else:
-            try:
-                lat_student = float(lat_input)
-                lon_student = float(lon_input)
-            except:
-                st.error("❌ Ubicación inválida. Vuelve a obtenerla.")
-                st.stop()
-            
-            distancia = haversine(lat_student, lon_student, st.session_state.aula_lat, st.session_state.aula_lon)
-            if distancia <= 5.0:
-                fecha, hora = obtener_fecha_hora_exacta()
-                tiene_registro, _ = verificar_registro_duplicado(ru_seleccionado, fecha)
-                if not tiene_registro:
-                    try:
-                        supabase.table("asistencia").insert({
-                            "ru": ru_seleccionado,
-                            "nombres": estudiante_data["nombres"],
-                            "apellido_paterno": estudiante_data["apellido_paterno"],
-                            "apellido_materno": estudiante_data["apellido_materno"],
-                            "fecha": fecha.isoformat(),
-                            "hora": hora,
-                            "estado": "Presente"
-                        }).execute()
-                        st.success(f"✅ Asistencia registrada. ¡Bienvenido {estudiante_data['nombres']}!")
-                        st.balloons()
-                        st.query_params.clear()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error al guardar: {e}")
-                else:
-                    st.warning("⚠️ Ya registraste asistencia hoy.")
-            else:
-                st.error(f"❌ No estás dentro del aula. Distancia: {distancia:.2f} m (máx 5 m).")
-    
-    if st.button("🔙 Cancelar"):
-        st.query_params.clear()
-        st.rerun()
-    st.stop()
-
-# ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS (opcional)
+# PARTÍCULAS ANIMADAS
 # ------------------------------------------------------------
 st.markdown("""
 <script>
@@ -337,6 +168,7 @@ with st.sidebar:
 # TÍTULO CON LOGO
 # ------------------------------------------------------------
 logo_path = "assets/logo.png"
+
 with st.container():
     col_logo, col_texto = st.columns([1, 8])
     with col_logo:
@@ -360,14 +192,13 @@ opciones_menu = [
     "📋 Lista estudiantes",
     "📸 Escanear QR",
     "✍️ Registrar asistencia manual",
-    "📊 Ver asistencia",
-    "📍 QR Dinámico (5m)"
+    "📊 Ver asistencia"
 ]
 menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed", key="menu_radio")
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA
+# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -589,6 +420,10 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="qr-container">
                         <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
                     </div>
+                    <div class="download-buttons">
+                        <div style="display: inline-block;" id="qr-download-btn"></div>
+                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -622,6 +457,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.markdown("---")
         
         st.subheader("✏️ Gestionar estudiante")
+        
         estudiantes_display = estudiantes.copy()
         estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
         opciones = estudiantes_display["nombre_completo"].tolist()
@@ -708,7 +544,7 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
@@ -755,7 +591,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON CONTRASEÑA)
+# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -835,7 +671,7 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA
+# VER ASISTENCIA (con dashboard de tres tarjetas)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
@@ -843,14 +679,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
+    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
+    # Estudiantes que ya registraron hoy (cualquier estado)
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
+    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -858,10 +697,11 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
+    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
-            <div class="title">📋 Total estudiantes</div>
+            <div class="title">📋 Total registros</div>
             <div class="value">{total_estudiantes}</div>
             <div class="percentage">100% total</div>
             <div class="progress-bar-bg">
@@ -887,6 +727,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
+    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
@@ -991,6 +832,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -998,6 +840,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
+            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
@@ -1007,142 +850,3 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             st.info("📭 No hay registros para el día de hoy")
     else:
         st.info("📭 No hay registros de asistencia en el sistema")
-
-# ------------------------------------------------------------
-# NUEVA SECCIÓN: QR DINÁMICO (5m)
-# ------------------------------------------------------------
-elif st.session_state.menu_actual == "📍 QR Dinámico (5m)":
-    st.subheader("📍 Generador de QR con alcance de 5 metros")
-    st.markdown("""
-    Esta herramienta permite a los estudiantes registrar su asistencia escaneando un código QR **solo si están dentro del aula (máximo 5 metros del profesor)**.
-    
-    **Instrucciones:**
-    1. Fija la ubicación actual del aula (la computadora del profesor) presionando el botón "Obtener ubicación del aula".
-    2. Una vez fijada, configura la URL pública de la aplicación (por ejemplo, la IP de tu computadora en la red local).
-    3. Genera un código QR (aleatorio y válido por 1 minuto) y muéstraselo a los estudiantes.
-    4. Los estudiantes escanean el QR con su teléfono, se les solicitará su ubicación y podrán registrar asistencia solo si están a ≤5 metros.
-    """)
-    
-    # ---------- 1. Fijar ubicación del aula ----------
-    st.markdown("### 📍 Paso 1: Fijar ubicación del aula")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.text_input("Latitud del aula", value=str(st.session_state.aula_lat) if st.session_state.aula_lat else "", disabled=True, key="aula_lat_display")
-    with col2:
-        st.text_input("Longitud del aula", value=str(st.session_state.aula_lon) if st.session_state.aula_lon else "", disabled=True, key="aula_lon_display")
-    
-    # Botón para obtener ubicación del profesor (usa JavaScript)
-    if st.button("🌍 Obtener ubicación actual (profesor)"):
-        st.markdown("""
-        <div id="prof-geo-status" style="margin-bottom: 10px; padding: 10px; background: #1e2a3a; border-radius: 8px;">
-            ⏳ Obteniendo ubicación...
-        </div>
-        <script>
-        function obtenerUbicacionProfesor() {
-            if (!navigator.geolocation) {
-                document.getElementById('prof-geo-status').innerHTML = '❌ Tu navegador no soporta geolocalización.';
-                return;
-            }
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    // Redirigir con parámetros
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('prof_lat', lat);
-                    url.searchParams.set('prof_lon', lon);
-                    window.location.href = url.toString();
-                },
-                (error) => {
-                    document.getElementById('prof-geo-status').innerHTML = '❌ Error al obtener ubicación: ' + error.message;
-                }
-            );
-        }
-        obtenerUbicacionProfesor();
-        </script>
-        """, unsafe_allow_html=True)
-        st.info("Esperando respuesta de geolocalización... si no se actualiza automáticamente, ingresa las coordenadas manualmente.")
-    
-    # Capturar coordenadas desde URL (después de obtener ubicación)
-    if "prof_lat" in query_params and "prof_lon" in query_params:
-        try:
-            lat = float(query_params["prof_lat"])
-            lon = float(query_params["prof_lon"])
-            st.session_state.aula_lat = lat
-            st.session_state.aula_lon = lon
-            st.success(f"✅ Ubicación del aula fijada: {lat:.6f}, {lon:.6f}")
-            st.query_params.clear()
-            st.rerun()
-        except:
-            pass
-    
-    # Entrada manual como respaldo
-    st.markdown("**O ingresa manualmente las coordenadas (puedes obtenerlas desde Google Maps):**")
-    manual_lat = st.number_input("Latitud manual", value=st.session_state.aula_lat if st.session_state.aula_lat else 0.0, format="%.6f", key="manual_lat")
-    manual_lon = st.number_input("Longitud manual", value=st.session_state.aula_lon if st.session_state.aula_lon else 0.0, format="%.6f", key="manual_lon")
-    if st.button("📌 Guardar coordenadas manualmente"):
-        st.session_state.aula_lat = manual_lat
-        st.session_state.aula_lon = manual_lon
-        st.success(f"Ubicación actualizada manualmente: {manual_lat}, {manual_lon}")
-        st.rerun()
-    
-    if st.session_state.aula_lat is None or st.session_state.aula_lon is None:
-        st.warning("⚠️ Aún no se ha fijado la ubicación del aula. Los estudiantes no podrán registrar asistencia hasta que lo hagas.")
-    else:
-        st.success(f"📍 Ubicación del aula activa: {st.session_state.aula_lat:.6f}, {st.session_state.aula_lon:.6f}")
-    
-    st.markdown("---")
-    
-    # ---------- 2. Configurar URL base ----------
-    st.markdown("### 🌐 Paso 2: Configurar la URL pública de la aplicación")
-    st.markdown("Ingresa la dirección IP o dominio desde el cual los teléfonos pueden acceder a esta aplicación (ej: `http://192.168.1.100:8501`).")
-    base_url_input = st.text_input("URL base", value=st.session_state.app_base_url, placeholder="http://192.168.1.100:8501")
-    if st.button("Guardar URL"):
-        st.session_state.app_base_url = base_url_input.rstrip('/')
-        st.success("URL guardada")
-    
-    if not st.session_state.app_base_url:
-        st.warning("⚠️ Configura la URL base para que los estudiantes puedan escanear el QR.")
-    else:
-        st.info(f"URL actual: {st.session_state.app_base_url}")
-    
-    st.markdown("---")
-    
-    # ---------- 3. Generar QR dinámico ----------
-    st.markdown("### 🎲 Paso 3: Generar código QR aleatorio (válido por 1 minuto)")
-    if st.button("🔄 Generar nuevo QR", use_container_width=True):
-        token = base64.b64encode(os.urandom(16)).decode('utf-8')[:16]
-        st.session_state.qr_token = token
-        st.session_state.qr_token_expiry = datetime.now() + timedelta(minutes=1)
-        st.rerun()
-    
-    if st.session_state.qr_token and st.session_state.qr_token_expiry:
-        tiempo_restante = st.session_state.qr_token_expiry - datetime.now()
-        if tiempo_restante.total_seconds() > 0:
-            st.info(f"🔑 QR activo (expira en {tiempo_restante.seconds} segundos).")
-            if st.session_state.app_base_url:
-                qr_url = f"{st.session_state.app_base_url}?qr_mode=register&token={st.session_state.qr_token}"
-                qr = qrcode.QRCode(box_size=8, border=2)
-                qr.add_data(qr_url)
-                qr.make(fit=True)
-                qr_img = qr.make_image(fill_color="#00ffcc", back_color="#0a1428")
-                buf = io.BytesIO()
-                qr_img.save(buf, format='PNG')
-                buf.seek(0)
-                st.image(buf, width=400, caption="Código QR para estudiantes (escáneame)")
-                st.download_button("⬇️ Descargar QR", data=buf, file_name="qr_dinamico.png", mime="image/png")
-                st.markdown(f"**Enlace para escanear:** `{qr_url}`")
-            else:
-                st.error("Primero configura la URL base en el paso 2.")
-        else:
-            st.warning("⚠️ El QR ha expirado. Genera uno nuevo.")
-    else:
-        st.info("Presiona 'Generar nuevo QR' para crear un código válido por 1 minuto.")
-    
-    st.markdown("---")
-    st.markdown("### ℹ️ Notas sobre la validación de distancia")
-    st.markdown("""
-    - La geolocalización debe ser permitida por el navegador del profesor y de cada estudiante.
-    - La precisión puede variar; asegúrate de que el profesor esté en un lugar fijo dentro del aula.
-    - El estudiante debe estar a menos de 5 metros de la ubicación registrada por el profesor para poder registrar.
-    """)
