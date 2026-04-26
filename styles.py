@@ -495,8 +495,7 @@ CSS_STYLES = """
 
     /* Cámara */
     div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: 60vh !important;
+        
         object-fit: cover;
         border-radius: 16px;
         border: 2px solid var(--primary-color);
