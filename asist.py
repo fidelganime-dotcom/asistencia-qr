@@ -13,7 +13,6 @@ from supabase import create_client, Client
 from pyzbar.pyzbar import decode
 
 # Importar estilos CSS desde styles.py
-# Asegúrate de tener el archivo 'styles.py' en el mismo directorio con el contenido provisto
 from styles import CSS_STYLES
 
 # ------------------------------------------------------------
@@ -65,6 +64,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -110,13 +110,9 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
-if "qr_image_data" not in st.session_state:
-    st.session_state.qr_image_data = None
-if "latest_qr_code" not in st.session_state:
-    st.session_state.latest_qr_code = None  # Para almacenar el último QR escaneado
 
 # ------------------------------------------------------------
-# PARTÍCULAS ANIMADAS (Fondo)
+# PARTÍCULAS ANIMADAS
 # ------------------------------------------------------------
 st.markdown("""
 <script>
@@ -327,49 +323,6 @@ def crear_tarjeta_estudiante(estudiante):
     background.save(img_bytes, format='PNG')
     img_bytes.seek(0)
     return img_bytes
-
-# ------------------------------------------------------------
-# FUNCIÓN PARA PROCESAR EL QR Y REGISTRAR ASISTENCIA
-# ------------------------------------------------------------
-def procesar_y_registrar_asistencia(qr_code_data):
-    """Función central para procesar un código QR y registrar la asistencia."""
-    if qr_code_data is None or qr_code_data == "":
-        return False, "No se proporcionó un código QR válido."
-
-    ru = qr_code_data.strip()
-    if not ru.isdigit():
-        return False, f"El código QR leído '{ru}' no es un RU válido (solo números)."
-
-    estudiantes = leer_estudiantes()
-    estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-
-    if len(estudiante) == 0:
-        return False, f"❌ Estudiante con RU {ru} no encontrado en la base de datos."
-
-    estudiante_data = estudiante.iloc[0]
-    nombres_completos = f"{estudiante_data['nombres']} {estudiante_data['apellido_paterno']}"
-
-    fecha, hora = obtener_fecha_hora_exacta()
-    tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-
-    if tiene_registro:
-        hora_existente = registro_existente['hora']
-        return False, f"⚠️ {nombres_completos} YA REGISTRÓ ASISTENCIA HOY A LAS {hora_existente}"
-
-    try:
-        supabase.table("asistencia").insert({
-            "ru": ru,
-            "nombres": estudiante_data["nombres"],
-            "apellido_paterno": estudiante_data["apellido_paterno"],
-            "apellido_materno": estudiante_data["apellido_materno"],
-            "fecha": fecha.isoformat(),
-            "hora": hora,
-            "estado": "Presente"
-        }).execute()
-        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres_completos, "hora": hora, "fecha": fecha}
-        return True, f"✅ Asistencia registrada para {nombres_completos} a las {hora}"
-    except Exception as e:
-        return False, f"❌ Error al guardar asistencia: {e}"
 
 # ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE
@@ -591,261 +544,51 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR — CÁMARA TRASERA COMPLETAMENTE FUNCIONAL
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
-
+    
     st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">Apunta la cámara trasera al código QR del estudiante para registrar su asistencia automáticamente</p>', unsafe_allow_html=True)
-
-    # Componente HTML con cámara trasera y comunicación con Streamlit
-    qr_scanner_html = """
-    <style>
-        #qr-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            font-family: sans-serif;
-            padding-bottom: 20px;
-        }
-        #video {
-            width: 100%;
-            max-width: 480px;
-            border-radius: 12px;
-            border: 3px solid #0066ff;
-            background: #000;
-            box-shadow: 0 0 20px rgba(0,102,255,0.3);
-        }
-        #canvas { display: none; }
-        #snap-btn {
-            padding: 14px 40px;
-            font-size: 18px;
-            background: linear-gradient(135deg, #0066ff, #00ffcc);
-            color: #fff;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-            font-weight: bold;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(0,102,255,0.4);
-            transition: transform 0.1s;
-            width: 100%;
-            max-width: 300px;
-            margin: 10px auto;
-        }
-        #snap-btn:active { transform: scale(0.96); }
-        #status {
-            font-size: 15px;
-            color: #aaa;
-            min-height: 22px;
-            text-align: center;
-        }
-        #captured-img {
-            display: none;
-            width: 100%;
-            max-width: 480px;
-            border-radius: 12px;
-            border: 2px solid #00ffcc;
-            margin-top: 10px;
-        }
-        @media (max-width: 600px) {
-            #snap-btn { font-size: 16px; padding: 12px 20px; }
-        }
-    </style>
-
-    <div id="qr-box">
-        <video id="video" autoplay playsinline muted style="transform: scaleX(-1);"></video>
-        <canvas id="canvas"></canvas>
-        <button id="snap-btn" onclick="capturar()">📷 Capturar y Leer QR</button>
-        <p id="status">🔍 Iniciando cámara trasera...</p>
-        <img id="captured-img" alt="Foto capturada"/>
-    </div>
-
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const statusDiv = document.getElementById('status');
-        const capturedImg = document.getElementById('captured-img');
-        const ctx = canvas.getContext('2d');
-        let stream = null;
-        let scanAttempts = 0;
-
-        // Función para procesar la imagen y extraer el código QR
-        const processImageForQR = (imageDataUrl) => {
-            // Crear un objeto Image para procesar en el canvas
-            const img = new Image();
-            img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                
-                // Usar la librería jsQR si está disponible, o simular lectura
-                // Nota: jsQR no viene incluido, así que simulamos paso de imagen a Python
-                statusDiv.textContent = '🔄 Enviando imagen al servidor para lectura...';
-                statusDiv.style.color = '#ffcc00';
-                
-                // Enviar la imagen completa a Python para su procesamiento
-                // Para hacerlo más simple y robusto, extraemos solo el base64 sin el prefijo
-                const base64Data = imageDataUrl.split(',')[1];
-                
-                // Comunicar a Streamlit
-                if (window.parent && window.parent.postMessage) {
-                    window.parent.postMessage({
-                        type: 'streamlit:setComponentValue',
-                        value: base64Data
-                    }, '*');
-                } else {
-                    statusDiv.textContent = '❌ Error: No se puede comunicar con la aplicación';
-                    statusDiv.style.color = '#ff4444';
-                }
-            };
-            img.src = imageDataUrl;
-        };
-
-        // Iniciar cámara trasera (environment)
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({
-                video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-            })
-            .then(mediaStream => {
-                stream = mediaStream;
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    video.play();
-                    statusDiv.textContent = '✅ Cámara trasera activa. Presiona "Capturar y Leer QR".';
-                    statusDiv.style.color = '#00ffcc';
-                };
-            })
-            .catch(err => {
-                console.warn("Error con cámara trasera exacta:", err);
-                // Intento con facingMode: environment sin exact
-                navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-                })
-                .then(mediaStream => {
-                    stream = mediaStream;
-                    video.srcObject = stream;
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        statusDiv.textContent = '✅ Cámara trasera activa. Presiona "Capturar y Leer QR".';
-                        statusDiv.style.color = '#00ffcc';
-                    };
-                })
-                .catch(finalErr => {
-                    console.error("Error al acceder a la cámara trasera:", finalErr);
-                    statusDiv.textContent = '❌ No se pudo acceder a la cámara trasera. Usa la opción de subir foto.';
-                    statusDiv.style.color = '#ff4444';
-                });
-            });
-        } else {
-            statusDiv.textContent = '❌ Tu navegador no soporta la cámara. Usa la opción de subir foto.';
-            statusDiv.style.color = '#ff4444';
-        }
-
-        function capturar() {
-            if (!video.videoWidth || !video.videoHeight) {
-                statusDiv.textContent = '⚠️ La cámara aún no está lista. Espera un momento.';
-                statusDiv.style.color = '#ffaa00';
-                return;
-            }
-
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            // Dibujar la imagen del video en el canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Obtener la imagen como base64
-            const dataURL = canvas.toDataURL('image/png');
-            
-            // Mostrar la imagen capturada
-            capturedImg.src = dataURL;
-            capturedImg.style.display = 'block';
-            
-            statusDiv.textContent = '📤 Procesando imagen...';
-            statusDiv.style.color = '#ffcc00';
-            
-            // Procesar la imagen para extraer QR
-            processImageForQR(dataURL);
-        }
-
-        // Limpiar el stream al salir de la página para liberar la cámara
-        window.addEventListener('beforeunload', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-        });
-    </script>
-    """
-    
-    # Crear espacio para recibir el código QR
-    qr_container = st.empty()
-    
-    # Mostrar el componente HTML
-    st.components.v1.html(qr_scanner_html, height=600)
-    
-    # Input secreto para recibir datos del QR desde el componente JS
-    # Usamos un session_state específico para comunicar el QR obtenido
-    if "qr_data_from_js" not in st.session_state:
-        st.session_state.qr_data_from_js = None
-    
-    # Crear un text_input invisible para recibir datos del QR
-    # Esto se actualizará mediante un callback de JS (simulado con rerun)
-    scanned_qr = st.text_input("qr_scanner_input", label_visibility="collapsed", placeholder="QR leído", key="qr_scanner_input")
-    
-    # Procesar el QR si ha sido escaneado
-    if scanned_qr and scanned_qr != st.session_state.get("last_processed_qr", ""):
-        success, message = procesar_y_registrar_asistencia(scanned_qr)
-        if success:
-            st.success(message)
-        else:
-            st.error(message)
-        st.session_state.last_processed_qr = scanned_qr
-        st.session_state.qr_data_from_js = None
-        st.rerun()
-    
-    # Método alternativo: file uploader
-    st.markdown("---")
-    st.markdown("##### 📁 ¿No funciona la cámara? Sube una foto del QR")
-    foto_upload = st.file_uploader("Subir imagen con QR", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
-    
-    if foto_upload is not None:
-        img_pil = Image.open(foto_upload)
-        decoded_objects = decode(img_pil)
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    foto = st.camera_input("", label_visibility="collapsed")
+    if foto is not None:
+        img = Image.open(foto)
+        decoded_objects = decode(img)
+        
         if decoded_objects:
             data = decoded_objects[0].data.decode('utf-8')
-            success, message = procesar_y_registrar_asistencia(data)
-            if success:
-                st.success(message)
+            ru = data
+            estudiantes = leer_estudiantes()
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+            if len(estudiante) > 0:
+                nombres = estudiante.iloc[0]["nombres"]
+                paterno = estudiante.iloc[0]["apellido_paterno"]
+                materno = estudiante.iloc[0]["apellido_materno"]
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                if not tiene_registro:
+                    try:
+                        supabase.table("asistencia").insert({
+                            "ru": ru,
+                            "nombres": nombres,
+                            "apellido_paterno": paterno,
+                            "apellido_materno": materno,
+                            "fecha": fecha.isoformat(),
+                            "hora": hora,
+                            "estado": "Presente"
+                        }).execute()
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar asistencia: {e}")
+                else:
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
             else:
-                st.error(message)
+                st.error("❌ Estudiante no encontrado en la base de datos")
         else:
             st.warning("⚠️ No se detectó ningún código QR en la imagen")
-    
-    # Script para pasar datos del componente HTML a Streamlit de manera más robusta
-    # Este script se comunica con el iframe y actualiza el campo de texto
-    st.markdown("""
-    <script>
-    window.addEventListener('message', function(event) {
-        if (event.data.type === 'streamlit:setComponentValue' && event.data.value) {
-            // Encontrar el input de texto con el key 'qr_scanner_input'
-            const inputs = document.querySelectorAll('input[type="text"]');
-            for (let input of inputs) {
-                if (input.placeholder === 'QR leído') {
-                    input.value = event.data.value;
-                    // Disparar el evento change para que Streamlit lo detecte
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                    break;
-                }
-            }
-        }
-    });
-    </script>
-    """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
@@ -936,14 +679,17 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     
     st.subheader("📊 Registros de asistencia")
     
+    # Obtener datos
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
     
-    registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique() if not asistencia_df.empty else 0
+    # Estudiantes que ya registraron hoy (cualquier estado)
+    registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
     
+    # Porcentajes
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
         porcentaje_faltantes = (faltantes / total_estudiantes * 100)
@@ -951,6 +697,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         porcentaje_registrados = 0
         porcentaje_faltantes = 0
     
+    # Mostrar dashboard con tres tarjetas
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
@@ -980,6 +727,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
+    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
@@ -995,11 +743,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if st.button("🧹 Limpiar duplicados (mantener primer registro)", use_container_width=True):
                 try:
                     ids_a_conservar = asistencia_df.groupby(['ru', 'fecha'])['id'].first().tolist()
-                    # Eliminar todos los que no están en la lista de conservar
-                    # Supabase no tiene NOT IN directo, se hace con filtro
-                    for id_ in asistencia_df['id']:
-                        if id_ not in ids_a_conservar:
-                            supabase.table("asistencia").delete().eq("id", id_).execute()
+                    supabase.table("asistencia").delete().not_.in_("id", ids_a_conservar).execute()
                     st.success("✅ Duplicados eliminados correctamente")
                     st.rerun()
                 except Exception as e:
@@ -1088,6 +832,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
+        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -1095,6 +840,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
+            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
