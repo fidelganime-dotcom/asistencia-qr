@@ -11,7 +11,6 @@ import base64
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
 from pyzbar.pyzbar import decode
-import streamlit.components.v1 as components
 
 # Importar estilos CSS desde styles.py
 from styles import CSS_STYLES
@@ -65,7 +64,7 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto-incremental) para mostrar registros en orden de llegada
+            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -111,8 +110,6 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
-if "qr_ru_escaneado" not in st.session_state:
-    st.session_state.qr_ru_escaneado = None
 
 # ------------------------------------------------------------
 # PARTÍCULAS ANIMADAS
@@ -308,7 +305,7 @@ def crear_tarjeta_estudiante(estudiante):
         draw.text((x, y), line, fill=(355,355,355), font=name_font)
 
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height - 15
+    qr_y = start_y + total_height -15
     background.paste(qr, (qr_x, qr_y))
 
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
@@ -547,264 +544,51 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR — VERSIÓN CONTINUA Y ULTRARRÁPIDA
-# - Usa components.html con jsQR y un bucle de requestAnimationFrame.
-# - Detecta automáticamente cualquier QR en la imagen de la cámara.
-# - Cuando lo encuentra, envía el RU a Streamlit mediante query_params.
-# - No requiere botón, todo en tiempo real (milisegundos).
+# ESCANEAR QR (MEJORADO CON pyzbar)
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
-
-    st.subheader("📸 Escanear QR (detección automática continua)")
-
-    # ── Procesar RU enviado por el componente JS ──────────────
-    params = st.query_params
-    ru_from_js = params.get("qr_ru", None)
-
-    if ru_from_js and ru_from_js != st.session_state.get("qr_ru_escaneado"):
-        st.session_state.qr_ru_escaneado = ru_from_js
-
-        estudiantes_df = leer_estudiantes()
-        estudiante_fila = estudiantes_df[estudiantes_df["ru"].astype(str) == ru_from_js]
-
-        if len(estudiante_fila) > 0:
-            nombres = estudiante_fila.iloc[0]["nombres"]
-            paterno = estudiante_fila.iloc[0]["apellido_paterno"]
-            materno = estudiante_fila.iloc[0]["apellido_materno"]
-            fecha, hora = obtener_fecha_hora_exacta()
-            tiene_registro, registro_existente = verificar_registro_duplicado(ru_from_js, fecha)
-
-            if not tiene_registro:
-                try:
-                    supabase.table("asistencia").insert({
-                        "ru": ru_from_js,
-                        "nombres": nombres,
-                        "apellido_paterno": paterno,
-                        "apellido_materno": materno,
-                        "fecha": fecha.isoformat(),
-                        "hora": hora,
-                        "estado": "Presente"
-                    }).execute()
-                    st.success(
-                        f"✅ **Asistencia registrada**\n\n"
-                        f"👤 {nombres} {paterno} {materno}\n\n"
-                        f"🕐 {hora}  |  📅 {fecha.strftime('%d/%m/%Y')}"
-                    )
-                except Exception as e:
-                    st.error(f"❌ Error al guardar asistencia: {e}")
+    
+    st.subheader("📸 Escanear QR")
+    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
+    foto = st.camera_input("", label_visibility="collapsed")
+    if foto is not None:
+        img = Image.open(foto)
+        decoded_objects = decode(img)
+        
+        if decoded_objects:
+            data = decoded_objects[0].data.decode('utf-8')
+            ru = data
+            estudiantes = leer_estudiantes()
+            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
+            if len(estudiante) > 0:
+                nombres = estudiante.iloc[0]["nombres"]
+                paterno = estudiante.iloc[0]["apellido_paterno"]
+                materno = estudiante.iloc[0]["apellido_materno"]
+                fecha, hora = obtener_fecha_hora_exacta()
+                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+                if not tiene_registro:
+                    try:
+                        supabase.table("asistencia").insert({
+                            "ru": ru,
+                            "nombres": nombres,
+                            "apellido_paterno": paterno,
+                            "apellido_materno": materno,
+                            "fecha": fecha.isoformat(),
+                            "hora": hora,
+                            "estado": "Presente"
+                        }).execute()
+                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
+                    except Exception as e:
+                        st.error(f"❌ Error al guardar asistencia: {e}")
+                else:
+                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
             else:
-                hora_prev = registro_existente['hora']
-                st.warning(
-                    f"⚠️ **{nombres} {paterno}** ya registró asistencia hoy\n\n"
-                    f"🕐 Registrado a las **{hora_prev}**"
-                )
+                st.error("❌ Estudiante no encontrado en la base de datos")
         else:
-            st.error(f"❌ RU **{ru_from_js}** no encontrado en la base de datos")
-
-        # Limpiar query param para poder escanear el siguiente estudiante
-        st.query_params.clear()
-
-    # ── Componente HTML: cámara + escaneo continuo automático ──
-    scanner_html = """
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: transparent;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    padding: 8px;
-    gap: 10px;
-  }
-
-  #video-wrap {
-    position: relative;
-    width: 100%;
-    max-width: 480px;
-    border-radius: 20px;
-    overflow: hidden;
-    border: 2.5px solid #0066ff;
-    box-shadow: 0 0 28px rgba(0,102,255,0.5);
-    background: #000;
-  }
-
-  video {
-    width: 100%;
-    display: block;
-  }
-
-  /* Overlay con marco de encuadre y línea de escaneo animada */
-  #overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-
-  .frame {
-    width: 65%;
-    aspect-ratio: 1;
-    border: 3px solid #00ffcc;
-    border-radius: 16px;
-    box-shadow: 0 0 0 2000px rgba(0,0,0,0.35);
-    animation: pulseFrame 2.2s ease-in-out infinite;
-  }
-
-  @keyframes pulseFrame {
-    0%,100% { border-color: #00ffcc; box-shadow: 0 0 0 2000px rgba(0,0,0,0.35), 0 0 12px #00ffcc; }
-    50%      { border-color: #0066ff; box-shadow: 0 0 0 2000px rgba(0,0,0,0.35), 0 0 28px #0066ff; }
-  }
-
-  .scan-line {
-    position: absolute;
-    left: 17.5%;
-    width: 65%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #00ffcc, #00aaff, #00ffcc, transparent);
-    animation: scanMove 2.5s linear infinite;
-  }
-
-  @keyframes scanMove {
-    0%   { top: 17.5%; opacity: 1; }
-    95%  { opacity: 1; }
-    100% { top: 82.5%; opacity: 0; }
-  }
-
-  /* Mensaje de estado */
-  #status {
-    width: 100%;
-    max-width: 480px;
-    color: #bbd9ff;
-    font-size: 14px;
-    font-weight: 500;
-    text-align: center;
-    background: rgba(0,0,0,0.5);
-    padding: 6px 12px;
-    border-radius: 40px;
-    backdrop-filter: blur(4px);
-  }
-
-  canvas { display: none; }
-</style>
-</head>
-<body>
-
-<div id="video-wrap">
-  <video id="video" autoplay playsinline muted></video>
-  <div id="overlay">
-    <div class="frame"></div>
-    <div class="scan-line"></div>
-  </div>
-</div>
-
-<div id="status">🔍 Iniciando cámara trasera y escaneo continuo...</div>
-
-<canvas id="canvas"></canvas>
-
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script>
-  const video  = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const ctx    = canvas.getContext('2d');
-  const statusDiv = document.getElementById('status');
-
-  let scanning = true;
-  let animationId = null;
-  let lastDetected = null;      // Evita enviar el mismo QR repetidamente
-  let detectionTimeout = null;
-
-  // ── Iniciar cámara trasera (environment) con fallbacks ──────────
-  async function iniciarCamara() {
-    const constraintsList = [
-      { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-      { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
-      { video: { facingMode: 'environment' } },
-      { video: true }
-    ];
-
-    for (const constraint of constraintsList) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraint);
-        video.srcObject = stream;
-        await new Promise((resolve) => { video.onloadedmetadata = resolve; });
-        statusDiv.textContent = '✅ Cámara lista – escaneando automáticamente...';
-        startScanningLoop();
-        return;
-      } catch (err) {
-        console.warn('Error con constraint:', constraint, err);
-      }
-    }
-    statusDiv.textContent = '❌ No se pudo acceder a la cámara. Verifica los permisos.';
-  }
-
-  // ── Loop de escaneo continuo usando requestAnimationFrame ────────
-  function startScanningLoop() {
-    if (!scanning) return;
-
-    function scanFrame() {
-      if (!scanning) return;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        // Ajustar canvas al tamaño real del video
-        if (canvas.width !== video.videoWidth) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert'
-        });
-
-        if (code && code.data && code.data !== lastDetected) {
-          // Se detectó un QR nuevo
-          lastDetected = code.data;
-          const ru = code.data.trim();
-          statusDiv.textContent = '🎯 QR detectado: RU ' + ru + ' → registrando...';
-          
-          // Detener el escaneo para evitar múltiples envíos
-          scanning = false;
-          if (animationId) cancelAnimationFrame(animationId);
-          
-          // Enviar el RU a Streamlit via query_params
-          const url = new URL(window.parent.location.href);
-          url.searchParams.set('qr_ru', ru);
-          window.parent.location.href = url.toString();
-          return;
-        }
-      }
-      // Continuar el bucle
-      animationId = requestAnimationFrame(scanFrame);
-    }
-
-    animationId = requestAnimationFrame(scanFrame);
-  }
-
-  // Iniciar todo
-  iniciarCamara();
-
-  // Limpiar recursos al salir (por si acaso)
-  window.addEventListener('beforeunload', () => {
-    if (video.srcObject) {
-      video.srcObject.getTracks().forEach(track => track.stop());
-    }
-    if (animationId) cancelAnimationFrame(animationId);
-  });
-</script>
-</body>
-</html>
-"""
-
-    components.html(scanner_html, height=520, scrolling=False)
+            st.warning("⚠️ No se detectó ningún código QR en la imagen")
 
 # ------------------------------------------------------------
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
@@ -943,7 +727,7 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
     </div>
     """, unsafe_allow_html=True)
     
-    # Mostrar tabla de asistencia
+    # Mostrar tabla de asistencia (sin cambios)
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
