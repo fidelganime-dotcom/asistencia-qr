@@ -547,19 +547,17 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
         st.info("📭 No hay estudiantes registrados")
 
 # ------------------------------------------------------------
-# ESCANEAR QR — VERSIÓN OPTIMIZADA CON CÁMARA TRASERA
-# - Usa components.html con jsQR (JavaScript puro) para
-#   decodificar el QR directamente en el navegador del celular.
-# - Fuerza facingMode: 'environment' (cámara trasera).
-# - El RU detectado viaja a Python vía query_params → se
-#   registra en Supabase y muestra notificación de resultado.
-# - No se sube la foto al servidor: todo más rápido.
+# ESCANEAR QR — VERSIÓN CONTINUA Y ULTRARRÁPIDA
+# - Usa components.html con jsQR y un bucle de requestAnimationFrame.
+# - Detecta automáticamente cualquier QR en la imagen de la cámara.
+# - Cuando lo encuentra, envía el RU a Streamlit mediante query_params.
+# - No requiere botón, todo en tiempo real (milisegundos).
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
 
-    st.subheader("📸 Escanear QR")
+    st.subheader("📸 Escanear QR (detección automática continua)")
 
     # ── Procesar RU enviado por el componente JS ──────────────
     params = st.query_params
@@ -608,12 +606,12 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
         # Limpiar query param para poder escanear el siguiente estudiante
         st.query_params.clear()
 
-    # ── Componente HTML: visor de cámara trasera + jsQR ──────
+    # ── Componente HTML: cámara + escaneo continuo automático ──
     scanner_html = """
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -630,8 +628,8 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
   #video-wrap {
     position: relative;
     width: 100%;
-    max-width: 460px;
-    border-radius: 18px;
+    max-width: 480px;
+    border-radius: 20px;
     overflow: hidden;
     border: 2.5px solid #0066ff;
     box-shadow: 0 0 28px rgba(0,102,255,0.5);
@@ -643,7 +641,7 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
     display: block;
   }
 
-  /* Marco de encuadre */
+  /* Overlay con marco de encuadre y línea de escaneo animada */
   #overlay {
     position: absolute;
     inset: 0;
@@ -654,64 +652,46 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
   }
 
   .frame {
-    width: 58%;
+    width: 65%;
     aspect-ratio: 1;
     border: 3px solid #00ffcc;
-    border-radius: 14px;
-    box-shadow: 0 0 0 2000px rgba(0,0,0,0.30);
+    border-radius: 16px;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,0.35);
     animation: pulseFrame 2.2s ease-in-out infinite;
   }
 
   @keyframes pulseFrame {
-    0%,100% { border-color: #00ffcc; box-shadow: 0 0 0 2000px rgba(0,0,0,0.30), 0 0 14px #00ffcc; }
-    50%      { border-color: #0066ff; box-shadow: 0 0 0 2000px rgba(0,0,0,0.30), 0 0 28px #0066ff; }
+    0%,100% { border-color: #00ffcc; box-shadow: 0 0 0 2000px rgba(0,0,0,0.35), 0 0 12px #00ffcc; }
+    50%      { border-color: #0066ff; box-shadow: 0 0 0 2000px rgba(0,0,0,0.35), 0 0 28px #0066ff; }
   }
 
-  /* Línea de escaneo animada */
   .scan-line {
     position: absolute;
-    left: 21%;
-    width: 58%;
+    left: 17.5%;
+    width: 65%;
     height: 2px;
-    background: linear-gradient(90deg, transparent, #00ffcc, transparent);
-    animation: scanMove 2s linear infinite;
+    background: linear-gradient(90deg, transparent, #00ffcc, #00aaff, #00ffcc, transparent);
+    animation: scanMove 2.5s linear infinite;
   }
 
   @keyframes scanMove {
-    0%   { top: 21%; opacity: 1; }
+    0%   { top: 17.5%; opacity: 1; }
     95%  { opacity: 1; }
-    100% { top: 79%; opacity: 0; }
+    100% { top: 82.5%; opacity: 0; }
   }
-
-  /* Botón principal */
-  #btn {
-    width: 100%;
-    max-width: 460px;
-    padding: 16px 10px;
-    font-size: 17px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #0055ee, #00aaff);
-    color: #fff;
-    border: none;
-    border-radius: 14px;
-    cursor: pointer;
-    letter-spacing: 0.4px;
-    transition: transform .12s, opacity .2s, box-shadow .2s;
-    box-shadow: 0 4px 22px rgba(0,102,255,0.45);
-  }
-
-  #btn:active   { transform: scale(0.96); }
-  #btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   /* Mensaje de estado */
   #status {
     width: 100%;
-    max-width: 460px;
-    color: #90b8ff;
-    font-size: 13.5px;
+    max-width: 480px;
+    color: #bbd9ff;
+    font-size: 14px;
+    font-weight: 500;
     text-align: center;
-    min-height: 22px;
-    padding: 2px 8px;
+    background: rgba(0,0,0,0.5);
+    padding: 6px 12px;
+    border-radius: 40px;
+    backdrop-filter: blur(4px);
   }
 
   canvas { display: none; }
@@ -727,86 +707,104 @@ elif st.session_state.menu_actual == "📸 Escanear QR":
   </div>
 </div>
 
-<div id="status">⏳ Iniciando cámara trasera…</div>
-<button id="btn" disabled onclick="capturar()">📸 Tomar foto y registrar</button>
+<div id="status">🔍 Iniciando cámara trasera y escaneo continuo...</div>
 
 <canvas id="canvas"></canvas>
 
-<!-- jsQR: decodificador QR puro en JavaScript, sin subir la foto al servidor -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
   const video  = document.getElementById('video');
   const canvas = document.getElementById('canvas');
   const ctx    = canvas.getContext('2d');
-  const status = document.getElementById('status');
-  const btn    = document.getElementById('btn');
+  const statusDiv = document.getElementById('status');
 
-  // ── Intentar cámara trasera con fallbacks ───────────────────
+  let scanning = true;
+  let animationId = null;
+  let lastDetected = null;      // Evita enviar el mismo QR repetidamente
+  let detectionTimeout = null;
+
+  // ── Iniciar cámara trasera (environment) con fallbacks ──────────
   async function iniciarCamara() {
-    const intentos = [
-      // 1. Trasera exacta (ideal para Android/iOS)
+    const constraintsList = [
       { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-      // 2. Trasera preferida
       { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
-      // 3. Trasera sin resolución
       { video: { facingMode: 'environment' } },
-      // 4. Cualquier cámara (fallback escritorio)
       { video: true }
     ];
 
-    for (const constraint of intentos) {
+    for (const constraint of constraintsList) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia(constraint);
         video.srcObject = stream;
-        await new Promise(resolve => { video.onloadedmetadata = resolve; });
-        status.textContent = '✅ Cámara lista — apunta al QR y presiona el botón';
-        btn.disabled = false;
+        await new Promise((resolve) => { video.onloadedmetadata = resolve; });
+        statusDiv.textContent = '✅ Cámara lista – escaneando automáticamente...';
+        startScanningLoop();
         return;
-      } catch (_) {
-        // intentar el siguiente fallback
+      } catch (err) {
+        console.warn('Error con constraint:', constraint, err);
       }
     }
-    status.textContent = '❌ No se pudo acceder a la cámara. Verifica los permisos del navegador.';
+    statusDiv.textContent = '❌ No se pudo acceder a la cámara. Verifica los permisos.';
   }
 
-  // ── Capturar frame y decodificar QR con jsQR ───────────────
-  function capturar() {
-    if (!video.srcObject || video.readyState < 2) return;
+  // ── Loop de escaneo continuo usando requestAnimationFrame ────────
+  function startScanningLoop() {
+    if (!scanning) return;
 
-    btn.disabled = true;
-    status.textContent = '🔍 Buscando código QR…';
+    function scanFrame() {
+      if (!scanning) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        // Ajustar canvas al tamaño real del video
+        if (canvas.width !== video.videoWidth) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert'
+        });
 
-    canvas.width  = video.videoWidth  || 640;
-    canvas.height = video.videoHeight || 480;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert'
-    });
-
-    if (code && code.data) {
-      const ru = code.data.trim();
-      status.textContent = '✅ QR detectado: RU ' + ru + ' — registrando asistencia…';
-
-      // Enviar el RU a Streamlit recargando con query param
-      const url = new URL(window.parent.location.href);
-      url.searchParams.set('qr_ru', ru);
-      window.parent.location.href = url.toString();
-
-    } else {
-      status.textContent = '⚠️ No se detectó QR. Acércate más o mejora la iluminación e intenta de nuevo.';
-      btn.disabled = false;
+        if (code && code.data && code.data !== lastDetected) {
+          // Se detectó un QR nuevo
+          lastDetected = code.data;
+          const ru = code.data.trim();
+          statusDiv.textContent = '🎯 QR detectado: RU ' + ru + ' → registrando...';
+          
+          // Detener el escaneo para evitar múltiples envíos
+          scanning = false;
+          if (animationId) cancelAnimationFrame(animationId);
+          
+          // Enviar el RU a Streamlit via query_params
+          const url = new URL(window.parent.location.href);
+          url.searchParams.set('qr_ru', ru);
+          window.parent.location.href = url.toString();
+          return;
+        }
+      }
+      // Continuar el bucle
+      animationId = requestAnimationFrame(scanFrame);
     }
+
+    animationId = requestAnimationFrame(scanFrame);
   }
 
+  // Iniciar todo
   iniciarCamara();
+
+  // Limpiar recursos al salir (por si acaso)
+  window.addEventListener('beforeunload', () => {
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+    }
+    if (animationId) cancelAnimationFrame(animationId);
+  });
 </script>
 </body>
 </html>
 """
 
-    components.html(scanner_html, height=510, scrolling=False)
+    components.html(scanner_html, height=520, scrolling=False)
 
 # ------------------------------------------------------------
 # REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
