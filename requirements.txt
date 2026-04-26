@@ -8,6 +8,3 @@ pytz
 supabase
 pyzbar
 pillow
-plotly
-streamlit-webrtc
-av
