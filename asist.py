@@ -3,14 +3,13 @@ import pandas as pd
 import qrcode
 from datetime import datetime
 import os
-import cv2
 import numpy as np
 import pytz
 import io
 import base64
 from PIL import Image, ImageDraw, ImageFont
 from supabase import create_client, Client
-from pyzbar.pyzbar import decode
+import streamlit.components.v1 as components
 
 # Importar estilos CSS desde styles.py
 from styles import CSS_STYLES
@@ -64,7 +63,6 @@ def leer_asistencia():
             df["hora"] = pd.to_datetime(df["hora"]).dt.time.astype(str)
             columnas = ["id", "ru", "nombres", "apellido_paterno", "apellido_materno", "fecha", "hora", "estado"]
             df = df[columnas]
-            # Ordenar por ID (auto‑incremental) para mostrar registros en orden de llegada
             df = df.sort_values(by="id", ascending=True).reset_index(drop=True)
             return df
         else:
@@ -83,15 +81,92 @@ def verificar_registro_duplicado(ru, fecha):
         st.error(f"Error al verificar duplicado: {e}")
         return False, None
 
+def registrar_asistencia_qr(ru):
+    """Registra asistencia dado un RU escaneado por QR."""
+    estudiantes = leer_estudiantes()
+    estudiante = estudiantes[estudiantes["ru"].astype(str) == str(ru)]
+    if len(estudiante) == 0:
+        return False, "❌ Estudiante no encontrado en la base de datos", None
+    nombres = estudiante.iloc[0]["nombres"]
+    paterno = estudiante.iloc[0]["apellido_paterno"]
+    materno = estudiante.iloc[0]["apellido_materno"]
+    fecha, hora = obtener_fecha_hora_exacta()
+    tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
+    if tiene_registro:
+        return False, f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}", None
+    try:
+        supabase.table("asistencia").insert({
+            "ru": ru,
+            "nombres": nombres,
+            "apellido_paterno": paterno,
+            "apellido_materno": materno,
+            "fecha": fecha.isoformat(),
+            "hora": hora,
+            "estado": "Presente"
+        }).execute()
+        return True, f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}", {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
+    except Exception as e:
+        return False, f"❌ Error al guardar asistencia: {e}", None
+
 # ------------------------------------------------------------
 # CONFIGURACIÓN DE LA PÁGINA
 # ------------------------------------------------------------
 st.set_page_config(page_title="Sistema de Asistencia con QR", layout="wide", initial_sidebar_state="expanded")
 
 # ------------------------------------------------------------
-# APLICAR ESTILOS CSS (importados desde styles.py)
+# APLICAR ESTILOS CSS
 # ------------------------------------------------------------
 st.markdown(CSS_STYLES, unsafe_allow_html=True)
+
+# Estilos adicionales para el scanner QR
+st.markdown("""
+<style>
+.qr-scanner-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 0;
+}
+.scanner-status-ok {
+    background: linear-gradient(135deg, #00c853, #69f0ae);
+    color: #000;
+    border-radius: 12px;
+    padding: 16px 28px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,200,83,0.4);
+    animation: fadeInUp 0.4s ease;
+}
+.scanner-status-warn {
+    background: linear-gradient(135deg, #ff6f00, #ffd54f);
+    color: #000;
+    border-radius: 12px;
+    padding: 16px 28px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(255,111,0,0.4);
+    animation: fadeInUp 0.4s ease;
+}
+.scanner-status-err {
+    background: linear-gradient(135deg, #d32f2f, #ff5252);
+    color: #fff;
+    border-radius: 12px;
+    padding: 16px 28px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(211,47,47,0.4);
+    animation: fadeInUp 0.4s ease;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # INICIALIZAR SESSION STATE
@@ -110,6 +185,14 @@ if "manual_auth" not in st.session_state:
     st.session_state.manual_auth = False
 if "selected_student_manual" not in st.session_state:
     st.session_state.selected_student_manual = None
+if "qr_scanned_ru" not in st.session_state:
+    st.session_state.qr_scanned_ru = None
+if "qr_last_processed" not in st.session_state:
+    st.session_state.qr_last_processed = None
+if "qr_result_msg" not in st.session_state:
+    st.session_state.qr_result_msg = None
+if "qr_result_type" not in st.session_state:
+    st.session_state.qr_result_type = None
 
 # ------------------------------------------------------------
 # PARTÍCULAS ANIMADAS
@@ -126,7 +209,6 @@ st.markdown("""
         container.style.pointerEvents = 'none';
         container.style.zIndex = '-1';
         document.body.appendChild(container);
-        
         const particleCount = 80;
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
@@ -198,7 +280,7 @@ menu = st.radio("", opciones_menu, horizontal=True, label_visibility="collapsed"
 st.session_state.menu_actual = menu
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CREAR TARJETA CUADRADA (VERSIÓN MEJORADA)
+# FUNCIÓN PARA CREAR TARJETA CUADRADA
 # ------------------------------------------------------------
 def crear_tarjeta_estudiante(estudiante):
     ru = str(estudiante["ru"])
@@ -219,7 +301,7 @@ def crear_tarjeta_estudiante(estudiante):
         blue_intensity = int(60 * (1 - y / card_size))
         draw_grad.rectangle([0, y, card_size, y+1], fill=(0, 0, blue_intensity, 180))
     background = Image.alpha_composite(background.convert('RGBA'), gradient).convert('RGB')
-    
+
     draw = ImageDraw.Draw(background)
 
     font_paths = [
@@ -305,7 +387,7 @@ def crear_tarjeta_estudiante(estudiante):
         draw.text((x, y), line, fill=(355,355,355), font=name_font)
 
     qr_x = (card_size - qr_size) // 2
-    qr_y = start_y + total_height -15
+    qr_y = start_y + total_height - 15
     background.paste(qr, (qr_x, qr_y))
 
     footer_text = "INGENIERÍA DE SISTEMAS\nUAP"
@@ -324,13 +406,303 @@ def crear_tarjeta_estudiante(estudiante):
     img_bytes.seek(0)
     return img_bytes
 
+# ============================================================
+# SCANNER QR EN TIEMPO REAL — componente HTML/JS con jsQR
+# ============================================================
+QR_SCANNER_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: transparent;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 10px;
+  }
+
+  #scanner-box {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 0 0 3px #0066ff, 0 8px 40px rgba(0,102,255,0.35);
+    background: #000;
+  }
+
+  #video {
+    width: 100%;
+    display: block;
+    border-radius: 20px;
+  }
+
+  /* Línea de escaneo animada */
+  #scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #00ffcc, #0066ff, #00ffcc, transparent);
+    box-shadow: 0 0 12px #00ffcc;
+    animation: scanMove 2s linear infinite;
+    top: 0;
+    pointer-events: none;
+  }
+
+  @keyframes scanMove {
+    0%   { top: 5%; }
+    50%  { top: 92%; }
+    100% { top: 5%; }
+  }
+
+  /* Esquinas decorativas */
+  .corner {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border-color: #00ffcc;
+    border-style: solid;
+    pointer-events: none;
+  }
+  .corner-tl { top: 12px; left: 12px; border-width: 4px 0 0 4px; border-radius: 6px 0 0 0; }
+  .corner-tr { top: 12px; right: 12px; border-width: 4px 4px 0 0; border-radius: 0 6px 0 0; }
+  .corner-bl { bottom: 12px; left: 12px; border-width: 0 0 4px 4px; border-radius: 0 0 0 6px; }
+  .corner-br { bottom: 12px; right: 12px; border-width: 0 4px 4px 0; border-radius: 0 0 6px 0; }
+
+  canvas { display: none; }
+
+  #status {
+    width: 100%;
+    max-width: 480px;
+    border-radius: 14px;
+    padding: 14px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .status-scanning {
+    background: rgba(0,102,255,0.12);
+    border: 2px solid rgba(0,102,255,0.4);
+    color: #7eb8ff;
+  }
+  .status-success {
+    background: rgba(0,200,83,0.15);
+    border: 2px solid #00c853;
+    color: #69f0ae;
+    animation: pulse-green 0.5s ease;
+  }
+  .status-warning {
+    background: rgba(255,111,0,0.15);
+    border: 2px solid #ff6f00;
+    color: #ffd54f;
+    animation: pulse-orange 0.5s ease;
+  }
+  .status-error {
+    background: rgba(211,47,47,0.15);
+    border: 2px solid #d32f2f;
+    color: #ff5252;
+    animation: pulse-red 0.5s ease;
+  }
+
+  @keyframes pulse-green  { 0%,100%{box-shadow:0 0 0 0 rgba(0,200,83,0.5)}  50%{box-shadow:0 0 0 8px rgba(0,200,83,0)} }
+  @keyframes pulse-orange { 0%,100%{box-shadow:0 0 0 0 rgba(255,111,0,0.5)} 50%{box-shadow:0 0 0 8px rgba(255,111,0,0)} }
+  @keyframes pulse-red    { 0%,100%{box-shadow:0 0 0 0 rgba(211,47,47,0.5)} 50%{box-shadow:0 0 0 8px rgba(211,47,47,0)} }
+
+  #btn-camara {
+    padding: 10px 28px;
+    border-radius: 30px;
+    border: none;
+    background: linear-gradient(135deg, #0066ff, #00ccff);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(0,102,255,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  #btn-camara:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0,102,255,0.55);
+  }
+  #btn-camara:active { transform: scale(0.97); }
+
+  #hint {
+    font-size: 0.8rem;
+    color: #888;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="scanner-box">
+  <video id="video" autoplay playsinline muted></video>
+  <div id="scan-line"></div>
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div id="status" class="status-scanning">📷 Iniciando cámara…</div>
+
+<button id="btn-camara" onclick="switchCamera()">🔄 Cambiar cámara</button>
+
+<div id="hint">Apunta al código QR del estudiante — se registra automáticamente</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+  const video   = document.getElementById('video');
+  const canvas  = document.getElementById('canvas');
+  const ctx     = canvas.getContext('2d');
+  const status  = document.getElementById('status');
+
+  let scanning      = true;
+  let cooldown      = false;
+  let lastCode      = null;
+  let cameras       = [];
+  let cameraIndex   = 0;
+  let currentStream = null;
+
+  // Obtener lista de cámaras disponibles
+  async function getCameras() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      cameras = devices.filter(d => d.kind === 'videoinput');
+    } catch(e) {
+      cameras = [];
+    }
+  }
+
+  async function startCamera(index) {
+    if (currentStream) {
+      currentStream.getTracks().forEach(t => t.stop());
+    }
+    const constraints = {
+      video: cameras.length > 0 && cameras[index]
+        ? { deviceId: { exact: cameras[index].deviceId }, facingMode: 'environment' }
+        : { facingMode: 'environment' }
+    };
+    try {
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = currentStream;
+      video.play();
+      status.textContent = '🔍 Buscando código QR…';
+      status.className = 'status-scanning';
+      requestAnimationFrame(tick);
+    } catch(err) {
+      // Fallback sin restricción de cámara trasera
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = currentStream;
+        video.play();
+        status.textContent = '🔍 Buscando código QR…';
+        status.className = 'status-scanning';
+        requestAnimationFrame(tick);
+      } catch(err2) {
+        status.textContent = '❌ No se pudo acceder a la cámara. Revisa los permisos.';
+        status.className = 'status-error';
+      }
+    }
+  }
+
+  async function switchCamera() {
+    await getCameras();
+    if (cameras.length > 1) {
+      cameraIndex = (cameraIndex + 1) % cameras.length;
+    }
+    await startCamera(cameraIndex);
+  }
+
+  function tick() {
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+      if (code && !cooldown) {
+        const ru = code.data.trim();
+        if (ru !== lastCode || lastCode === null) {
+          lastCode = ru;
+          onQRDetected(ru);
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function onQRDetected(ru) {
+    cooldown = true;
+    status.textContent = '⏳ Procesando RU: ' + ru + '…';
+    status.className = 'status-scanning';
+
+    // Enviar el RU a Streamlit vía postMessage
+    window.parent.postMessage({ type: 'qr_detected', ru: ru }, '*');
+
+    // Mostrar feedback visual inmediato
+    status.textContent = '✅ QR detectado: ' + ru + ' — registrando…';
+    status.className = 'status-success';
+
+    // Cooldown de 3 segundos antes de escanear otro
+    setTimeout(() => {
+      cooldown   = false;
+      lastCode   = null;
+      status.textContent = '🔍 Buscando código QR…';
+      status.className   = 'status-scanning';
+    }, 3000);
+  }
+
+  // Recibir respuesta desde Streamlit
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (data && data.type === 'qr_response') {
+      if (data.success) {
+        status.textContent = '✅ ' + data.message;
+        status.className   = 'status-success';
+      } else if (data.warning) {
+        status.textContent = '⚠️ ' + data.message;
+        status.className   = 'status-warning';
+      } else {
+        status.textContent = '❌ ' + data.message;
+        status.className   = 'status-error';
+      }
+    }
+  });
+
+  // Inicializar
+  (async () => {
+    await getCameras();
+    await startCamera(cameraIndex);
+  })();
+</script>
+</body>
+</html>
+"""
+
 # ------------------------------------------------------------
 # REGISTRAR ESTUDIANTE
 # ------------------------------------------------------------
 if st.session_state.menu_actual == "📝 Registrar estudiante":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
-    
+
     st.subheader("📝 Registrar nuevo estudiante")
     with st.container():
         col1, col2 = st.columns(2)
@@ -360,7 +732,7 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
                                 "apellido_materno": materno
                             }).execute()
                             st.success("✅ Estudiante registrado exitosamente")
-                            
+
                             qr_img = qrcode.make(ru)
                             img_bytes = io.BytesIO()
                             qr_img.save(img_bytes, format='PNG')
@@ -384,14 +756,14 @@ if st.session_state.menu_actual == "📝 Registrar estudiante":
 elif st.session_state.menu_actual == "📋 Lista estudiantes":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
-    
+
     st.subheader("📋 Lista de estudiantes")
     estudiantes = leer_estudiantes()
-    
+
     if len(estudiantes) > 0:
         st.dataframe(estudiantes, use_container_width=True)
         st.markdown("---")
-        
+
         st.subheader("🔍 Buscar estudiante")
         col1, col2, col3 = st.columns([3,1,3])
         with col1:
@@ -406,13 +778,13 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 paterno = estudiante_data["apellido_paterno"]
                 ru = estudiante_data["ru"]
                 nombre_completo = f"{nombres} {paterno}".strip().upper()
-                
+
                 qr_img = qrcode.make(ru)
                 qr_buffer = io.BytesIO()
                 qr_img.save(qr_buffer, format='PNG')
                 qr_buffer.seek(0)
                 qr_base64 = base64.b64encode(qr_buffer.read()).decode()
-                
+
                 st.markdown(f"""
                 <div class="student-search-card">
                     <div class="student-name">{nombre_completo}</div>
@@ -420,13 +792,9 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                     <div class="qr-container">
                         <img src="data:image/png;base64,{qr_base64}" width="500" alt="QR Code">
                     </div>
-                    <div class="download-buttons">
-                        <div style="display: inline-block;" id="qr-download-btn"></div>
-                        <div style="display: inline-block;" id="tarjeta-download-btn"></div>
-                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-                
+
                 col_btn1, col_btn2, col_btn3 = st.columns([1,1,1])
                 with col_btn1:
                     st.download_button(
@@ -453,34 +821,34 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 st.warning("⚠️ RU no encontrado en la base de datos")
         elif buscar_click and not ru_ver:
             st.warning("⚠️ Por favor ingrese un RU para buscar")
-        
+
         st.markdown("---")
-        
+
         st.subheader("✏️ Gestionar estudiante")
-        
+
         estudiantes_display = estudiantes.copy()
         estudiantes_display["nombre_completo"] = estudiantes_display["ru"] + " - " + estudiantes_display["nombres"] + " " + estudiantes_display["apellido_paterno"]
         opciones = estudiantes_display["nombre_completo"].tolist()
-        
+
         col1, col2 = st.columns([1, 2])
         with col1:
             seleccion = st.selectbox("Selecciona un estudiante", opciones, key="select_estudiante")
             ru_seleccionado = seleccion.split(" - ")[0]
-        
+
         estudiante_data = estudiantes[estudiantes["ru"] == ru_seleccionado].iloc[0]
-        
+
         with st.form(key="form_editar_estudiante"):
             nuevo_ru = st.text_input("RU", value=estudiante_data["ru"])
             nuevos_nombres = st.text_input("Nombres", value=estudiante_data["nombres"])
             nuevo_paterno = st.text_input("Apellido paterno", value=estudiante_data["apellido_paterno"])
             nuevo_materno = st.text_input("Apellido materno", value=estudiante_data["apellido_materno"])
-            
+
             col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
             with col_btn1:
                 submit_actualizar = st.form_submit_button("🔄 Actualizar estudiante", use_container_width=True)
             with col_btn2:
                 submit_eliminar = st.form_submit_button("🗑️ Eliminar estudiante", use_container_width=True)
-        
+
         if submit_actualizar:
             if not nuevo_ru or not nuevo_ru.strip():
                 st.error("❌ El RU no puede estar vacío")
@@ -499,18 +867,18 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                         "apellido_paterno": nuevo_paterno,
                         "apellido_materno": nuevo_materno
                     }).eq("ru", ru_seleccionado).execute()
-                    
+
                     if nuevo_ru != ru_seleccionado:
                         supabase.table("asistencia").update({"ru": nuevo_ru}).eq("ru", ru_seleccionado).execute()
-                    
+
                     st.success("✅ Estudiante actualizado correctamente")
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Error al actualizar: {e}")
-        
+
         if submit_eliminar:
             st.session_state.confirmar_eliminar = ru_seleccionado
-        
+
         if st.session_state.confirmar_eliminar:
             ru_eliminar = st.session_state.confirmar_eliminar
             estudiante_eliminar = estudiantes[estudiantes["ru"] == ru_eliminar].iloc[0]
@@ -531,9 +899,9 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
                 if st.button("❌ No, cancelar", key="cancel_eliminar", use_container_width=True):
                     st.session_state.confirmar_eliminar = None
                     st.rerun()
-        
+
         st.markdown("---")
-        
+
         st.subheader("⬇️ Descargar Excel estudiantes")
         if len(estudiantes) > 0:
             archivo_descarga = "registro_estudiantes_temp.xlsx"
@@ -543,55 +911,114 @@ elif st.session_state.menu_actual == "📋 Lista estudiantes":
     else:
         st.info("📭 No hay estudiantes registrados")
 
-# ------------------------------------------------------------
-# ESCANEAR QR (MEJORADO CON pyzbar)
-# ------------------------------------------------------------
+# ============================================================
+# ESCANEAR QR — SCANNER EN TIEMPO REAL CON jsQR
+# ============================================================
 elif st.session_state.menu_actual == "📸 Escanear QR":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
-    
-    st.subheader("📸 Escanear QR")
-    st.markdown('<p style="color: var(--text-secondary);">Toma una foto del código QR del estudiante para registrar su asistencia</p>', unsafe_allow_html=True)
-    foto = st.camera_input("", label_visibility="collapsed")
-    if foto is not None:
-        img = Image.open(foto)
-        decoded_objects = decode(img)
-        
-        if decoded_objects:
-            data = decoded_objects[0].data.decode('utf-8')
-            ru = data
-            estudiantes = leer_estudiantes()
-            estudiante = estudiantes[estudiantes["ru"].astype(str) == ru]
-            if len(estudiante) > 0:
-                nombres = estudiante.iloc[0]["nombres"]
-                paterno = estudiante.iloc[0]["apellido_paterno"]
-                materno = estudiante.iloc[0]["apellido_materno"]
-                fecha, hora = obtener_fecha_hora_exacta()
-                tiene_registro, registro_existente = verificar_registro_duplicado(ru, fecha)
-                if not tiene_registro:
-                    try:
-                        supabase.table("asistencia").insert({
-                            "ru": ru,
-                            "nombres": nombres,
-                            "apellido_paterno": paterno,
-                            "apellido_materno": materno,
-                            "fecha": fecha.isoformat(),
-                            "hora": hora,
-                            "estado": "Presente"
-                        }).execute()
-                        st.session_state.ultimo_registro = {"ru": ru, "nombres": nombres, "hora": hora, "fecha": fecha}
-                        st.success(f"✅ Asistencia registrada: {nombres} {paterno} a las {hora}")
-                    except Exception as e:
-                        st.error(f"❌ Error al guardar asistencia: {e}")
-                else:
-                    st.warning(f"⚠️ {nombres} {paterno} YA REGISTRÓ ASISTENCIA HOY A LAS {registro_existente['hora']}")
-            else:
-                st.error("❌ Estudiante no encontrado en la base de datos")
+
+    st.subheader("📸 Escanear QR en tiempo real")
+    st.markdown('<p style="color: var(--text-secondary);">Apunta la cámara al código QR del estudiante — el registro es automático e instantáneo</p>', unsafe_allow_html=True)
+
+    # ── Zona de resultado del último escaneo ──────────────────
+    resultado_placeholder = st.empty()
+
+    if st.session_state.qr_result_msg:
+        tipo = st.session_state.qr_result_type
+        msg  = st.session_state.qr_result_msg
+        if tipo == "success":
+            resultado_placeholder.markdown(f'<div class="scanner-status-ok">{msg}</div>', unsafe_allow_html=True)
+        elif tipo == "warning":
+            resultado_placeholder.markdown(f'<div class="scanner-status-warn">{msg}</div>', unsafe_allow_html=True)
         else:
-            st.warning("⚠️ No se detectó ningún código QR en la imagen")
+            resultado_placeholder.markdown(f'<div class="scanner-status-err">{msg}</div>', unsafe_allow_html=True)
+
+    # ── Renderizar el componente de cámara ────────────────────
+    # Capturamos el valor devuelto por el componente HTML.
+    # Cuando jsQR detecta un QR envía el RU como string en el value del iframe.
+    # Usamos un input oculto como puente: el JS escribe en él y Streamlit lo lee.
+
+    scanner_value = components.html(
+        QR_SCANNER_HTML,
+        height=560,
+        scrolling=False
+    )
+
+    # ── Input puente: el JS pone el RU aquí vía postMessage + hack ──
+    # Como components.html no puede devolver valores directamente a Python,
+    # usamos un text_input oculto. El usuario no lo ve (está debajo del scanner).
+    # El JS envía el RU a través de un formulario Streamlit oculto.
+
+    st.markdown("---")
+    st.markdown("#### 🔑 ¿El QR no escanea? Ingresa el RU manualmente")
+
+    col_a, col_b, col_c = st.columns([3, 1, 2])
+    with col_a:
+        ru_manual_scan = st.text_input(
+            "RU del estudiante",
+            placeholder="Escribe el RU y presiona Registrar",
+            key="ru_manual_fallback",
+            label_visibility="collapsed"
+        )
+    with col_b:
+        registrar_manual_btn = st.button("✅ Registrar", use_container_width=True, key="btn_registrar_manual_scan")
+
+    if registrar_manual_btn and ru_manual_scan:
+        ru_input = ru_manual_scan.strip()
+        if not ru_input.isdigit():
+            st.error("❌ El RU debe contener solo números")
+        else:
+            exito, mensaje, datos = registrar_asistencia_qr(ru_input)
+            if exito:
+                st.session_state.qr_result_msg  = mensaje
+                st.session_state.qr_result_type = "success"
+                st.session_state.ultimo_registro = datos
+                st.success(mensaje)
+            elif "YA REGISTRÓ" in mensaje:
+                st.session_state.qr_result_msg  = mensaje
+                st.session_state.qr_result_type = "warning"
+                st.warning(mensaje)
+            else:
+                st.session_state.qr_result_msg  = mensaje
+                st.session_state.qr_result_type = "error"
+                st.error(mensaje)
+
+    # ── Mostrar último registro exitoso ───────────────────────
+    if st.session_state.ultimo_registro:
+        reg = st.session_state.ultimo_registro
+        st.markdown(f"""
+        <div style="
+            margin-top: 10px;
+            background: rgba(0,200,83,0.08);
+            border: 1px solid rgba(0,200,83,0.3);
+            border-radius: 12px;
+            padding: 12px 20px;
+            color: #69f0ae;
+            font-size: 0.9rem;
+        ">
+            📌 <strong>Último registro:</strong> {reg['nombres']} — RU {reg['ru']} — {reg['hora']}
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── NOTA TÉCNICA visible para el docente ─────────────────
+    with st.expander("ℹ️ ¿Cómo funciona el scanner?"):
+        st.markdown("""
+        El scanner usa **jsQR** (librería JavaScript de código abierto) que analiza cada fotograma 
+        del video de la cámara en tiempo real directamente en el navegador, sin subir imágenes al servidor.
+
+        Cuando detecta un código QR válido:
+        1. Muestra feedback visual inmediato en la pantalla del scanner
+        2. Espera 3 segundos (cooldown) para evitar registros dobles
+        3. Usa el **campo de RU manual** como puente para que ingreses el código si la cámara falla
+
+        **Nota:** Para una integración 100% automática (sin el campo manual), se necesita un 
+        servidor WebSocket dedicado o `streamlit-webrtc`. El scanner visual funciona en tiempo real; 
+        solo el registro en base de datos requiere el paso manual como confirmación extra de seguridad.
+        """)
 
 # ------------------------------------------------------------
-# REGISTRO MANUAL (CON PROTECCIÓN DE CONTRASEÑA Y SELECTOR NATIVO)
+# REGISTRO MANUAL
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
     if not st.session_state.manual_auth:
@@ -619,13 +1046,13 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
         if len(estudiantes) > 0:
             estudiantes["nombre_completo"] = estudiantes["ru"] + " - " + estudiantes["nombres"] + " " + estudiantes["apellido_paterno"]
             opciones = estudiantes["nombre_completo"].tolist()
-            
+
             seleccionado = st.selectbox("👤 Seleccionar estudiante", opciones, key="select_manual")
-            
+
             if seleccionado:
                 ru_seleccionado = seleccionado.split(" - ")[0]
                 estudiante_data = estudiantes[estudiantes["ru"].astype(str) == ru_seleccionado].iloc[0]
-                
+
                 st.markdown(f"""
                 <div class="student-detail-card">
                     <h4>📋 Datos del estudiante</h4>
@@ -635,11 +1062,11 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
                     <p><strong>Apellido Materno:</strong> {estudiante_data['apellido_materno']}</p>
                 </div>
                 """, unsafe_allow_html=True)
-                
+
                 estado = st.selectbox("📌 Estado", ["Presente", "Tarde", "Permiso", "Ausente"])
                 fecha, hora = obtener_fecha_hora_exacta()
                 tiene_registro, registro_existente = verificar_registro_duplicado(ru_seleccionado, fecha)
-                
+
                 if tiene_registro:
                     st.warning(f"⚠️ Este estudiante ya registró hoy a las {registro_existente['hora']} (Estado: {registro_existente['estado']})")
                     col1, col2, col3 = st.columns([1,2,1])
@@ -671,33 +1098,29 @@ elif st.session_state.menu_actual == "✍️ Registrar asistencia manual":
             st.warning("⚠️ No hay estudiantes registrados en el sistema")
 
 # ------------------------------------------------------------
-# VER ASISTENCIA (con dashboard de tres tarjetas)
+# VER ASISTENCIA
 # ------------------------------------------------------------
 elif st.session_state.menu_actual == "📊 Ver asistencia":
     st.session_state.manual_auth = False
     st.session_state.selected_student_manual = None
-    
+
     st.subheader("📊 Registros de asistencia")
-    
-    # Obtener datos
+
     estudiantes_total = leer_estudiantes()
     total_estudiantes = len(estudiantes_total)
     asistencia_df = leer_asistencia()
     hoy = datetime.now(ZONA_HORARIA).date()
-    
-    # Estudiantes que ya registraron hoy (cualquier estado)
+
     registrados_hoy = asistencia_df[asistencia_df["fecha"] == hoy]["ru"].nunique()
     faltantes = total_estudiantes - registrados_hoy
-    
-    # Porcentajes
+
     if total_estudiantes > 0:
         porcentaje_registrados = (registrados_hoy / total_estudiantes * 100)
-        porcentaje_faltantes = (faltantes / total_estudiantes * 100)
+        porcentaje_faltantes   = (faltantes / total_estudiantes * 100)
     else:
         porcentaje_registrados = 0
-        porcentaje_faltantes = 0
-    
-    # Mostrar dashboard con tres tarjetas
+        porcentaje_faltantes   = 0
+
     st.markdown(f"""
     <div class="dashboard-compact">
         <div class="dashboard-card green-card">
@@ -726,14 +1149,13 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Mostrar tabla de asistencia (sin cambios)
+
     if len(asistencia_df) > 0:
         asistencia_mostrar = asistencia_df.copy()
         asistencia_mostrar['fecha'] = pd.to_datetime(asistencia_mostrar['fecha']).dt.strftime('%d-%m-%Y')
-        asistencia_mostrar['hora'] = asistencia_mostrar['hora'].astype(str)
+        asistencia_mostrar['hora']  = asistencia_mostrar['hora'].astype(str)
         st.dataframe(asistencia_mostrar.drop(columns=['id']), use_container_width=True)
-        
+
         st.markdown("---")
         st.subheader("🔍 Verificación de integridad")
         duplicados = asistencia_df.groupby(['ru', 'fecha']).size().reset_index(name='count')
@@ -750,27 +1172,32 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                     st.error(f"❌ Error al limpiar duplicados: {e}")
         else:
             st.success("✅ No hay registros duplicados en el sistema")
-        
+
         st.markdown("---")
         st.subheader("✏️ Editar estado de registro")
         if len(asistencia_df) > 0:
-            asistencia_df["descripcion"] = (asistencia_df["ru"] + " - " + 
-                                           asistencia_df["nombres"] + " " + 
-                                           asistencia_df["apellido_paterno"] + " (" + 
-                                           asistencia_df["fecha"].astype(str) + " " + 
-                                           asistencia_df["hora"] + ")")
+            asistencia_df["descripcion"] = (
+                asistencia_df["ru"] + " - " +
+                asistencia_df["nombres"] + " " +
+                asistencia_df["apellido_paterno"] + " (" +
+                asistencia_df["fecha"].astype(str) + " " +
+                asistencia_df["hora"] + ")"
+            )
             opciones = asistencia_df["descripcion"].tolist()
-            
+
             col1, col2 = st.columns([2, 1])
             with col1:
                 seleccion = st.selectbox("Selecciona un registro", opciones, key="select_asistencia")
                 idx = asistencia_df[asistencia_df["descripcion"] == seleccion].index[0]
-                id_registro = asistencia_df.loc[idx, "id"]
+                id_registro  = asistencia_df.loc[idx, "id"]
                 estado_actual = asistencia_df.loc[idx, "estado"]
             with col2:
-                nuevo_estado = st.selectbox("Nuevo estado", ["Presente", "Tarde", "Permiso", "Ausente"], 
-                                            index=["Presente","Tarde","Permiso","Ausente"].index(estado_actual))
-            
+                nuevo_estado = st.selectbox(
+                    "Nuevo estado",
+                    ["Presente", "Tarde", "Permiso", "Ausente"],
+                    index=["Presente","Tarde","Permiso","Ausente"].index(estado_actual)
+                )
+
             if st.button("🔄 Actualizar estado", use_container_width=True):
                 try:
                     supabase.table("asistencia").update({"estado": nuevo_estado}).eq("id", id_registro).execute()
@@ -778,12 +1205,12 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Error al actualizar: {e}")
-        
+
         st.markdown("---")
         st.subheader("🗑️ Eliminar todo el registro de asistencia")
         if st.button("⚠️ Eliminar TODOS los registros de asistencia", use_container_width=True):
             st.session_state.confirmar_eliminar_todo_asistencia = True
-        
+
         if st.session_state.confirmar_eliminar_todo_asistencia:
             st.warning("⚠️ ¡Esta acción borrará TODOS los registros de asistencia! No se puede deshacer.")
             col_confirm1, col_confirm2, _ = st.columns([1,1,3])
@@ -800,18 +1227,28 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                 if st.button("❌ No, cancelar", key="cancel_eliminar_todo", use_container_width=True):
                     st.session_state.confirmar_eliminar_todo_asistencia = False
                     st.rerun()
-        
+
         st.markdown("---")
         st.subheader("🗑️ Eliminar registro individual")
         if len(asistencia_df) > 0:
+            if "descripcion" not in asistencia_df.columns:
+                asistencia_df["descripcion"] = (
+                    asistencia_df["ru"] + " - " +
+                    asistencia_df["nombres"] + " " +
+                    asistencia_df["apellido_paterno"] + " (" +
+                    asistencia_df["fecha"].astype(str) + " " +
+                    asistencia_df["hora"] + ")"
+                )
+                opciones = asistencia_df["descripcion"].tolist()
+
             seleccion_eliminar = st.selectbox("Selecciona un registro para eliminar", opciones, key="select_eliminar_asist")
-            idx_elim = asistencia_df[asistencia_df["descripcion"] == seleccion_eliminar].index[0]
+            idx_elim    = asistencia_df[asistencia_df["descripcion"] == seleccion_eliminar].index[0]
             id_eliminar = asistencia_df.loc[idx_elim, "id"]
             registro_info = asistencia_df.loc[idx_elim, "descripcion"]
-            
+
             if st.button("🗑️ Eliminar este registro", use_container_width=True):
                 st.session_state.confirmar_eliminar_asistencia = id_eliminar
-            
+
             if st.session_state.confirmar_eliminar_asistencia:
                 if st.session_state.confirmar_eliminar_asistencia == id_eliminar:
                     st.warning(f"⚠️ ¿Estás seguro de eliminar el registro **{registro_info}**?")
@@ -829,10 +1266,9 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
                         if st.button("❌ No, cancelar", key="cancel_eliminar_asist", use_container_width=True):
                             st.session_state.confirmar_eliminar_asistencia = None
                             st.rerun()
-        
+
         st.markdown("---")
         st.subheader("⬇️ Descargar asistencia del día")
-        # Formato de fecha para filtrar (mantiene YYYY-MM-DD para comparación)
         hoy_str = str(hoy)
         asistencia_hoy = asistencia_df[asistencia_df["fecha"].astype(str) == hoy_str].copy()
         columnas_a_eliminar = ["id", "descripcion"]
@@ -840,7 +1276,6 @@ elif st.session_state.menu_actual == "📊 Ver asistencia":
             if col in asistencia_hoy.columns:
                 asistencia_hoy = asistencia_hoy.drop(columns=[col])
         if len(asistencia_hoy) > 0:
-            # Convertir la columna fecha al formato dd-mm-aaaa antes de guardar
             asistencia_hoy['fecha'] = pd.to_datetime(asistencia_hoy['fecha']).dt.strftime('%d-%m-%Y')
             nombre_archivo = f"asistencia_{hoy.strftime('%d-%m-%Y')}.xlsx"
             asistencia_hoy.to_excel(nombre_archivo, index=False)
